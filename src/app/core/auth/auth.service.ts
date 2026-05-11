@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, tap, map, catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse, AuthenticationModel, LoginRequest, UserProfile } from '../models/api.models';
+import { CryptoService } from '../crypto/crypto.service';
 
 const TOKEN_KEY = 'pos-reports.jwt';
 const REFRESH_KEY = 'pos-reports.refresh';
@@ -13,6 +14,7 @@ const PROFILE_KEY = 'pos-reports.profile';
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly crypto = inject(CryptoService);
 
   readonly token = signal<string | null>(this.readStored(TOKEN_KEY));
   readonly profile = signal<UserProfile | null>(this.readProfile());
@@ -22,12 +24,20 @@ export class AuthService {
    * POST /api/User/Login — mirrors the server's TokenRequestModel.
    * Returns true on success, false otherwise. The auth state is updated
    * as a side-effect.
+   *
+   * The password (or PIN — same field server-side) is RSA-encrypted with
+   * the server's public key before transit, matching the existing
+   * desktop POS client behaviour the server already supports.
    */
   login(payload: LoginRequest): Observable<{ ok: boolean; message: string }> {
+    const encrypted: LoginRequest = {
+      ...payload,
+      password: this.crypto.encryptPassword(payload.password),
+    };
     return this.http
       .post<AuthenticationModel | ApiResponse<AuthenticationModel>>(
         `${environment.apiBaseUrl}/api/User/Login`,
-        payload,
+        encrypted,
       )
       .pipe(
         // The server returns AuthenticationModel directly (not wrapped) on

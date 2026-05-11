@@ -2,10 +2,12 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { LucideAngularModule, ShieldCheck, Eye, EyeOff, Globe, Loader } from 'lucide-angular';
+import { LucideAngularModule, ShieldCheck, Eye, EyeOff, Globe, Loader, Sun, Moon, MonitorCog, KeySquare, LockKeyhole } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
+
+type LucideIcon = typeof Sun;
 
 @Component({
   selector: 'app-login',
@@ -18,18 +20,40 @@ import { ThemeService } from '../../core/theme/theme.service';
                  dark:from-brand-900/20 dark:via-surface-dark dark:to-info/10">
       <div class="w-full max-w-md">
 
-        <!-- Language + Theme toggles -->
-        <div class="flex justify-end gap-2 mb-6">
-          <button (click)="lang.toggle()" class="btn-ghost text-xs">
-            <lucide-icon [img]="Globe" class="h-4 w-4"></lucide-icon>
-            {{ lang.language() === 'ar' ? 'EN' : 'ع' }}
+        <!-- ── Language + Theme toggles — clearly labelled ────────── -->
+        <div class="flex justify-between items-center mb-6">
+          <!-- Language toggle (left side in LTR / right in RTL) -->
+          <button (click)="lang.toggle()"
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-card-sm
+                         border border-slate-300 dark:border-slate-700
+                         bg-white dark:bg-surface-dark-subtle
+                         px-3 py-1.5 text-sm font-medium
+                         text-slate-700 dark:text-slate-200
+                         hover:bg-slate-50 dark:hover:bg-surface-dark-muted
+                         transition-colors duration-180 shadow-card"
+                  [attr.aria-label]="lang.language() === 'ar' ? 'Switch to English' : 'التبديل للعربية'">
+            <lucide-icon [img]="Globe" class="h-4 w-4 text-brand-700"></lucide-icon>
+            <span class="font-bold">{{ lang.language() === 'ar' ? 'English' : 'العربية' }}</span>
           </button>
-          <button (click)="theme.cycle()" class="btn-ghost text-xs">
-            {{ theme.mode() === 'dark' ? '☀' : theme.mode() === 'light' ? '🌙' : '🖥' }}
+
+          <!-- Theme toggle -->
+          <button (click)="theme.cycle()"
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-card-sm
+                         border border-slate-300 dark:border-slate-700
+                         bg-white dark:bg-surface-dark-subtle
+                         px-3 py-1.5 text-sm font-medium
+                         text-slate-700 dark:text-slate-200
+                         hover:bg-slate-50 dark:hover:bg-surface-dark-muted
+                         transition-colors duration-180 shadow-card"
+                  [attr.aria-label]="lang.language() === 'ar' ? 'تبديل الثيم' : 'Toggle theme'">
+            <lucide-icon [img]="themeIcon()" class="h-4 w-4 text-brand-700"></lucide-icon>
+            <span>{{ themeLabel() }}</span>
           </button>
         </div>
 
-        <!-- Logo / brand -->
+        <!-- ── Brand ──────────────────────────────────────────────── -->
         <div class="text-center mb-8">
           <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl
                       bg-brand-700 text-white shadow-card mb-3">
@@ -43,27 +67,69 @@ import { ThemeService } from '../../core/theme/theme.service';
           </p>
         </div>
 
-        <!-- Form -->
+        <!-- ── Form ───────────────────────────────────────────────── -->
         <form (ngSubmit)="submit()" class="card-padded space-y-4">
+
+          <!-- Mode toggle — Password (default) vs PIN -->
+          <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-surface-dark-muted rounded-card-sm">
+            <button type="button"
+                    (click)="isPIN = false"
+                    [class.bg-white]="!isPIN"
+                    [class.dark:bg-surface-dark-subtle]="!isPIN"
+                    [class.shadow-card]="!isPIN"
+                    [class.text-brand-700]="!isPIN"
+                    [class.dark:text-brand-300]="!isPIN"
+                    class="inline-flex items-center justify-center gap-2 rounded-card-sm
+                           px-3 py-1.5 text-sm font-medium
+                           text-slate-600 dark:text-slate-400
+                           transition-all duration-180">
+              <lucide-icon [img]="LockKeyhole" class="h-4 w-4"></lucide-icon>
+              {{ lang.language() === 'ar' ? 'كلمة المرور' : 'Password' }}
+            </button>
+            <button type="button"
+                    (click)="isPIN = true"
+                    [class.bg-white]="isPIN"
+                    [class.dark:bg-surface-dark-subtle]="isPIN"
+                    [class.shadow-card]="isPIN"
+                    [class.text-brand-700]="isPIN"
+                    [class.dark:text-brand-300]="isPIN"
+                    class="inline-flex items-center justify-center gap-2 rounded-card-sm
+                           px-3 py-1.5 text-sm font-medium
+                           text-slate-600 dark:text-slate-400
+                           transition-all duration-180">
+              <lucide-icon [img]="KeySquare" class="h-4 w-4"></lucide-icon>
+              PIN
+            </button>
+          </div>
+
+          <!-- Password / PIN input -->
           <div>
             <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
-              {{ lang.language() === 'ar' ? 'كلمة المرور / PIN' : 'Password / PIN' }}
+              {{ isPIN
+                  ? (lang.language() === 'ar' ? 'الـ PIN' : 'PIN')
+                  : (lang.language() === 'ar' ? 'كلمة المرور' : 'Password') }}
             </label>
             <div class="relative">
               <input
-                [type]="showPassword() ? 'text' : 'password'"
+                [type]="(showPassword() || isPIN) ? (isPIN ? 'tel' : 'text') : 'password'"
                 [(ngModel)]="password"
                 name="password"
+                [attr.inputmode]="isPIN ? 'numeric' : 'text'"
+                [attr.pattern]="isPIN ? '[0-9]*' : null"
                 autocomplete="current-password"
                 required
                 class="w-full rounded-card-sm border border-slate-300 dark:border-slate-700
                        bg-white dark:bg-surface-dark-muted
-                       px-3 py-2 pe-10 text-sm
+                       px-3 py-2.5 pe-10 text-sm tabular
                        focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30
                        placeholder:text-slate-400"
-                [placeholder]="lang.language() === 'ar' ? 'اكتب كلمة المرور' : 'Enter password'"
+                [placeholder]="isPIN
+                    ? (lang.language() === 'ar' ? 'اكتب الـ PIN' : 'Enter PIN')
+                    : (lang.language() === 'ar' ? 'اكتب كلمة المرور' : 'Enter password')"
               />
-              <button type="button" (click)="showPassword.set(!showPassword())"
+              <button type="button"
+                      *ngIf="!isPIN"
+                      (click)="showPassword.set(!showPassword())"
                       class="absolute end-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                       [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
                 <lucide-icon [img]="showPassword() ? EyeOff : Eye" class="h-4 w-4"></lucide-icon>
@@ -71,24 +137,26 @@ import { ThemeService } from '../../core/theme/theme.service';
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
-            <input type="checkbox" id="isPIN" [(ngModel)]="isPIN" name="isPIN"
-                   class="rounded border-slate-300 dark:border-slate-700 text-brand-700 focus:ring-brand-500"/>
-            <label for="isPIN" class="text-sm text-slate-600 dark:text-slate-300">
-              {{ lang.language() === 'ar' ? 'الدخول بـ PIN' : 'Sign in with PIN' }}
-            </label>
-          </div>
-
+          <!-- Error -->
           <div *ngIf="error()" class="pill-critical text-sm w-full justify-start py-2">
             {{ error() }}
           </div>
 
+          <!-- Submit -->
           <button type="submit"
                   [disabled]="loading()"
-                  class="btn-primary w-full justify-center">
+                  class="btn-primary w-full justify-center py-2.5">
             <lucide-icon *ngIf="loading()" [img]="Loader" class="h-4 w-4 animate-spin"></lucide-icon>
             <span>{{ lang.language() === 'ar' ? 'تسجيل الدخول' : 'Sign in' }}</span>
           </button>
+
+          <!-- Security note -->
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 justify-center pt-1">
+            <lucide-icon [img]="ShieldIcon" class="h-3 w-3"></lucide-icon>
+            {{ lang.language() === 'ar'
+                ? 'كلمة المرور بتتشفّر بـ RSA قبل ما تتبعت.'
+                : 'Password is RSA-encrypted before transit.' }}
+          </p>
         </form>
 
         <p class="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
@@ -108,7 +176,8 @@ export class LoginComponent {
   readonly theme = inject(ThemeService);
 
   password = '';
-  isPIN = true;
+  /** Default to Password mode (not PIN) per user requirement. */
+  isPIN = false;
   readonly showPassword = signal(false);
   readonly loading = signal(false);
   readonly error = signal('');
@@ -118,12 +187,28 @@ export class LoginComponent {
   readonly EyeOff = EyeOff;
   readonly Globe = Globe;
   readonly Loader = Loader;
+  readonly LockKeyhole = LockKeyhole;
+  readonly KeySquare = KeySquare;
+
+  themeIcon(): LucideIcon {
+    const m = this.theme.mode();
+    if (m === 'light') return Sun;
+    if (m === 'dark') return Moon;
+    return MonitorCog;
+  }
+
+  themeLabel(): string {
+    const m = this.theme.mode();
+    const ar = m === 'light' ? 'فاتح' : m === 'dark' ? 'داكن' : 'تلقائي';
+    const en = m === 'light' ? 'Light' : m === 'dark' ? 'Dark' : 'System';
+    return this.lang.language() === 'ar' ? ar : en;
+  }
 
   submit(): void {
     if (!this.password) {
       this.error.set(this.lang.language() === 'ar'
-        ? 'اكتب كلمة المرور.'
-        : 'Enter your password.');
+        ? (this.isPIN ? 'اكتب الـ PIN.' : 'اكتب كلمة المرور.')
+        : (this.isPIN ? 'Enter your PIN.' : 'Enter your password.'));
       return;
     }
     this.loading.set(true);
