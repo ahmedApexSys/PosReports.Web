@@ -12,7 +12,8 @@ export const authGuard: CanActivateFn = (_route, state) => {
 
   if (ok) return true;
 
-  return router.createUrlTree(['/login'], {
-    queryParams: { returnUrl: state.url },
-  });
+  // Imperative navigate is more reliable than returning a UrlTree in
+  // Angular 21 when the guard fires during the very first navigation.
+  router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+  return false;
 };

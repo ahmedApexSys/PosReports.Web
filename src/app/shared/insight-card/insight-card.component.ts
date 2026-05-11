@@ -4,6 +4,8 @@ import { LucideAngularModule, CircleCheck, Info, TriangleAlert, CircleAlert, Cir
 import { BilingualPipe } from '../bilingual.pipe';
 import { BiInsight, InsightSeverity, SEVERITY_TONE } from '../../core/models/bi.models';
 
+type LucideIcon = typeof Info;
+
 @Component({
   selector: 'app-insight-card',
   standalone: true,
@@ -59,14 +61,15 @@ export class InsightCardComponent {
   readonly Lightbulb = Lightbulb;
   readonly X = X;
 
-  iconForSeverity = computed(() => {
-    return ({
+  iconForSeverity = computed<LucideIcon>(() => {
+    const map: Record<InsightSeverity, LucideIcon> = {
       [InsightSeverity.Good]:     CircleCheck,
       [InsightSeverity.Info]:     Info,
       [InsightSeverity.Warning]:  TriangleAlert,
       [InsightSeverity.High]:     CircleAlert,
       [InsightSeverity.Critical]: CircleX,
-    } as Record<InsightSeverity, unknown>)[this.data().severity] ?? Info;
+    };
+    return map[this.data().severity] ?? Info;
   });
 
   cardRing = computed(() => {

@@ -6,11 +6,13 @@ import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
 
+type LucideIcon = typeof Sun;
+
 interface NavItem {
   labelEn: string;
   labelAr: string;
   route: string;
-  icon: unknown;
+  icon: LucideIcon;
 }
 
 interface NavGroup {
@@ -211,7 +213,7 @@ export class ShellComponent {
     return this.collapsed() ? 'lg:ms-16' : 'lg:ms-64';
   }
 
-  themeIcon(): unknown {
+  themeIcon(): LucideIcon {
     const m = this.theme.mode();
     if (m === 'light') return Sun;
     if (m === 'dark') return Moon;
