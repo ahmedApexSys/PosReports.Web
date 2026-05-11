@@ -1,0 +1,89 @@
+/* ── Google Fonts (must come BEFORE @tailwind per CSS spec) ──────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Tailwind directives ─────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base / global ───────────────────────────────────────────────── */
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  html, body {
+    @apply h-full bg-surface text-slate-900 antialiased;
+    @apply dark:bg-surface-dark dark:text-slate-100;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* RTL — Arabic flips the entire layout */
+  html[dir="rtl"] {
+    font-family: theme('fontFamily.ar');
+  }
+
+  /* Tabular numbers for KPI values */
+  .num, .kpi-value, .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus rings — never invisible */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface dark:ring-offset-surface-dark;
+  }
+
+  /* Skip-to-content link for accessibility */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50;
+    @apply focus:rounded-md focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-white;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ── Component classes — reusable across the app ─────────────────── */
+@layer components {
+  .card {
+    @apply rounded-card bg-white shadow-card dark:bg-surface-dark-subtle dark:shadow-card-dk;
+  }
+  .card-padded {
+    @apply card p-4 md:p-6;
+  }
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-card-sm px-4 py-2 font-medium transition-colors duration-180;
+  }
+  .btn-primary {
+    @apply btn bg-brand-700 text-white hover:bg-brand-800;
+  }
+  .btn-ghost {
+    @apply btn text-slate-700 hover:bg-surface-muted dark:text-slate-200 dark:hover:bg-surface-dark-muted;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5 text-xs font-medium;
+  }
+  .pill-good     { @apply pill bg-good-soft     text-good     dark:bg-good/20     dark:text-good-ring; }
+  .pill-info     { @apply pill bg-info-soft     text-info     dark:bg-info/20     dark:text-info-ring; }
+  .pill-warning  { @apply pill bg-warning-soft  text-warning  dark:bg-warning/20  dark:text-warning-ring; }
+  .pill-high     { @apply pill bg-high-soft     text-high     dark:bg-high/20     dark:text-high-ring; }
+  .pill-critical { @apply pill bg-critical-soft text-critical dark:bg-critical/20 dark:text-critical-ring; }
+}
+
+/* ── Print stylesheet — hide chrome, vectorise charts ────────────── */
+@media print {
+  .no-print, header, nav, aside, .sidebar, button { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid #e5e7eb; }
+  body { background: white !important; color: black !important; }
+}
