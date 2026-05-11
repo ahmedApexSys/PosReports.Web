@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router } from '@angular/router';
 import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog } from 'lucide-angular';
@@ -39,11 +39,7 @@ interface NavGroup {
                     border-e border-slate-200 dark:border-slate-800
                     transition-transform duration-220
                     flex flex-col"
-             [class.translate-x-0]="mobileNavOpen()"
-             [class.-translate-x-full]="!mobileNavOpen()"
-             [class.rtl:translate-x-0]="mobileNavOpen()"
-             [class.rtl:translate-x-full]="!mobileNavOpen()"
-             [class]="sidebarWidthClass()">
+             [class]="asideClasses()">
 
         <!-- Logo -->
         <div class="h-16 flex items-center gap-3 px-4 border-b border-slate-200 dark:border-slate-800">
@@ -205,13 +201,37 @@ export class ShellComponent {
     },
   ];
 
-  sidebarWidthClass(): string {
-    return this.collapsed() ? 'w-16' : 'w-64';
-  }
+  /**
+   * One computed class string for the aside element. Combines:
+   * - width (collapsed vs expanded)
+   * - mobile drawer transform (slide-in / slide-out)
+   * - desktop visibility (always visible at lg+, regardless of drawer state)
+   *
+   * Composing the string in TS (rather than `[class.X]` per token) keeps
+   * Tailwind's JIT happy — every class appears literally in source — and
+   * avoids the Angular parser hiccup on class tokens that contain `:`
+   * (which Tailwind variants like `rtl:` and `lg:` use).
+   */
+  readonly asideClasses = computed(() => {
+    const width = this.collapsed() ? 'w-16' : 'w-64';
+    const open  = this.mobileNavOpen();
+    // Mobile (default): drawer slides off-screen when closed.
+    //   LTR: hidden = -translate-x-full  (off-screen left)
+    //   RTL: hidden =  translate-x-full  (off-screen right)
+    // Desktop (lg:): always visible — lg:translate-x-0 overrides the
+    // mobile transform on large screens.
+    let transform = 'translate-x-0 lg:translate-x-0';
+    if (!open) {
+      transform = this.lang.language() === 'ar'
+        ? 'translate-x-full lg:translate-x-0'
+        : '-translate-x-full lg:translate-x-0';
+    }
+    return `${width} ${transform}`;
+  });
 
-  mainOffsetClass(): string {
+  readonly mainOffsetClass = computed(() => {
     return this.collapsed() ? 'lg:ms-16' : 'lg:ms-64';
-  }
+  });
 
   themeIcon(): LucideIcon {
     const m = this.theme.mode();
