@@ -4,26 +4,81 @@ import { authGuard } from './core/auth/auth.guard';
 /**
  * Every route in the IA is named explicitly so:
  * - The sidebar in shell.component points at real URLs that resolve
- * - Unimplemented routes show a friendly "coming soon" placeholder
- *   rather than 404 OR a misleading Dashboard
- * - Lazy-loading is per-feature where the feature is implemented;
- *   placeholder routes share a single lightweight component
+ * - Each of the 22 report routes lands on a real component that fetches
+ *   the matching API endpoint and renders through the shared shells
+ *   (BiPanelPageComponent for the 13 BiPanel-returning endpoints,
+ *    AuditReportPageComponent for the 9 audit-narrative endpoints).
+ * - Lazy-loading is per-feature so users only pay the JS cost of the
+ *   reports they actually open.
  *
  * The wiring covers all 22 read endpoints across the API:
- *   9 Audit Narrative      (/audit/*)
- *   8 Business Intelligence (/bi/*)
- *   3 Per-transaction       (/trx/*)
+ *   1 + 7 Business Intelligence (/dashboard + /bi/*)
+ *   6 Audit Narrative + 3 Per-Transaction (/audit/* + /trx/*)
  *   5 Performance / Insights (/perf/*)
  *
- * As each report gets a real implementation, replace its
- * `loadPlaceholder` with the actual feature component.
+ * The 4 utility routes (profile / settings / help / notifications) still
+ * use the lightweight placeholder until their UIs are built.
  */
 
-const loadDashboard = () =>
-  import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent);
+const lazy = {
+  // ── Dashboard ──────────────────────────────────────────────────
+  dashboard: () =>
+    import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
 
-const loadPlaceholder = () =>
-  import('./features/placeholder/placeholder.component').then(m => m.PlaceholderComponent);
+  // ── Business Intelligence (7 sub-pages, dashboard is the 8th) ──
+  biKpi: () =>
+    import('./features/bi/kpi-summary.component').then(m => m.KpiSummaryComponent),
+  biPeakHours: () =>
+    import('./features/bi/peak-hours.component').then(m => m.PeakHoursComponent),
+  biAov: () =>
+    import('./features/bi/aov.component').then(m => m.AovComponent),
+  biPaymentMix: () =>
+    import('./features/bi/payment-mix.component').then(m => m.PaymentMixComponent),
+  biStaff: () =>
+    import('./features/bi/staff-productivity.component').then(m => m.StaffProductivityComponent),
+  biRetention: () =>
+    import('./features/bi/customer-retention.component').then(m => m.CustomerRetentionComponent),
+  biModifiers: () =>
+    import('./features/bi/modifier-popularity.component').then(m => m.ModifierPopularityComponent),
+
+  // ── Audit Narrative (6) ────────────────────────────────────────
+  auditDaily: () =>
+    import('./features/audit/daily.component').then(m => m.AuditDailyComponent),
+  auditTotals: () =>
+    import('./features/audit/totals.component').then(m => m.AuditTotalsComponent),
+  auditOrderJourney: () =>
+    import('./features/audit/order-journey.component').then(m => m.AuditOrderJourneyComponent),
+  auditUserSession: () =>
+    import('./features/audit/user-session.component').then(m => m.AuditUserSessionComponent),
+  auditSuspicious: () =>
+    import('./features/audit/suspicious.component').then(m => m.AuditSuspiciousComponent),
+  auditDigest: () =>
+    import('./features/audit/digest.component').then(m => m.AuditDigestComponent),
+
+  // ── Per-Transaction (3) ────────────────────────────────────────
+  trxDineIn: () =>
+    import('./features/trx/dinein.component').then(m => m.TrxDineInComponent),
+  trxTakeAway: () =>
+    import('./features/trx/takeaway.component').then(m => m.TrxTakeAwayComponent),
+  trxDelivery: () =>
+    import('./features/trx/delivery.component').then(m => m.TrxDeliveryComponent),
+
+  // ── Performance / Insights (5) ─────────────────────────────────
+  perfItems: () =>
+    import('./features/perf/items.component').then(m => m.PerfItemsComponent),
+  perfHighly: () =>
+    import('./features/perf/highly.component').then(m => m.PerfHighlyComponent),
+  perfLow: () =>
+    import('./features/perf/low.component').then(m => m.PerfLowComponent),
+  perfSpeed: () =>
+    import('./features/perf/speed.component').then(m => m.PerfSpeedComponent),
+  perfSpeedPilot: () =>
+    import('./features/perf/speed-pilot.component').then(m => m.PerfSpeedPilotComponent),
+
+  // ── Placeholder (utility pages still pending UI) ───────────────
+  placeholder: () =>
+    import('./features/placeholder/placeholder.component').then(m => m.PlaceholderComponent),
+};
 
 export const routes: Routes = [
   // ── Public ──────────────────────────────────────────────────────
@@ -42,47 +97,46 @@ export const routes: Routes = [
       // Default landing
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
-      // ── Dashboard (implemented) ─────────────────────────────
-      { path: 'dashboard',                 loadComponent: loadDashboard, title: 'Dashboard' },
+      // ── Dashboard (1) ───────────────────────────────────────
+      { path: 'dashboard',                 loadComponent: lazy.dashboard,         title: 'Dashboard' },
 
-      // ── Business Intelligence (8 endpoints) ─────────────────
-      // Dashboard endpoint already exposed at /dashboard.
-      { path: 'bi/kpi',                    loadComponent: loadPlaceholder, title: 'KPI Summary' },
-      { path: 'bi/peak-hours',             loadComponent: loadPlaceholder, title: 'Peak Hours' },
-      { path: 'bi/aov',                    loadComponent: loadPlaceholder, title: 'Average Order Value' },
-      { path: 'bi/payment-mix',            loadComponent: loadPlaceholder, title: 'Payment Mix' },
-      { path: 'bi/staff',                  loadComponent: loadPlaceholder, title: 'Staff Productivity' },
-      { path: 'bi/retention',              loadComponent: loadPlaceholder, title: 'Customer Retention' },
-      { path: 'bi/modifiers',              loadComponent: loadPlaceholder, title: 'Modifier Popularity' },
+      // ── Business Intelligence (7 sub-pages) ─────────────────
+      { path: 'bi/kpi',                    loadComponent: lazy.biKpi,             title: 'KPI Summary' },
+      { path: 'bi/peak-hours',             loadComponent: lazy.biPeakHours,       title: 'Peak Hours' },
+      { path: 'bi/aov',                    loadComponent: lazy.biAov,             title: 'Average Order Value' },
+      { path: 'bi/payment-mix',            loadComponent: lazy.biPaymentMix,      title: 'Payment Mix' },
+      { path: 'bi/staff',                  loadComponent: lazy.biStaff,           title: 'Staff Productivity' },
+      { path: 'bi/retention',              loadComponent: lazy.biRetention,       title: 'Customer Retention' },
+      { path: 'bi/modifiers',              loadComponent: lazy.biModifiers,       title: 'Modifier Popularity' },
 
-      // ── Audit Narrative (9 endpoints) ───────────────────────
-      { path: 'audit/daily',               loadComponent: loadPlaceholder, title: 'Daily Audit Narrative' },
-      { path: 'audit/totals',              loadComponent: loadPlaceholder, title: 'Audit Totals' },
-      { path: 'audit/order-journey',       loadComponent: loadPlaceholder, title: 'Order Journey' },
-      { path: 'audit/user-session',        loadComponent: loadPlaceholder, title: 'User Session' },
-      { path: 'audit/suspicious',          loadComponent: loadPlaceholder, title: 'Suspicious Activity' },
-      { path: 'audit/digest',              loadComponent: loadPlaceholder, title: 'Daily Digest' },
+      // ── Audit Narrative (6) ─────────────────────────────────
+      { path: 'audit/daily',               loadComponent: lazy.auditDaily,        title: 'Daily Audit Narrative' },
+      { path: 'audit/totals',              loadComponent: lazy.auditTotals,       title: 'Audit Totals' },
+      { path: 'audit/order-journey',       loadComponent: lazy.auditOrderJourney, title: 'Order Journey' },
+      { path: 'audit/user-session',        loadComponent: lazy.auditUserSession,  title: 'User Session' },
+      { path: 'audit/suspicious',          loadComponent: lazy.auditSuspicious,   title: 'Suspicious Activity' },
+      { path: 'audit/digest',              loadComponent: lazy.auditDigest,       title: 'Daily Digest' },
 
-      // ── Per-Transaction (3 endpoints) ───────────────────────
-      { path: 'trx/dinein',                loadComponent: loadPlaceholder, title: 'Dine-In' },
-      { path: 'trx/takeaway',              loadComponent: loadPlaceholder, title: 'Take-away' },
-      { path: 'trx/delivery',              loadComponent: loadPlaceholder, title: 'Delivery' },
+      // ── Per-Transaction (3) ─────────────────────────────────
+      { path: 'trx/dinein',                loadComponent: lazy.trxDineIn,         title: 'Dine-In' },
+      { path: 'trx/takeaway',              loadComponent: lazy.trxTakeAway,       title: 'Take-away' },
+      { path: 'trx/delivery',              loadComponent: lazy.trxDelivery,       title: 'Delivery' },
 
-      // ── Performance / Insights (5 endpoints) ────────────────
-      { path: 'perf/items',                loadComponent: loadPlaceholder, title: 'Item Insights' },
-      { path: 'perf/highly',               loadComponent: loadPlaceholder, title: 'Highly Sales' },
-      { path: 'perf/low',                  loadComponent: loadPlaceholder, title: 'Low Sales' },
-      { path: 'perf/speed',                loadComponent: loadPlaceholder, title: 'Service Speed' },
-      { path: 'perf/speed-pilot',          loadComponent: loadPlaceholder, title: 'Speed by Pilot' },
+      // ── Performance / Insights (5) ──────────────────────────
+      { path: 'perf/items',                loadComponent: lazy.perfItems,         title: 'Item Insights' },
+      { path: 'perf/highly',               loadComponent: lazy.perfHighly,        title: 'Highly Sales' },
+      { path: 'perf/low',                  loadComponent: lazy.perfLow,           title: 'Low Sales' },
+      { path: 'perf/speed',                loadComponent: lazy.perfSpeed,         title: 'Service Speed' },
+      { path: 'perf/speed-pilot',          loadComponent: lazy.perfSpeedPilot,    title: 'Speed by Pilot' },
 
-      // ── Profile / Settings / Help (future) ──────────────────
-      { path: 'profile',                   loadComponent: loadPlaceholder, title: 'Profile' },
-      { path: 'settings',                  loadComponent: loadPlaceholder, title: 'Settings' },
-      { path: 'help',                      loadComponent: loadPlaceholder, title: 'Help' },
-      { path: 'notifications',             loadComponent: loadPlaceholder, title: 'Notifications' },
+      // ── Utility (still using PlaceholderComponent) ──────────
+      { path: 'profile',                   loadComponent: lazy.placeholder,       title: 'Profile' },
+      { path: 'settings',                  loadComponent: lazy.placeholder,       title: 'Settings' },
+      { path: 'help',                      loadComponent: lazy.placeholder,       title: 'Help' },
+      { path: 'notifications',             loadComponent: lazy.placeholder,       title: 'Notifications' },
 
-      // Any unrecognised authenticated path → placeholder (with the URL shown)
-      { path: '**',                        loadComponent: loadPlaceholder },
+      // Catch-all → placeholder (the URL chip on the card shows where you are)
+      { path: '**',                        loadComponent: lazy.placeholder },
     ],
   },
 

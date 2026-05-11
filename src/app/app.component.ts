@@ -11,9 +11,6 @@ import { LanguageService } from './core/i18n/language.service';
   // to the console so we can see exactly where routing stops.
   // Remove once the dashboard renders correctly.
   template: `
-    <div style="position:fixed;top:8px;left:8px;z-index:9999;padding:6px 10px;background:#0F766E;color:#fff;font:11px monospace;border-radius:6px;opacity:0.92;pointer-events:none;max-width:90vw;">
-      app-root · {{ routerInfo() }}
-    </div>
     <router-outlet></router-outlet>
   `,
 })

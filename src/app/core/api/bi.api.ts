@@ -38,6 +38,17 @@ export class BiApi {
   private post(path: string, body: unknown): Observable<BiPanel> {
     return this.http
       .post<ApiResponse<BiPanel>>(`${this.base}/${path}`, body)
-      .pipe(map((res) => res.data));
+      .pipe(map((res) => {
+        // Server returns 200 + BaseQueryResponse on both success and
+        // business failures. Distinguish them so the page shell's
+        // catchError surfaces a real message.
+        if (res && res.success === false && res.succeeded === false) {
+          const msg = res.message
+                   || (res.errors && res.errors.length ? res.errors.join('; ') : '')
+                   || `${path} request failed`;
+          throw new Error(msg);
+        }
+        return res.data;
+      }));
   }
 }
