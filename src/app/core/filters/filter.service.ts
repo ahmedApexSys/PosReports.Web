@@ -19,6 +19,12 @@ export type DatePresetKey =
   | 'thisYear' | 'lastYear'
   | 'custom';
 
+export interface ValidationResult {
+  ok: boolean;
+  reason?: 'no-branch' | 'no-dates' | 'bad-range' | 'future-from' | 'too-wide';
+  message?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FilterService {
   private readonly _state = signal<FilterState>(this.initial());
@@ -28,6 +34,71 @@ export class FilterService {
   readonly toDate      = computed(() => this._state().toDate);
   readonly branchId    = computed(() => this._state().branchId);
   readonly compareDays = computed(() => this._state().compareWindowDays);
+
+  /** True when a branch is selected — required for ALL data fetches. */
+  readonly hasBranch = computed(() => {
+    const id = this._state().branchId;
+    return id != null && id > 0;
+  });
+
+  /** True when the date range is valid (both set + from <= to + range <= 92 days). */
+  readonly hasValidDates = computed(() => {
+    const s = this._state();
+    if (!s.fromDate || !s.toDate) return false;
+    const f = new Date(s.fromDate).getTime();
+    const t = new Date(s.toDate).getTime();
+    if (isNaN(f) || isNaN(t)) return false;
+    if (f > t) return false;
+    const days = (t - f) / (1000 * 60 * 60 * 24);
+    if (days > 92) return false;
+    return true;
+  });
+
+  /** Aggregate readiness — used by every report page to gate fetches. */
+  readonly canFetch = computed(() => this.hasBranch() && this.hasValidDates());
+
+  /** Detailed validation for UI feedback. */
+  validate(): ValidationResult {
+    const s = this._state();
+    if (s.branchId == null || s.branchId <= 0) {
+      return { ok: false, reason: 'no-branch', message: 'Please select a branch first.' };
+    }
+    if (!s.fromDate || !s.toDate) {
+      return { ok: false, reason: 'no-dates', message: 'Please pick a date range.' };
+    }
+    const f = new Date(s.fromDate).getTime();
+    const t = new Date(s.toDate).getTime();
+    if (isNaN(f) || isNaN(t)) {
+      return { ok: false, reason: 'no-dates', message: 'Date format is invalid.' };
+    }
+    if (f > t) {
+      return { ok: false, reason: 'bad-range', message: 'From-date is after To-date.' };
+    }
+    if (f > Date.now()) {
+      return { ok: false, reason: 'future-from', message: 'From-date is in the future.' };
+    }
+    const days = (t - f) / (1000 * 60 * 60 * 24);
+    if (days > 92) {
+      return { ok: false, reason: 'too-wide', message: 'Window > 92 days — narrow the range.' };
+    }
+    return { ok: true };
+  }
+
+  /** Bilingual validation message. */
+  validateBilingual(language: 'en' | 'ar'): string {
+    const r = this.validate();
+    if (r.ok) return '';
+    if (language === 'ar') {
+      return ({
+        'no-branch':   'برجاء اختيار فرع أولاً.',
+        'no-dates':    'برجاء تحديد فترة التقرير.',
+        'bad-range':   'تاريخ البداية أحدث من تاريخ النهاية.',
+        'future-from': 'تاريخ البداية في المستقبل.',
+        'too-wide':    'الفترة أطول من 92 يوم — قللها.',
+      } as Record<string, string>)[r.reason!] ?? r.message ?? '';
+    }
+    return r.message ?? '';
+  }
 
   setDateRange(fromIso: string, toIso: string): void {
     this._state.update((s) => ({ ...s, fromDate: fromIso, toDate: toIso }));
@@ -117,7 +188,8 @@ export class FilterService {
       if (raw) return JSON.parse(raw) as FilterState;
     } catch { /* noop */ }
 
-    // Default: last 7 days, default branch, default compare window
+    // Default: last 7 days dates pre-filled (convenience), but
+    // NO default branch — user MUST select one before any fetch.
     const now = new Date();
     const start = new Date(now);
     start.setDate(now.getDate() - 6);
@@ -125,7 +197,7 @@ export class FilterService {
     return {
       fromDate: start.toISOString(),
       toDate: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString(),
-      branchId: environment.defaultBranchId,
+      branchId: null,                                              // ← forced selection
       compareWindowDays: environment.defaultCompareWindowDays,
     };
   }

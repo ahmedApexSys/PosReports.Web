@@ -5,6 +5,7 @@ import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, 
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
+import { BranchPickerComponent } from '../../shared/branch-picker/branch-picker.component';
 
 type LucideIcon = typeof Sun;
 
@@ -24,7 +25,7 @@ interface NavGroup {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, RouterOutlet, LucideAngularModule],
+  imports: [CommonModule, RouterModule, RouterOutlet, LucideAngularModule, BranchPickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="min-h-screen flex flex-col bg-surface dark:bg-surface-dark">
@@ -112,10 +113,12 @@ interface NavGroup {
             <lucide-icon [img]="MenuIcon" class="h-5 w-5"></lucide-icon>
           </button>
 
-          <div class="flex-1 min-w-0">
-            <!-- Filter bar placeholder — wire FilterService next iteration -->
-            <div class="text-xs text-slate-500 dark:text-slate-400 truncate">
-              {{ lang.language() === 'ar' ? 'الفترة الحالية: آخر 7 أيام' : 'Current window: last 7 days' }}
+          <div class="flex-1 min-w-0 flex items-center gap-3">
+            <!-- Branch picker — REQUIRED before any data fetch -->
+            <app-branch-picker></app-branch-picker>
+            <!-- Date-range indicator (DateRangePicker component is next iteration) -->
+            <div class="hidden md:block text-xs text-slate-500 dark:text-slate-400 truncate">
+              {{ lang.language() === 'ar' ? 'آخر 7 أيام' : 'Last 7 days' }}
             </div>
           </div>
 

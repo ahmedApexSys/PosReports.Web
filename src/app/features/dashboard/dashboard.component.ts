@@ -1,6 +1,6 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Loader, RefreshCw } from 'lucide-angular';
+import { LucideAngularModule, Loader, RefreshCw, Building2 } from 'lucide-angular';
 import { BiApi } from '../../core/api/bi.api';
 import { LanguageService } from '../../core/i18n/language.service';
 import { FilterService } from '../../core/filters/filter.service';
@@ -35,7 +35,8 @@ import { catchError, of, finalize } from 'rxjs';
             {{ lang.language() === 'ar' ? 'مؤشرات حية + رؤى قابلة للتنفيذ' : 'Live KPIs + actionable insights' }}
           </p>
         </div>
-        <button (click)="reload()" class="btn-ghost text-sm" [disabled]="loading()">
+        <button (click)="reload()" class="btn-ghost text-sm"
+                [disabled]="loading() || !filter.canFetch()">
           <lucide-icon [img]="loading() ? Loader : RefreshIcon"
                        class="h-4 w-4"
                        [class.animate-spin]="loading()"></lucide-icon>
@@ -43,8 +44,24 @@ import { catchError, of, finalize } from 'rxjs';
         </button>
       </div>
 
-      <!-- Skeleton state -->
-      <ng-container *ngIf="loading() && !panel(); else loaded">
+      <!-- Empty state: branch not selected -->
+      <div *ngIf="!filter.canFetch()" class="card-padded text-center py-12 md:py-16 space-y-4">
+        <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl
+                    bg-warning-soft text-warning ring-1 ring-warning/30">
+          <lucide-icon [img]="BuildingIcon" class="h-7 w-7"></lucide-icon>
+        </div>
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-50">
+          {{ filter.validateBilingual(lang.language() === 'ar' ? 'ar' : 'en') }}
+        </h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+          {{ lang.language() === 'ar'
+              ? 'مفيش بيانات هتظهر قبل ما تختار فرع وفترة زمنية صالحة من الـ Header.'
+              : 'No data will load until a branch and a valid date range are selected in the header.' }}
+        </p>
+      </div>
+
+      <!-- Skeleton state (only when filters valid) -->
+      <ng-container *ngIf="filter.canFetch() && loading() && !panel(); else loadedOrIdle">
         <div class="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
           <div *ngFor="let i of [1,2,3,4]" class="card-padded animate-pulse h-32">
             <div class="h-3 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
@@ -61,7 +78,8 @@ import { catchError, of, finalize } from 'rxjs';
       </ng-container>
 
       <!-- Loaded state -->
-      <ng-template #loaded>
+      <ng-template #loadedOrIdle>
+       <ng-container *ngIf="filter.canFetch()">
         <!-- Error banner -->
         <div *ngIf="error()" class="card-padded ring-1 ring-critical/30 bg-critical-soft text-critical">
           <strong>{{ lang.language() === 'ar' ? 'خطأ:' : 'Error:' }}</strong> {{ error() }}
@@ -148,6 +166,7 @@ import { catchError, of, finalize } from 'rxjs';
           <!-- Conclusion -->
           <app-conclusion-banner *ngIf="p.conclusion" [text]="p.conclusion"></app-conclusion-banner>
         </ng-container>
+       </ng-container>
       </ng-template>
     </div>
   `,
@@ -155,7 +174,7 @@ import { catchError, of, finalize } from 'rxjs';
 export class DashboardComponent implements OnInit {
   private readonly api = inject(BiApi);
   readonly lang = inject(LanguageService);
-  private readonly filter = inject(FilterService);
+  readonly filter = inject(FilterService);
 
   readonly panel = signal<BiPanel | null>(null);
   readonly loading = signal(false);
@@ -163,10 +182,27 @@ export class DashboardComponent implements OnInit {
 
   readonly Loader = Loader;
   readonly RefreshIcon = RefreshCw;
+  readonly BuildingIcon = Building2;
 
-  ngOnInit(): void { this.reload(); }
+  constructor() {
+    // Auto-reload whenever branch / dates change and become valid.
+    effect(() => {
+      const ok = this.filter.canFetch();
+      if (ok) this.reload();
+      else this.panel.set(null); // drop stale data when filters become invalid
+    });
+  }
+
+  ngOnInit(): void {
+    if (this.filter.canFetch()) this.reload();
+  }
 
   reload(): void {
+    // Hard gate — never fire an API call without a branch + valid dates.
+    if (!this.filter.canFetch()) {
+      this.error.set(this.filter.validateBilingual(this.lang.language() === 'ar' ? 'ar' : 'en'));
+      return;
+    }
     this.loading.set(true);
     this.error.set('');
     this.api.dashboard({
