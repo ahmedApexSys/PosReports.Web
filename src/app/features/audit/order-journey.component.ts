@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, ViewChild, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { AuditApi } from '../../core/api/audit.api';
 import {
@@ -11,22 +12,55 @@ import { AuditReportPageComponent } from '../../shared/audit-report-page/audit-r
 
 /**
  * `POST /api/AuditNarrativeReport/OrderJourney` — single-order timeline.
- * Requires an `orderId` or `receiptNumber`. Until an order-picker UI is
- * wired, the request sends only the branch + language; the API will
- * return an empty/error response which surfaces in the error banner.
+ * Operator enters an Order ID (or Receipt Number); the page hits the
+ * endpoint when they click Load or hit Enter. Until an id is entered,
+ * the request is suppressed so the API doesn't keep returning "OrderId
+ * required" every time the date filter ticks.
  */
 @Component({
   selector: 'app-audit-order-journey',
   standalone: true,
-  imports: [CommonModule, AuditReportPageComponent],
+  imports: [CommonModule, FormsModule, AuditReportPageComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-audit-report-page
+    <!-- Local lookup row -->
+    <div class="flex items-center gap-2 flex-wrap mb-4">
+      <span class="text-xs text-slate-500 dark:text-slate-400">
+        {{ lang.language() === 'ar' ? 'البحث بـ' : 'Lookup by' }}:
+      </span>
+      <select [(ngModel)]="searchBy"
+              class="bg-white dark:bg-surface-dark-subtle border border-slate-300 dark:border-slate-700
+                     rounded-card-sm px-2 py-1 text-xs text-slate-700 dark:text-slate-200">
+        <option value="orderId">{{ lang.language() === 'ar' ? 'رقم الأوردر' : 'Order ID' }}</option>
+        <option value="receipt">{{ lang.language() === 'ar' ? 'رقم الإيصال' : 'Receipt #' }}</option>
+      </select>
+      <input type="number" inputmode="numeric" min="1" [(ngModel)]="lookupValue"
+             (keyup.enter)="onLoad()"
+             [placeholder]="lang.language() === 'ar' ? 'مثال: 5432' : 'e.g. 5432'"
+             class="w-32 bg-white dark:bg-surface-dark-subtle
+                    border border-slate-300 dark:border-slate-700
+                    rounded-card-sm px-2.5 py-1 text-xs tabular
+                    focus:ring-2 focus:ring-brand-500/30 focus:outline-none"/>
+      <button type="button" (click)="onLoad()"
+              [disabled]="!lookupValue"
+              class="btn-primary text-xs">
+        {{ lang.language() === 'ar' ? 'حمّل الرحلة' : 'Load journey' }}
+      </button>
+      <span *ngIf="!loaded()" class="text-xs text-warning">
+        {{ lang.language() === 'ar'
+            ? 'أدخل رقم وضغط Enter لتحميل رحلة الأوردر'
+            : 'Enter an ID and press Enter to load the order timeline' }}
+      </span>
+    </div>
+
+    <app-audit-report-page #page
       titleEn="Order Journey" titleAr="رحلة الأوردر"
-      subtitleEn="One order's full lifecycle as a chronological narrative — pass an Order ID"
-      subtitleAr="رحلة أوردر واحد كاملة بترتيب زمني — يحتاج رقم أوردر محدد"
+      subtitleEn="One order's full lifecycle as a chronological narrative"
+      subtitleAr="رحلة أوردر واحد كاملة بترتيب زمني"
       [fetchFn]="fetch"
       [showGroupBy]="false"
-      [showPageSize]="false">
+      [showPageSize]="false"
+      [showFilterBar]="false">
       <ng-template #body let-data>
         <section class="card-padded">
           <div class="flex items-center justify-between flex-wrap gap-3">
@@ -67,7 +101,7 @@ import { AuditReportPageComponent } from '../../shared/audit-report-page/audit-r
               </span>
             </div>
             <div *ngIf="!data.timeline?.length" class="text-center py-8 text-sm text-slate-500 dark:text-slate-400">
-              {{ lang.language() === 'ar' ? 'لا توجد رحلة محملة بعد. مرر رقم أوردر صحيح.' : 'No journey loaded. Pass a valid Order ID.' }}
+              {{ lang.language() === 'ar' ? 'لا توجد رحلة محملة بعد.' : 'No journey loaded.' }}
             </div>
           </div>
         </section>
@@ -78,11 +112,26 @@ import { AuditReportPageComponent } from '../../shared/audit-report-page/audit-r
 export class AuditOrderJourneyComponent {
   private readonly api = inject(AuditApi);
   readonly lang = inject(LanguageService);
-  readonly fetch = (ctx: AuditPageContext): Observable<OrderJourneyResult> =>
-    this.api.orderJourney({
-      // orderId / receiptNumber left undefined — the API will reply
-      // with "Pass an OrderId" until a picker UI populates this.
-      branchId: ctx.branchId ?? undefined,
-      language: ctx.language,
+
+  searchBy: 'orderId' | 'receipt' = 'orderId';
+  lookupValue: number | null = null;
+  readonly loaded = signal(false);
+
+  @ViewChild('page') pageRef?: AuditReportPageComponent<OrderJourneyResult>;
+
+  onLoad(): void {
+    if (!this.lookupValue || this.lookupValue <= 0) return;
+    this.loaded.set(true);
+    this.pageRef?.reload();
+  }
+
+  readonly fetch = (ctx: AuditPageContext): Observable<OrderJourneyResult> => {
+    const v = this.lookupValue ?? 0;
+    return this.api.orderJourney({
+      orderId:       this.searchBy === 'orderId' ? (v > 0 ? v : undefined) : undefined,
+      receiptNumber: this.searchBy === 'receipt' ? (v > 0 ? v : undefined) : undefined,
+      branchId:      ctx.branchId ?? undefined,
+      language:      ctx.language,
     });
+  };
 }

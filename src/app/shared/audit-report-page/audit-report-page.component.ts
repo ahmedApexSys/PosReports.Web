@@ -2,6 +2,7 @@ import {
   Component,
   Input,
   ContentChild,
+  ViewChild,
   TemplateRef,
   inject,
   signal,
@@ -16,32 +17,44 @@ import { Observable, catchError, finalize, of } from 'rxjs';
 import { LanguageService } from '../../core/i18n/language.service';
 import { FilterService } from '../../core/filters/filter.service';
 import { AuditPageContext } from '../../core/models/audit.models';
+import { AuditFilterBarComponent } from '../audit-filter-bar/audit-filter-bar.component';
+import { PagerComponent } from '../pager/pager.component';
 
 /**
- * Page shell for the audit-narrative endpoints. Generic on `<T>`: each
- * route's body template is supplied via content projection
- * (`<ng-template #body let-data>...</ng-template>`) and renders the
- * route-specific result shape.
+ * Page shell for the audit-narrative endpoints. Owns:
+ *  - Page header (title + Refresh)
+ *  - GroupBy + PageSize selectors
+ *  - <app-audit-filter-bar> with every page-local filter dimension
+ *    (transaction types, payment status, surfaces, user, action types,
+ *     search text)
+ *  - Loading / empty / error states
+ *  - Bilingual conclusion banner above the projected body
+ *  - <app-pager> below the body (visible when the response is paginated)
+ *
+ * Generic on `<T>`: each route's body template is supplied via content
+ * projection (`<ng-template #body let-data>...</ng-template>`) so the
+ * route-specific result shape renders inside.
  *
  * Filter ownership:
- *  - Global filters (branch, date range, language) come from
- *    FilterService — owned by the layout shell, shared across pages.
- *  - Page-local filters (groupBy, pageSize) are owned HERE and rendered
- *    inline in the page header. They re-trigger the fetch on change.
+ *  - Global filters (branch, date range, language) come from FilterService
+ *  - Page-local filters (groupBy, pageSize, page) live here as signals
+ *  - Filter-bar filters (user, trx-types, etc.) live on AuditFilterBarComponent
+ *    and are read on each fetch via @ViewChild
  *
- * The shell does not assume one wire shape — each route's `fetchFn`
- * receives an `AuditPageContext` and returns its own typed response.
- * That keeps the OrderJourney / UserSession single-entity endpoints
- * and the per-tx-type ones happy with their distinct request DTOs.
+ * Pagination — when the operator changes filters, page resets to 1 so
+ * they don't sit on "page 25" of stale results.
  */
 @Component({
   selector: 'app-audit-report-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [
+    CommonModule, FormsModule, LucideAngularModule,
+    AuditFilterBarComponent, PagerComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
-      <!-- Page header + filter bar -->
+      <!-- Page header -->
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
@@ -53,10 +66,9 @@ import { AuditPageContext } from '../../core/models/audit.models';
           </p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-          <!-- GroupBy selector — hidden for endpoints that don't use it -->
           <label *ngIf="showGroupBy" class="flex items-center gap-1.5 text-xs">
             <span class="text-slate-500 dark:text-slate-400">{{ lang.language() === 'ar' ? 'تجميع' : 'Group' }}:</span>
-            <select [ngModel]="groupBy()" (ngModelChange)="groupBy.set($event)"
+            <select [ngModel]="groupBy()" (ngModelChange)="groupBy.set($event); onPageLocalChange()"
                     class="bg-white dark:bg-surface-dark-subtle border border-slate-300 dark:border-slate-700
                            rounded-card-sm px-2 py-1 text-xs text-slate-700 dark:text-slate-200
                            focus:ring-2 focus:ring-brand-500/30 focus:outline-none">
@@ -67,10 +79,9 @@ import { AuditPageContext } from '../../core/models/audit.models';
             </select>
           </label>
 
-          <!-- PageSize selector — hidden for endpoints that don't paginate -->
           <label *ngIf="showPageSize" class="flex items-center gap-1.5 text-xs">
             <span class="text-slate-500 dark:text-slate-400">{{ lang.language() === 'ar' ? 'لكل صفحة' : 'Per page' }}:</span>
-            <select [ngModel]="pageSize()" (ngModelChange)="pageSize.set(+$event)"
+            <select [ngModel]="pageSize()" (ngModelChange)="pageSize.set(+$event); onPageLocalChange()"
                     class="bg-white dark:bg-surface-dark-subtle border border-slate-300 dark:border-slate-700
                            rounded-card-sm px-2 py-1 text-xs text-slate-700 dark:text-slate-200
                            focus:ring-2 focus:ring-brand-500/30 focus:outline-none">
@@ -90,6 +101,10 @@ import { AuditPageContext } from '../../core/models/audit.models';
           </button>
         </div>
       </div>
+
+      <!-- Filter bar — hide when caller passes [showFilterBar]="false" (e.g. OrderJourney / UserSession) -->
+      <app-audit-filter-bar #filterBar *ngIf="showFilterBar"
+        (filtersChange)="onFilterBarChange()"></app-audit-filter-bar>
 
       <!-- Empty state: branch not selected or dates invalid -->
       <div *ngIf="!filter.canFetch()" class="card-padded text-center py-12 md:py-16 space-y-4">
@@ -122,13 +137,11 @@ import { AuditPageContext } from '../../core/models/audit.models';
 
       <!-- Loaded state -->
       <ng-container *ngIf="filter.canFetch() && !loading()">
-        <!-- Error banner -->
         <div *ngIf="error()" class="card-padded ring-1 ring-critical/30 bg-critical-soft text-critical">
           <strong>{{ lang.language() === 'ar' ? 'خطأ:' : 'Error:' }}</strong> {{ error() }}
         </div>
 
         <ng-container *ngIf="data() as d">
-          <!-- Bilingual conclusion banner — render when the response has one -->
           <div *ngIf="conclusionText(d) as ct"
                class="card-padded bg-brand-50 dark:bg-brand-900/20 ring-1 ring-brand-200 dark:ring-brand-800/50">
             <h3 class="text-sm font-semibold text-brand-700 dark:text-brand-300 mb-1">
@@ -137,16 +150,21 @@ import { AuditPageContext } from '../../core/models/audit.models';
             <p class="text-sm text-slate-700 dark:text-slate-200">{{ ct }}</p>
           </div>
 
-          <!-- Caller-supplied body -->
           <ng-container *ngIf="bodyTpl">
             <ng-container *ngTemplateOutlet="bodyTpl; context: { $implicit: d }"></ng-container>
           </ng-container>
 
-          <!-- Fallback when caller didn't supply a body template -->
           <div *ngIf="!bodyTpl" class="card-padded">
             <h3 class="text-sm font-semibold mb-2">{{ lang.language() === 'ar' ? 'البيانات' : 'Data' }}</h3>
             <pre class="text-xs overflow-auto max-h-96 text-slate-600 dark:text-slate-300">{{ d | json }}</pre>
           </div>
+
+          <!-- Pagination — auto-hides when totalCount <= pageSize -->
+          <app-pager *ngIf="totalCountOf(d) > 0"
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [totalCount]="totalCountOf(d)"
+            (pageChange)="onPageChange($event)"></app-pager>
         </ng-container>
       </ng-container>
     </div>
@@ -157,18 +175,17 @@ export class AuditReportPageComponent<T> implements OnInit {
   @Input({ required: true }) titleAr!: string;
   @Input() subtitleEn?: string;
   @Input() subtitleAr?: string;
-  /** Build the per-endpoint request from the context + call the right API. */
   @Input({ required: true }) fetchFn!: (ctx: AuditPageContext) => Observable<T>;
-  /** Hide the GroupBy selector for single-entity endpoints (OrderJourney, UserSession). */
   @Input() showGroupBy = true;
-  /** Hide the PageSize selector for endpoints that don't paginate. */
   @Input() showPageSize = true;
-  /** Initial defaults — override per route via @Input. */
+  @Input() showFilterBar = true;
   @Input() defaultGroupBy: 'None' | 'Daily' | 'Weekly' | 'Monthly' = 'Daily';
   @Input() defaultPageSize = 50;
 
   @ContentChild('body', { read: TemplateRef })
   bodyTpl?: TemplateRef<{ $implicit: T }>;
+
+  @ViewChild('filterBar') filterBar?: AuditFilterBarComponent;
 
   readonly lang = inject(LanguageService);
   readonly filter = inject(FilterService);
@@ -177,7 +194,6 @@ export class AuditReportPageComponent<T> implements OnInit {
   readonly loading = signal(false);
   readonly error = signal('');
 
-  // Page-local filter signals — wired to the header dropdowns.
   readonly groupBy = signal<'None' | 'Daily' | 'Weekly' | 'Monthly'>('Daily');
   readonly pageSize = signal<number>(50);
   readonly page = signal<number>(1);
@@ -187,8 +203,6 @@ export class AuditReportPageComponent<T> implements OnInit {
   readonly BuildingIcon = Building2;
 
   constructor() {
-    // Auto-reload whenever any input the request depends on changes —
-    // global filter validity + page-local group/page selectors.
     effect(() => {
       const ok = this.filter.canFetch();
       this.groupBy();
@@ -200,10 +214,27 @@ export class AuditReportPageComponent<T> implements OnInit {
   }
 
   ngOnInit(): void {
-    // Honour the route's chosen defaults before the first fetch.
     this.groupBy.set(this.defaultGroupBy);
     this.pageSize.set(this.defaultPageSize);
     if (this.filter.canFetch()) this.reload();
+  }
+
+  /** GroupBy / PageSize change → reset to page 1 + reload. */
+  onPageLocalChange(): void {
+    this.page.set(1);
+    // setting `page` already triggers the effect, which fires reload()
+  }
+
+  /** Filter-bar emits whenever ANY of its dimensions changes. */
+  onFilterBarChange(): void {
+    this.page.set(1);
+    this.reload();
+  }
+
+  /** Pager emits when the user navigates. */
+  onPageChange(p: number): void {
+    this.page.set(p);
+    // setting `page` triggers the effect → reload
   }
 
   reload(): void {
@@ -219,6 +250,13 @@ export class AuditReportPageComponent<T> implements OnInit {
       groupBy: this.groupBy(),
       page: this.page(),
       pageSize: this.pageSize(),
+      // ── Filter-bar dimensions (when bar is mounted) ───────────────
+      transactionTypes: this.filterBar?.transactionTypes(),
+      paymentStatus:    this.filterBar?.paymentStatus(),
+      surfaces:         this.filterBar?.surfaces(),
+      userIds:          this.filterBar?.userId() ? [this.filterBar!.userId()!] : undefined,
+      actionTypes:      this.filterBar?.actionTypes(),
+      searchText:       this.filterBar?.searchText() || undefined,
     };
     this.loading.set(true);
     this.error.set('');
@@ -238,13 +276,14 @@ export class AuditReportPageComponent<T> implements OnInit {
     });
   }
 
-  /**
-   * Pull a bilingual conclusion off the result if the shape has one.
-   * Phase 6 results consistently use `conclusion.description` (the
-   * server-picked language). Returns null otherwise.
-   */
+  /** Pull a bilingual conclusion off the result if present. */
   conclusionText(d: unknown): string | null {
     const c = (d as { conclusion?: { description?: string } })?.conclusion;
     return c?.description?.trim() ? c.description : null;
+  }
+
+  /** Pull totalCount from a paged-result-shaped response (Daily / Trx). */
+  totalCountOf(d: unknown): number {
+    return (d as { totalCount?: number })?.totalCount ?? 0;
   }
 }

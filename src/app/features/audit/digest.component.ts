@@ -26,7 +26,8 @@ import { AuditReportPageComponent } from '../../shared/audit-report-page/audit-r
       subtitleAr="إيه اللي حصل كل يوم — قصة قصيرة + الأرقام الأساسية"
       [fetchFn]="fetch"
       [showGroupBy]="false"
-      [showPageSize]="false">
+      [showPageSize]="false"
+      [showFilterBar]="false">
       <ng-template #body let-data>
         <section *ngFor="let d of data.days" class="card-padded">
           <div class="flex items-center justify-between flex-wrap gap-3 mb-2">

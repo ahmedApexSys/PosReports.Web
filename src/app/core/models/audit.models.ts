@@ -196,26 +196,66 @@ export interface TransactionReportResult {
   conclusion: BilingualText;
 }
 
+/** Server-side `PaymentStatusFilter` enum. */
+export type PaymentStatusFilter = 'All' | 'PaidOnly' | 'UnpaidOnly';
+
+/** Server-side `Surface` values — order-table source the row originated from. */
+export type Surface = 'Paid' | 'Hospitality' | 'PayTab' | 'Reservation'
+                    | 'CheckedOut' | 'Office' | 'Online' | 'Kiosk';
+
+/** Server-side `LogSource` — which audit table the row came from. */
+export type LogSource = 'Order' | 'System' | 'Menu';
+
+/** Built-in transaction types in the POS data model. */
+export const TRANSACTION_TYPES = [
+  { id: 1, nameEn: 'Dine-In',    nameAr: 'داخل المطعم' },
+  { id: 2, nameEn: 'Delivery',   nameAr: 'ديليفري' },
+  { id: 3, nameEn: 'Take-Away',  nameAr: 'تيك أواي' },
+] as const;
+
+/** Common action types — the ones operators filter on most. The audit
+ *  endpoint accepts arbitrary strings, but the UI lists these as chips. */
+export const COMMON_ACTION_TYPES = [
+  'Pay', 'EditPay', 'Discount', 'PromoCode', 'Voucher',
+  'VoidItem', 'StopItem', 'Cancel', 'ApproveCancelOrder',
+  'Transfer', 'Split', 'Assign', 'CollectMoney',
+  'OrderCompleted', 'OrderDelivered', 'OrderPickedup',
+  'Login', 'Logout', 'CloseShift', 'OpenShift',
+] as const;
+
 /**
  * Generic filter context that the audit + trx page shells pass to each
  * route's `fetchFn`. Captures the global filter (from FilterService) +
- * the page-local controls (groupBy, pageSize) so the caller can shape
- * the per-endpoint request — each endpoint has its own DTO shape so we
- * don't try to unify them into one wire format.
+ * every page-local control (groupBy, pageSize, user, transaction types,
+ * payment status, surfaces, action types, search). Each caller turns
+ * this into its endpoint-specific request via one of the to*Request
+ * helpers below.
  */
 export interface AuditPageContext {
+  // ── Global filter (from FilterService) ─────────────────────────
   fromDate: string;
   toDate: string;
   branchId: number | null;
   language: 'en' | 'ar';
+
+  // ── Page-local filters owned by the filter bar ─────────────────
   /** ReportGroupBy enum (time-bucket). Only relevant for the 4 paged
    *  audit endpoints (Daily / Totals / Suspicious / DailyDigest). */
   groupBy: 'None' | 'Daily' | 'Weekly' | 'Monthly';
   page: number;
   pageSize: number;
+
+  // ── Optional filter dimensions (audit DTO supports all of them) ─
+  userIds?: string[];
+  transactionTypes?: number[];     // 1=DineIn, 2=Delivery, 3=TakeAway
+  payWays?: number[];
+  paymentStatus?: PaymentStatusFilter;
+  surfaces?: Surface[];
+  actionTypes?: string[];
+  searchText?: string;
 }
 
-/** Subset of AuditReportFilterDto fields actually used by the SPA today. */
+/** Subset of AuditReportFilterDto fields the SPA can send. */
 export interface AuditReportFilterRequest {
   fromDate: string;
   toDate: string;
@@ -223,6 +263,11 @@ export interface AuditReportFilterRequest {
   userIds?: string[];
   transactionTypes?: number[];
   orderIds?: number[];
+  payWays?: number[];
+  paymentStatus?: PaymentStatusFilter;
+  surfaces?: Surface[];
+  actionTypes?: string[];
+  searchText?: string;
   /** ReportGroupBy enum on the server — string value works for the JSON binding. */
   groupBy?: 'None' | 'Daily' | 'Weekly' | 'Monthly';
   page?: number;
@@ -309,6 +354,13 @@ export function toAuditFilterRequest(ctx: AuditPageContext): AuditReportFilterRe
     fromDate: ctx.fromDate,
     toDate: ctx.toDate,
     branchIds: ctx.branchId != null ? [ctx.branchId] : [],
+    userIds: ctx.userIds,
+    transactionTypes: ctx.transactionTypes,
+    payWays: ctx.payWays,
+    paymentStatus: ctx.paymentStatus,
+    surfaces: ctx.surfaces,
+    actionTypes: ctx.actionTypes,
+    searchText: ctx.searchText,
     groupBy: ctx.groupBy,
     page: ctx.page,
     pageSize: ctx.pageSize,
@@ -324,6 +376,8 @@ export function toDineInRequest(
     fromDate: ctx.fromDate,
     toDate: ctx.toDate,
     branchIds: ctx.branchId != null ? [ctx.branchId] : [],
+    actionTypes: ctx.actionTypes,
+    searchText: ctx.searchText,
     groupBy,
     page: ctx.page,
     pageSize: ctx.pageSize,
@@ -339,6 +393,8 @@ export function toTakeAwayRequest(
     fromDate: ctx.fromDate,
     toDate: ctx.toDate,
     branchIds: ctx.branchId != null ? [ctx.branchId] : [],
+    actionTypes: ctx.actionTypes,
+    searchText: ctx.searchText,
     groupBy,
     page: ctx.page,
     pageSize: ctx.pageSize,
@@ -354,6 +410,8 @@ export function toDeliveryRequest(
     fromDate: ctx.fromDate,
     toDate: ctx.toDate,
     branchIds: ctx.branchId != null ? [ctx.branchId] : [],
+    actionTypes: ctx.actionTypes,
+    searchText: ctx.searchText,
     groupBy,
     page: ctx.page,
     pageSize: ctx.pageSize,
