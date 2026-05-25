@@ -19,23 +19,84 @@ export interface AuditNarrativeRow {
   actionDate: string; // ISO date
   actionTime: string;
   actionType: string;
+
+  // Order context (zero / blank for non-order rows)
   orderId: number;
   receiptNumber: number;
   tableName: string;
+  destinationTableName: string;
   transactionType: number;
   transactionTypeName: string;
+  hallId: number;
+  shiftId: number;
+
+  // Operator
   userName: string;
   userRole: string;
+  userPosition?: string;
   machineId: string;
+  machineName?: string;
   branchName: string;
+  branchId?: number;
+
+  // Service-staff context — shown in the expanded detail panel
+  waiterId?: string;
+  waiterName?: string;
+  cashierId?: string;
+  cashierName?: string;
+
+  // Financial deltas + item / guest counts — back the expandable detail panel
+  totalSalesBefore: number;
+  totalSalesAfter: number;
+  totalBefore: number;
+  totalAfter: number;
   netBefore: number;
   netAfter: number;
   netDiff: number;
+  discountBefore: number;
   discountAfter: number;
+  itemCountBefore: number;
+  itemCountAfter: number;
+  guestCountBefore: number;
+  guestCountAfter: number;
+
+  // Promo / discount source
+  promoCode: string;
+  discountName: string;
+
+  // Bilingual narrative — primary text rendered in the card
   narrative: BilingualText;
+
   success: boolean;
   errorMessage: string;
   correlationId: string;
+
+  // ── Item-level snapshots (Phase 2 — populated by Send / Pay / Void
+  //    / Cancel / Transfer / Split hooks). JSON-encoded OrderSnapshot
+  //    shape; parsed lazily by the audit-event-card. Empty for hooks
+  //    that don't (yet) capture item state. ──
+  beforeSnapshot?: string;
+  afterSnapshot?: string;
+  changedFields?: string;
+}
+
+/** Parsed shape of the JSON inside `beforeSnapshot` / `afterSnapshot`. */
+export interface AuditOrderSnapshot {
+  items: AuditOrderItemSnapshot[];
+  itemCount: number;
+  totalQty: number;
+  subtotal: number;
+}
+
+export interface AuditOrderItemSnapshot {
+  itemId: number;
+  name: string;
+  nameAr: string;
+  qty: number;
+  unitPrice: number;
+  lineTotal: number;
+  variant?: string;
+  notes?: string;
 }
 
 export interface AuditReportBucket {
@@ -105,6 +166,33 @@ export interface OrderJourneyResult {
   usersInvolved: string[];
   timeline: AuditNarrativeRow[];
   conclusion: BilingualText;
+
+  /** Chip-strip data in the header: action-type → count. */
+  actionBreakdown?: Record<string, number>;
+  /** Visual money-flow points — drives the strip above the timeline. */
+  moneyFlow?: OrderMoneyFlowPoint[];
+  /** Σ of discount deltas applied across the journey. */
+  totalDiscountApplied?: number;
+  /** Σ of voided value (NetBefore − NetAfter for Void rows). */
+  totalVoidedValue?: number;
+}
+
+/** One captured point on the Order Journey's money-flow strip. */
+export interface OrderMoneyFlowPoint {
+  actionType: string;
+  at: string;
+  netAfter: number;
+  label: BilingualText;
+}
+
+/** Money-touched stats — shared by UserSession and SuspiciousActivity rows. */
+export interface SessionMonetaryStats {
+  totalPaidValue: number;
+  totalNetTouched: number;
+  totalVoidedValue: number;
+  totalDiscountedValue: number;
+  totalCancelledValue: number;
+  ordersTouched: number;
 }
 
 export interface UserSession {
@@ -118,6 +206,11 @@ export interface UserSession {
   menuActionCount: number;
   actions: AuditNarrativeRow[];
   summary: BilingualText;
+
+  /** Action-type → count for the session. */
+  actionBreakdown?: Record<string, number>;
+  /** Money the session touched / paid / voided / discounted. */
+  monetary?: SessionMonetaryStats;
 }
 
 export interface UserSessionResult {
@@ -143,6 +236,16 @@ export interface UserRiskScore {
   totalScore: number;
   riskLevel: 'Low' | 'Medium' | 'High';
   flags: RiskFlag[];
+
+  /** Branch where most of the user's flagged activity happened. */
+  topBranchId?: number;
+  topBranchName?: string;
+  /** Top 5 flagged audit rows for this user, ordered by money impact. */
+  topEvents?: AuditNarrativeRow[];
+  /** Action-type → count over the window. */
+  actionBreakdown?: Record<string, number>;
+  /** Money-touched summary for context. */
+  monetary?: SessionMonetaryStats;
 }
 
 export interface SuspiciousActivityResult {
@@ -221,6 +324,61 @@ export const COMMON_ACTION_TYPES = [
   'Transfer', 'Split', 'Assign', 'CollectMoney',
   'OrderCompleted', 'OrderDelivered', 'OrderPickedup',
   'Login', 'Logout', 'CloseShift', 'OpenShift',
+] as const;
+
+/**
+ * Map an action type to the transaction-type ids it can plausibly belong
+ * to. When the user picks one or more transaction types in the filter bar,
+ * we narrow the action-type chips to the union of types each picked
+ * transaction allows. Actions in the universal set are always shown.
+ *
+ * Transaction-type ids: 1=DineIn, 2=Delivery, 3=TakeAway.
+ *
+ * The classification is conservative — when in doubt, keep the action in
+ * the universal set so the operator never loses a needed filter.
+ */
+export const ACTION_TYPE_TRANSACTION_SCOPE: Record<string, number[] | 'all'> = {
+  // ── Universal (every transaction type can produce these) ──
+  Pay: 'all', EditPay: 'all',
+  Discount: 'all', PromoCode: 'all', Voucher: 'all',
+  VoidItem: 'all', StopItem: 'all', ApproveStop: 'all', CancelStop: 'all',
+  Cancel: 'all', ApproveCancelOrder: 'all', RejectCancelOrder: 'all',
+  ChangePayWay: 'all', NoTax: 'all', RemoveDiscount: 'all', RemovePromoCode: 'all',
+  EditOrder: 'all', PrintCheckOut: 'all', ReOpen: 'all',
+  Send: 'all', Checkout: 'all', Calculate: 'all', CheckOut: 'all',
+
+  // ── DineIn-specific ──
+  Transfer: [1], Split: [1], MergeTable: [1], SplitTable: [1], TransferTable: [1],
+  OpenTable: [1], EndTable: [1], ChangeGuest: [1], ChangeWaiter: [1],
+  ChangeMinCharge: [1], ChangeAddition: [1], ChangeNoService: [1],
+  ChangeTransaction: [1],
+
+  // ── Delivery-specific ──
+  Assign: [2], CollectMoney: [2], OrderCompleted: [2], OrderDelivered: [2],
+  FollowOrder: [2], ChangePilot: [2], Return: [2],
+
+  // ── TakeAway-specific ──
+  OrderPickedup: [3], OrderPrepared: [3],
+
+  // ── Auth / shift / system (no transaction context) ──
+  Login: 'all', Logout: 'all',
+  OpenShift: 'all', CloseShift: 'all',
+  OpenDay: 'all', CloseDay: 'all',
+
+  // ── Kiosk ──
+  ActivateKioskOrder: 'all', CancelKioskOrder: 'all',
+};
+
+/** Date-range preset keys exposed by the audit filter bar — mirror the
+ *  ones the global FilterService already supports, plus "custom". */
+export const DATE_PRESETS = [
+  { key: 'today',     labelEn: 'Today',         labelAr: 'اليوم' },
+  { key: 'yesterday', labelEn: 'Yesterday',     labelAr: 'أمس' },
+  { key: 'last7',     labelEn: 'Last 7 days',   labelAr: 'آخر 7 أيام' },
+  { key: 'last30',    labelEn: 'Last 30 days',  labelAr: 'آخر 30 يوم' },
+  { key: 'thisMonth', labelEn: 'This month',    labelAr: 'الشهر الحالي' },
+  { key: 'lastMonth', labelEn: 'Last month',    labelAr: 'الشهر اللي فات' },
+  { key: 'custom',    labelEn: 'Custom',        labelAr: 'مخصص' },
 ] as const;
 
 /**
@@ -332,8 +490,62 @@ export interface DeliveryReportRequest {
 export interface OrderJourneyRequest {
   orderId?: number;
   receiptNumber?: number;
+  /** Resolved to most-recent order on that table in the past 30 days. */
+  tableName?: string;
+  /** Resolved to most-recent OrderHeader matching the phone. */
+  mobilePhone?: string;
   branchId?: number;
   language?: 'en' | 'ar';
+  /** Show Calculate rows on the timeline (default: false — they're noise). */
+  includeCalculate?: boolean;
+}
+
+/** List-mode lookup for table-name / mobile-phone searches. Returns
+ *  candidate orders the operator can pick from. */
+export interface OrderJourneyLookupRequest {
+  tableName?: string;
+  mobilePhone?: string;
+  branchId?: number;
+  /** 1=DineIn, 2=Delivery, 3=TakeAway. Narrows tables that host
+   *  multiple transaction types in the same day. */
+  transactionTypeId?: number;
+  /** Explicit [from, to] window — overrides lookbackDays. ISO strings. */
+  fromDate?: string;
+  toDate?: string;
+  /** Sliding-window default when fromDate / toDate aren't set. */
+  lookbackDays?: number;
+  /** Per-shift filter — only meaningful WITH a date. */
+  shiftId?: number;
+  language?: 'en' | 'ar';
+  maxResults?: number;
+}
+
+export interface OrderJourneyCandidate {
+  orderId: number;
+  receiptNumber: number;
+  tableName: string;
+  transactionTypeName: string;
+  branchId: number;
+  branchName: string;
+  orderDate?: string;
+  orderTime: string;
+  net: number;
+  employeeName: string;
+  waiterName: string;
+  cashierName: string;
+  mobilePhone: string;
+  isPaid: boolean;
+  isCancelled: boolean;
+  itemCount: number;
+  /** "Paid" or "Temp". */
+  source: string;
+}
+
+export interface OrderJourneyLookupResult {
+  candidates: OrderJourneyCandidate[];
+  totalMatches: number;
+  truncated: boolean;
+  message: BilingualText;
 }
 
 /** UserSession endpoint — pass a UserId. */

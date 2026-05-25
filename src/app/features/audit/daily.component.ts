@@ -10,54 +10,36 @@ import {
 } from '../../core/models/audit.models';
 import { LanguageService } from '../../core/i18n/language.service';
 import { AuditReportPageComponent } from '../../shared/audit-report-page/audit-report-page.component';
+import { AuditEventCardComponent } from '../../shared/audit-event-card/audit-event-card.component';
 
 /**
  * `POST /api/AuditNarrativeReport/Daily` — per-action narrative timeline
  * filtered by every dimension, paginated, with optional Daily/Weekly/
- * Monthly bucket totals.
+ * Monthly bucket totals. Rows render as <app-audit-event-card> so the
+ * same icon + narrative + expandable-details layout shows up across
+ * every audit / trx report.
+ *
+ * Calculate rows are filtered out of the default feed server-side
+ * (see AuditReportQueryBuilder.DefaultNoiseActionTypes). To opt back in,
+ * pick "Calculate" from the action-type chips in the filter bar.
  */
 @Component({
   selector: 'app-audit-daily',
   standalone: true,
-  imports: [CommonModule, AuditReportPageComponent],
+  imports: [CommonModule, AuditReportPageComponent, AuditEventCardComponent],
   template: `
     <app-audit-report-page
       titleEn="Daily Audit Narrative" titleAr="السرد اليومي للتدقيق"
-      subtitleEn="Bilingual sentence per audit row — who did what, when, and the money delta"
-      subtitleAr="جملة ثنائية اللغة لكل إجراء — مين عمل إيه، إمتى، والفرق المالي"
+      subtitleEn="Click any row to expand totals, item count progression, promo / discount source"
+      subtitleAr="اضغط على أي حدث لعرض الإجماليات وحركة الأصناف ومصدر الخصم"
       [fetchFn]="fetch">
       <ng-template #body let-data>
-        <div class="card-padded">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              {{ lang.language() === 'ar' ? 'الأحداث' : 'Events' }}
-              <span class="text-xs text-slate-400">({{ data.totalCount | number }})</span>
-            </h3>
-            <span class="text-xs text-slate-500 dark:text-slate-400">
-              {{ lang.language() === 'ar' ? 'صفحة' : 'Page' }} {{ data.page }} / {{ data.totalPages || 1 }}
-            </span>
-          </div>
-          <div class="space-y-2">
-            <div *ngFor="let r of data.data"
-                 class="flex items-start gap-3 text-sm border-b border-slate-100 dark:border-slate-800 last:border-0 pb-2">
-              <span class="shrink-0 w-32 tabular text-xs text-slate-500 dark:text-slate-400">
-                {{ r.actionDate | date:'short' }}
-              </span>
-              <span class="shrink-0 w-28 truncate text-xs font-medium text-slate-700 dark:text-slate-200">
-                {{ r.userName || '—' }}
-              </span>
-              <span class="flex-1 text-slate-700 dark:text-slate-300">
-                {{ lang.language() === 'ar' ? r.narrative.descriptionAr : r.narrative.descriptionEn }}
-              </span>
-              <span *ngIf="r.netDiff" class="tabular text-xs"
-                    [class.text-critical]="r.netDiff < 0"
-                    [class.text-success]="r.netDiff > 0">
-                {{ r.netDiff > 0 ? '+' : '' }}{{ r.netDiff | number:'1.0-2' }}
-              </span>
-            </div>
-            <div *ngIf="!data.data?.length" class="text-center py-8 text-sm text-slate-500 dark:text-slate-400">
-              {{ lang.language() === 'ar' ? 'مفيش أحداث في الفترة دي.' : 'No events in this window.' }}
-            </div>
+        <div class="space-y-2">
+          <app-audit-event-card *ngFor="let r of data.data"
+                                [row]="r"></app-audit-event-card>
+
+          <div *ngIf="!data.data?.length" class="card-padded text-center py-8 text-sm text-slate-500 dark:text-slate-400">
+            {{ lang.language() === 'ar' ? 'مفيش أحداث في الفترة دي.' : 'No events in this window.' }}
           </div>
         </div>
       </ng-template>

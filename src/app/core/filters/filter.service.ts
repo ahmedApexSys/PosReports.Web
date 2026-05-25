@@ -8,7 +8,11 @@ export interface FilterState {
   toDate: string;      // ISO
   branchId: number | null;
   compareWindowDays: number;
+  grouping: Grouping;
 }
+
+/** Time-series aggregation granularity for the BI / Insights chart pages. */
+export type Grouping = 'day' | 'week' | 'month' | 'year';
 
 export type DatePresetKey =
   | 'today' | 'yesterday'
@@ -34,6 +38,7 @@ export class FilterService {
   readonly toDate      = computed(() => this._state().toDate);
   readonly branchId    = computed(() => this._state().branchId);
   readonly compareDays = computed(() => this._state().compareWindowDays);
+  readonly grouping    = computed<Grouping>(() => this._state().grouping ?? 'day');
 
   /** True when a branch is selected — required for ALL data fetches. */
   readonly hasBranch = computed(() => {
@@ -112,6 +117,11 @@ export class FilterService {
 
   setCompareDays(days: number): void {
     this._state.update((s) => ({ ...s, compareWindowDays: days }));
+    this.persist();
+  }
+
+  setGrouping(g: Grouping): void {
+    this._state.update((s) => ({ ...s, grouping: g }));
     this.persist();
   }
 
@@ -199,6 +209,7 @@ export class FilterService {
       toDate: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString(),
       branchId: null,                                              // ← forced selection
       compareWindowDays: environment.defaultCompareWindowDays,
+      grouping: 'day',
     };
   }
 

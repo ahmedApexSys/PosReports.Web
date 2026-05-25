@@ -33,6 +33,14 @@ export class AuthService {
     const encrypted: LoginRequest = {
       ...payload,
       password: this.crypto.encryptPassword(payload.password),
+      // PosReports.Web is a read-only reporting console, NOT an ordering
+      // client. Always set IsNotOrdering=true so the server-side login
+      // skips: POS-license cap checks, MachineId binding, the
+      // "AssignToExistPos / pick a POS" picker flow, and any of the
+      // call-center / branch-mismatch gates. The reporting user
+      // legitimately has no POS attached — they're never going to take
+      // an order, they just read reports.
+      isNotOrdering: true,
     };
     return this.http
       .post<AuthenticationModel | ApiResponse<AuthenticationModel>>(

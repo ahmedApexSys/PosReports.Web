@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router } from '@angular/router';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -28,14 +28,20 @@ interface NavGroup {
   imports: [CommonModule, RouterModule, RouterOutlet, LucideAngularModule, BranchPickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="min-h-screen flex flex-col bg-surface dark:bg-surface-dark">
+    <!-- Layout: outer container uses row-flex so sidebar + main column
+         render side by side on desktop. On mobile the sidebar is fixed
+         (slides in as a drawer). On lg+ the sidebar is sticky top-0 so
+         it pins while the main column scrolls. The previous version
+         used flex-col which made the sticky sidebar stack ABOVE the
+         main content — the layout corruption under scroll. -->
+    <div class="min-h-screen flex bg-surface dark:bg-surface-dark">
       <!-- Mobile drawer overlay -->
       <div *ngIf="mobileNavOpen()"
            (click)="mobileNavOpen.set(false)"
            class="fixed inset-0 z-30 bg-black/40 lg:hidden"></div>
 
       <!-- ── Sidebar ────────────────────────────────────────────── -->
-      <aside class="fixed lg:sticky top-0 z-40 h-screen
+      <aside class="fixed lg:sticky top-0 z-40 h-screen lg:shrink-0
                     bg-white dark:bg-surface-dark-subtle
                     border-e border-slate-200 dark:border-slate-800
                     transition-transform duration-220
@@ -193,6 +199,24 @@ export class ShellComponent {
       ],
     },
     {
+      // Owner-decision insights — every page answers a specific manager
+      // question (grow / who-steals / who's-lazy / why-slow / what-not-paid)
+      // and surfaces a bilingual conclusion naming the action to take.
+      // The pages either consume `/api/OwnerInsights/*` or wrap a matching
+      // `/api/BusinessIntelligence/*` endpoint, and link out to the audit
+      // narratives (Order Journey, User Session) for drill-down.
+      titleEn: 'Owner Insights', titleAr: 'رؤى للمالك',
+      items: [
+        { labelEn: 'Growth Trends',                labelAr: 'اتجاهات النمو',          route: '/insights/growth',           icon: TrendingUp },
+        { labelEn: 'Top Paying Customers',         labelAr: 'أفضل العملاء دفعاً',     route: '/insights/top-customers',    icon: ChartBar },
+        { labelEn: 'Post-Checkout Modifications',  labelAr: 'تعديلات بعد الدفع',      route: '/insights/post-checkout',    icon: FileText },
+        { labelEn: 'Items Not Paid',               labelAr: 'أصناف غير مدفوعة',      route: '/insights/items-not-paid',   icon: TriangleAlert },
+        { labelEn: 'Staff Productivity Gaps',      labelAr: 'فجوات أداء الموظفين',   route: '/insights/staff-gaps',       icon: UserCog },
+        { labelEn: 'Operational Time Gaps',        labelAr: 'فجوات وقت العمليات',    route: '/insights/lifecycle-delays', icon: Timer },
+        { labelEn: 'Revenue Leakage Detail',       labelAr: 'تسرّب الإيرادات',        route: '/insights/revenue-leakage',  icon: Banknote },
+      ],
+    },
+    {
       titleEn: 'Performance', titleAr: 'الأداء',
       items: [
         { labelEn: 'Item Insights',  labelAr: 'تحليل الأصناف',  route: '/perf/items',         icon: ChartBar },
@@ -232,9 +256,17 @@ export class ShellComponent {
     return `${width} ${transform}`;
   });
 
-  readonly mainOffsetClass = computed(() => {
-    return this.collapsed() ? 'lg:ms-16' : 'lg:ms-64';
-  });
+  /**
+   * Returns inline-margin classes for the main column.
+   *
+   * With the outer container now using row-flex (was column-flex), the
+   * sidebar naturally occupies its width on `lg:` and the main column
+   * takes the remaining space via `flex-1`. So NO margin offset is
+   * needed on desktop. The class is kept (returning empty) so existing
+   * `[class]="mainOffsetClass()"` bindings still type-check; we can
+   * delete the binding entirely in a follow-up cleanup.
+   */
+  readonly mainOffsetClass = computed(() => '');
 
   themeIcon(): LucideIcon {
     const m = this.theme.mode();

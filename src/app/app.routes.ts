@@ -63,6 +63,22 @@ const lazy = {
   trxDelivery: () =>
     import('./features/trx/delivery.component').then(m => m.TrxDeliveryComponent),
 
+  // ── Owner Insights (7 owner-decision pages) ────────────────────
+  insightsTopCustomers: () =>
+    import('./features/insights/top-customers.component').then(m => m.TopCustomersComponent),
+  insightsPostCheckout: () =>
+    import('./features/insights/post-checkout.component').then(m => m.PostCheckoutComponent),
+  insightsGrowth: () =>
+    import('./features/insights/growth-trends.component').then(m => m.GrowthTrendsComponent),
+  insightsItemsNotPaid: () =>
+    import('./features/insights/items-not-paid.component').then(m => m.ItemsNotPaidComponent),
+  insightsStaffGaps: () =>
+    import('./features/insights/staff-gaps.component').then(m => m.StaffGapsComponent),
+  insightsLifecycleDelays: () =>
+    import('./features/insights/lifecycle-delays.component').then(m => m.LifecycleDelaysComponent),
+  insightsRevenueLeakage: () =>
+    import('./features/insights/revenue-leakage-detail.component').then(m => m.RevenueLeakageDetailComponent),
+
   // ── Performance / Insights (5) ─────────────────────────────────
   perfItems: () =>
     import('./features/perf/items.component').then(m => m.PerfItemsComponent),
@@ -121,6 +137,15 @@ export const routes: Routes = [
       { path: 'trx/dinein',                loadComponent: lazy.trxDineIn,         title: 'Dine-In' },
       { path: 'trx/takeaway',              loadComponent: lazy.trxTakeAway,       title: 'Take-away' },
       { path: 'trx/delivery',              loadComponent: lazy.trxDelivery,       title: 'Delivery' },
+
+      // ── Owner Insights (7 owner-decision pages) ─────────────
+      { path: 'insights/top-customers',    loadComponent: lazy.insightsTopCustomers,     title: 'Top Paying Customers' },
+      { path: 'insights/post-checkout',    loadComponent: lazy.insightsPostCheckout,     title: 'Post-Checkout Modifications' },
+      { path: 'insights/growth',           loadComponent: lazy.insightsGrowth,           title: 'Growth Trends' },
+      { path: 'insights/items-not-paid',   loadComponent: lazy.insightsItemsNotPaid,     title: 'Items Not Paid' },
+      { path: 'insights/staff-gaps',       loadComponent: lazy.insightsStaffGaps,        title: 'Staff Productivity Gaps' },
+      { path: 'insights/lifecycle-delays', loadComponent: lazy.insightsLifecycleDelays,  title: 'Operational Time Gaps' },
+      { path: 'insights/revenue-leakage',  loadComponent: lazy.insightsRevenueLeakage,   title: 'Revenue Leakage Detail' },
 
       // ── Performance / Insights (5) ──────────────────────────
       { path: 'perf/items',                loadComponent: lazy.perfItems,         title: 'Item Insights' },

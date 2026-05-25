@@ -11,6 +11,8 @@ import {
   DailyDigestResult,
   DeliveryReportRequest,
   DineInReportRequest,
+  OrderJourneyLookupRequest,
+  OrderJourneyLookupResult,
   OrderJourneyRequest,
   OrderJourneyResult,
   SuspiciousActivityResult,
@@ -51,6 +53,12 @@ export class AuditApi {
   // ── Identifier-driven endpoints ──────────────────────────────────
   orderJourney(req: OrderJourneyRequest): Observable<OrderJourneyResult> {
     return this.post<OrderJourneyResult>('OrderJourney', req);
+  }
+  /** List-mode lookup for the Order Journey screen — returns candidate
+   *  orders matching a table-name / mobile-phone search so the operator
+   *  can pick one before loading the full journey. */
+  orderJourneyLookup(req: OrderJourneyLookupRequest): Observable<OrderJourneyLookupResult> {
+    return this.post<OrderJourneyLookupResult>('OrderJourney/Lookup', req);
   }
   userSession(req: UserSessionRequest): Observable<UserSessionResult> {
     return this.post<UserSessionResult>('UserSession', req);

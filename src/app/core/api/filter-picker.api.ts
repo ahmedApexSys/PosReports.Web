@@ -21,21 +21,48 @@ export class FilterPickerApi {
   private readonly base = `${environment.apiBaseUrl}/api/FilterPickers`;
 
   pilots(branchId?: number | null): Observable<PickerItem[]> {
-    return this.get('Pilots', branchId);
+    return this.get('Pilots', { branchId });
   }
-  users(branchId?: number | null): Observable<PickerItem[]> {
-    return this.get('Users', branchId);
+  /**
+   * Users picker.
+   *  • `branchId`            → narrow to one branch (mutually exclusive with `scope`).
+   *  • `scope`               → "all" (default) / "branch" / "callcenter".
+   *  • `transactionTypeId`   → 1=DineIn (Waiters+Cashiers) / 2=Delivery (Pilots+Cashiers) / 3=TakeAway (Cashiers).
+   */
+  users(opts?: {
+    branchId?: number | null;
+    scope?: 'all' | 'branch' | 'callcenter';
+    transactionTypeId?: number | null;
+  } | number | null): Observable<PickerItem[]> {
+    // Backwards-compat: callers that passed a bare branchId number still work.
+    const o = typeof opts === 'number' || opts === null
+      ? { branchId: opts as number | null }
+      : (opts ?? {});
+    return this.get('Users', {
+      branchId: o.branchId,
+      scope: o.scope,
+      transactionTypeId: o.transactionTypeId,
+    });
   }
   waiters(branchId?: number | null): Observable<PickerItem[]> {
-    return this.get('Waiters', branchId);
+    return this.get('Waiters', { branchId });
   }
   cashiers(branchId?: number | null): Observable<PickerItem[]> {
-    return this.get('Cashiers', branchId);
+    return this.get('Cashiers', { branchId });
   }
 
-  private get(path: string, branchId?: number | null): Observable<PickerItem[]> {
-    const qs = branchId != null && branchId > 0 ? `?branchId=${branchId}` : '';
-    return this.http.get<ApiResponse<PickerItem[]>>(`${this.base}/${path}${qs}`).pipe(
+  private get(path: string, params: {
+    branchId?: number | null;
+    scope?: string | null;
+    transactionTypeId?: number | null;
+  }): Observable<PickerItem[]> {
+    const qs: string[] = [];
+    if (params.branchId != null && params.branchId > 0) qs.push(`branchId=${params.branchId}`);
+    if (params.scope) qs.push(`scope=${encodeURIComponent(params.scope)}`);
+    if (params.transactionTypeId != null && params.transactionTypeId > 0)
+      qs.push(`transactionTypeId=${params.transactionTypeId}`);
+    const url = qs.length ? `${this.base}/${path}?${qs.join('&')}` : `${this.base}/${path}`;
+    return this.http.get<ApiResponse<PickerItem[]>>(url).pipe(
       map((res) => (res?.success || res?.succeeded ? (res.data || []) : [])),
       catchError(() => of([] as PickerItem[])),
     );
