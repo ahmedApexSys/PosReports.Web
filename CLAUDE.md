@@ -1,7 +1,17 @@
 # PosReports.Web — Claude Code Project Memory
 
-> **Branch**: `main`. **Local-only repo** — no `origin` remote configured.
-> Before pushing, run `git remote add origin <url>`.
+> **Remote** (added 2026-05-25): `github.com/ahmedApexSys/PosReports.Web`
+> **Branches on origin**: `main` · `AddClaudeDocs+24-05-2026` · `Production` (all at `cd1c346`)
+> **Current working branch**: `AddClaudeDocs+24-05-2026` (= Production tip)
+>
+> **Session 2026-05-25** — repo pushed to GitHub for the first time. WIP audit /
+> owner-insights work captured in commit `cd1c346` (18 files: routes, audit
+> API, owner-insights API + models, daily/order-journey/suspicious/user-session
+> audit pages, trx-page rebar, shell tweaks, NEW insights feature folder with
+> 7 components — growth-trends, items-not-paid, lifecycle-delays, post-checkout,
+> revenue-leakage-detail, staff-gaps, top-customers — and the audit-event-card
+> shared component). All WIP — still needs design polish + the 21-remaining-
+> pages work before merge.
 
 ## What this is
 **Angular 21.2.12** frontend for ApexPointOfSale reports. Package name
