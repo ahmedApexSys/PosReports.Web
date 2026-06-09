@@ -7,9 +7,6 @@ export const authGuard: CanActivateFn = (_route, state) => {
   const router = inject(Router);
 
   const ok = auth.isAuthenticated();
-  // Diagnostic — remove after the dashboard renders correctly.
-  console.log('[authGuard]', { url: state.url, authenticated: ok, token: auth.token() ? 'present' : 'absent' });
-
   if (ok) return true;
 
   // Imperative navigate is more reliable than returning a UrlTree in
