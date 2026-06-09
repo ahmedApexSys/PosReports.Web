@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   LucideAngularModule, RefreshCw, Loader, Building2, Search, ArrowRight,
   Activity, Users, FileStack,
@@ -124,8 +125,9 @@ import { actionLabel, entityLabel, sourceLabel } from '../../core/i18n/monitorin
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let u of topUsers()" class="border-b border-slate-100 dark:border-slate-800 last:border-0 text-end">
-                  <td class="py-1.5 text-start text-slate-700 dark:text-slate-200">{{ u.userName || '—' }}<span class="text-xs text-slate-400 ms-1">{{ u.userRole }}</span></td>
+                <tr *ngFor="let u of topUsers()" (click)="openUser(u)"
+                    class="border-b border-slate-100 dark:border-slate-800 last:border-0 text-end cursor-pointer hover:bg-slate-50 dark:hover:bg-surface-dark-muted/40">
+                  <td class="py-1.5 text-start text-brand-700 dark:text-brand-300 hover:underline">{{ u.userName || '—' }}<span class="text-xs text-slate-400 ms-1">{{ u.userRole }}</span></td>
                   <td class="py-1.5 tabular text-slate-500">{{ u.orderActions }}</td>
                   <td class="py-1.5 tabular text-slate-500">{{ u.systemActions }}</td>
                   <td class="py-1.5 tabular text-slate-500">{{ u.menuActions }}</td>
@@ -232,6 +234,7 @@ export class MonitoringSummaryComponent {
   readonly lang = inject(LanguageService);
   readonly filter = inject(FilterService);
   private readonly api = inject(MonitoringApi);
+  private readonly router = inject(Router);
 
   readonly summary = signal<AuditSummary[]>([]);
   readonly users = signal<UserActivitySummary[]>([]);
@@ -308,6 +311,10 @@ export class MonitoringSummaryComponent {
       catchError((e) => { this.entityError.set(e?.message || 'Failed to load history.'); return of([] as UnifiedAuditLog[]); }),
       finalize(() => this.entityLoading.set(false)),
     ).subscribe((rows) => this.entityRows.set(rows));
+  }
+
+  openUser(u: UserActivitySummary): void {
+    if (u?.userId) this.router.navigate(['/audit/user-session'], { queryParams: { userId: u.userId } });
   }
 
   srcLabel(s: string): string { return sourceLabel(s, this.lang.language()); }
