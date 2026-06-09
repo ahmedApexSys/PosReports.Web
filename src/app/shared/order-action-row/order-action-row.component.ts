@@ -6,6 +6,7 @@ import {
 } from 'lucide-angular';
 import { LanguageService } from '../../core/i18n/language.service';
 import { OrderActionLogRow } from '../../core/models/monitoring.models';
+import { actionLabel, txTypeLabel, orderActionDescription } from '../../core/i18n/monitoring-labels';
 
 /**
  * Expandable card for a single OrderActionLog row — the atomic unit of the
@@ -28,7 +29,7 @@ import { OrderActionLogRow } from '../../core/models/monitoring.models';
         <!-- Action badge -->
         <span class="shrink-0 mt-0.5 inline-flex items-center gap-1 px-2 py-1 rounded-card-sm text-xs font-semibold"
               [class]="toneClass()">
-          {{ row.actionTypeName || ('#' + row.actionType) }}
+          {{ actLabel() }}
         </span>
 
         <div class="flex-1 min-w-0">
@@ -52,12 +53,12 @@ import { OrderActionLogRow } from '../../core/models/monitoring.models';
               <lucide-icon [img]="ReceiptIcon" class="h-3 w-3"></lucide-icon>{{ row.receiptNumber }}
             </span>
             <span *ngIf="row.transactionTypeName"
-                  class="text-[10px] uppercase tracking-wide text-slate-400">{{ row.transactionTypeName }}</span>
+                  class="text-[10px] tracking-wide text-slate-400">{{ txLabel() }}</span>
           </div>
 
-          <!-- Description -->
-          <p *ngIf="row.description" class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 truncate">
-            {{ row.description }}
+          <!-- Description (generated, bilingual) -->
+          <p *ngIf="desc()" class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 truncate">
+            {{ desc() }}
           </p>
 
           <!-- Meta line: who / when -->
@@ -183,6 +184,13 @@ export class OrderActionRowComponent {
 
   netChanged(): boolean {
     return Math.abs((this.row?.netBefore ?? 0) - (this.row?.netAfter ?? 0)) > 0.001;
+  }
+
+  actLabel(): string { return actionLabel(this.row?.actionTypeName, this.lang.language()); }
+  txLabel(): string { return txTypeLabel(this.row?.transactionTypeName, this.row?.transactionType, this.lang.language()); }
+  desc(): string {
+    const l = this.lang.language();
+    return l === 'ar' ? orderActionDescription(this.row, 'ar') : (this.row?.description || orderActionDescription(this.row, 'en'));
   }
 
   changedList(): string[] {

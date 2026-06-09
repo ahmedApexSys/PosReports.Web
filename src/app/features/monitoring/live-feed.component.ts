@@ -12,6 +12,7 @@ import { LanguageService } from '../../core/i18n/language.service';
 import { FilterService } from '../../core/filters/filter.service';
 import { MonitoringApi } from '../../core/api/monitoring.api';
 import { UnifiedAuditLog } from '../../core/models/monitoring.models';
+import { actionLabel, entityLabel, sourceLabel, categoryLabel, entityNameLabel, unifiedDescription } from '../../core/i18n/monitoring-labels';
 import { PagerComponent } from '../../shared/pager/pager.component';
 
 type SourceTab = 'all' | 'Order' | 'System' | 'Menu';
@@ -133,15 +134,15 @@ type SourceTab = 'all' | 'Order' | 'System' | 'Menu';
                class="rounded-card ring-1 ring-slate-200 dark:ring-slate-800 bg-white dark:bg-surface-dark-subtle
                       px-3 py-2.5 flex items-start gap-3">
             <span class="shrink-0 mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded" [class]="srcClass(r.logSource)">
-              {{ r.logSource }}
+              {{ srcLabel(r) }}
             </span>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap text-sm">
-                <span class="font-semibold text-slate-900 dark:text-slate-50">{{ r.actionType }}</span>
-                <span class="text-xs text-slate-500 dark:text-slate-400">{{ r.entityType }}<span *ngIf="r.entityName"> · {{ r.entityName }}</span></span>
-                <span class="text-[10px] uppercase tracking-wide text-slate-400">{{ r.category }}</span>
+                <span class="font-semibold text-slate-900 dark:text-slate-50">{{ actLabel(r) }}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">{{ entLabel(r) }}<span *ngIf="r.entityName"> · {{ entName(r) }}</span></span>
+                <span class="text-[10px] tracking-wide text-slate-400">{{ catLabel(r) }}</span>
               </div>
-              <p *ngIf="r.description" class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 truncate">{{ r.description }}</p>
+              <p *ngIf="desc(r)" class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 truncate">{{ desc(r) }}</p>
               <div *ngIf="changed(r)" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1 min-w-0">
                 <span class="truncate max-w-[40%]">{{ r.oldValue }}</span>
                 <lucide-icon [img]="ArrowIcon" class="h-3 w-3 shrink-0"></lucide-icon>
@@ -258,8 +259,21 @@ export class LiveFeedComponent implements OnDestroy {
   }
 
   changed(r: UnifiedAuditLog): boolean {
-    return !!(r.oldValue || r.newValue) && r.oldValue !== r.newValue;
+    // Only Menu rows carry a meaningful field old->new (e.g. Price 10 -> 12).
+    // Order rows' old/new are noisy "Sales:.. Net:.. Total:.." summaries and
+    // System rows' are raw JSON — hide those; the description already explains.
+    return r.logSource === 'Menu' && !!(r.oldValue || r.newValue) && r.oldValue !== r.newValue;
   }
+
+  desc(r: UnifiedAuditLog): string {
+    const l = this.lang.language();
+    return l === 'ar' ? unifiedDescription(r, 'ar') : (r.description || unifiedDescription(r, 'en'));
+  }
+  entName(r: UnifiedAuditLog): string { return entityNameLabel(r.entityName, this.lang.language()); }
+  srcLabel(r: UnifiedAuditLog): string { return sourceLabel(r.logSource, this.lang.language()); }
+  actLabel(r: UnifiedAuditLog): string { return actionLabel(r.actionType, this.lang.language()); }
+  entLabel(r: UnifiedAuditLog): string { return entityLabel(r.entityType, this.lang.language()); }
+  catLabel(r: UnifiedAuditLog): string { return categoryLabel(r.category, this.lang.language()); }
 
   srcClass(src: string): string {
     if (src === 'Order') return 'bg-info-soft text-info';

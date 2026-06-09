@@ -14,6 +14,7 @@ import { MonitoringApi } from '../../core/api/monitoring.api';
 import {
   AuditSummary, EntityChangeSummary, UnifiedAuditLog, UserActivitySummary,
 } from '../../core/models/monitoring.models';
+import { actionLabel, entityLabel, sourceLabel } from '../../core/i18n/monitoring-labels';
 
 /**
  * Monitoring overview — aggregate action counts (by source / action type /
@@ -94,9 +95,9 @@ import {
               <tbody>
                 <tr *ngFor="let a of topActions()" class="border-b border-slate-100 dark:border-slate-800 last:border-0">
                   <td class="py-1.5">
-                    <span class="text-[10px] px-1.5 py-0.5 rounded me-1.5" [class]="srcClass(a.logSource)">{{ a.logSource }}</span>
-                    <span class="text-slate-700 dark:text-slate-200">{{ a.actionType }}</span>
-                    <span class="text-xs text-slate-400 ms-1">{{ a.entityType }}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded me-1.5" [class]="srcClass(a.logSource)">{{ srcLabel(a.logSource) }}</span>
+                    <span class="text-slate-700 dark:text-slate-200">{{ actLabel(a.actionType) }}</span>
+                    <span *ngIf="a.logSource !== 'Order'" class="text-xs text-slate-400 ms-1">{{ entLabel(a.entityType) }}</span>
                   </td>
                   <td class="py-1.5 text-end tabular font-medium text-slate-900 dark:text-slate-50">{{ a.totalCount | number }}</td>
                   <td class="py-1.5 text-end text-xs text-critical ps-2" [class.opacity-0]="!a.failCount">{{ a.failCount }} {{ lang.language() === 'ar' ? 'فشل' : 'fail' }}</td>
@@ -158,7 +159,7 @@ import {
               </thead>
               <tbody>
                 <tr *ngFor="let e of topEntities()" class="border-b border-slate-100 dark:border-slate-800 last:border-0">
-                  <td class="py-1.5 text-slate-500">{{ e.entityType }}</td>
+                  <td class="py-1.5 text-slate-500">{{ entLabel(e.entityType) }}</td>
                   <td class="py-1.5 text-slate-700 dark:text-slate-200">{{ e.entityName || ('#' + e.entityId) }}</td>
                   <td class="py-1.5 text-end tabular text-good">{{ e.createCount }}</td>
                   <td class="py-1.5 text-end tabular text-info">{{ e.updateCount }}</td>
@@ -203,9 +204,9 @@ import {
             <div *ngIf="er.length; else noHist" class="space-y-1.5">
               <div *ngFor="let r of er"
                    class="rounded-card-sm ring-1 ring-slate-200 dark:ring-slate-800 px-3 py-2 flex items-start gap-3">
-                <span class="shrink-0 mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded" [class]="srcClass(r.logSource)">{{ r.logSource }}</span>
+                <span class="shrink-0 mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded" [class]="srcClass(r.logSource)">{{ srcLabel(r.logSource) }}</span>
                 <div class="flex-1 min-w-0">
-                  <div class="text-sm font-medium text-slate-800 dark:text-slate-100">{{ r.actionType }}<span *ngIf="r.fieldName" class="text-xs text-slate-400 ms-1">{{ r.fieldName }}</span></div>
+                  <div class="text-sm font-medium text-slate-800 dark:text-slate-100">{{ actLabel(r.actionType) }}<span *ngIf="r.fieldName" class="text-xs text-slate-400 ms-1">{{ r.fieldName }}</span></div>
                   <p *ngIf="r.description" class="text-xs text-slate-600 dark:text-slate-300 truncate">{{ r.description }}</p>
                   <div *ngIf="r.oldValue || r.newValue" class="text-[11px] text-slate-500 flex items-center gap-1 min-w-0">
                     <span class="truncate max-w-[40%]">{{ r.oldValue }}</span>
@@ -308,6 +309,10 @@ export class MonitoringSummaryComponent {
       finalize(() => this.entityLoading.set(false)),
     ).subscribe((rows) => this.entityRows.set(rows));
   }
+
+  srcLabel(s: string): string { return sourceLabel(s, this.lang.language()); }
+  actLabel(s: string): string { return actionLabel(s, this.lang.language()); }
+  entLabel(s: string): string { return entityLabel(s, this.lang.language()); }
 
   srcClass(src: string): string {
     if (src === 'Order') return 'bg-info-soft text-info';
