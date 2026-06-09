@@ -30,7 +30,8 @@ import { KpiCardComponent } from '../kpi-card/kpi-card.component';
 import { InsightCardComponent } from '../insight-card/insight-card.component';
 import { ChartCardComponent } from '../chart-card/chart-card.component';
 import { ConclusionBannerComponent } from '../conclusion-banner/conclusion-banner.component';
-import { BiPanel, BiReportRequest, BiText } from '../../core/models/bi.models';
+import { BiPanel, BiReportRequest, BiText, CategorySlice } from '../../core/models/bi.models';
+import { dataValueLabel } from '../../core/i18n/monitoring-labels';
 
 /**
  * Generic page shell for ANY BiPanel-returning endpoint. The 13 BI/Insights
@@ -168,7 +169,7 @@ interface TimeSeriesChartOptions {
                   <div class="h-2.5 w-2.5 rounded-full shrink-0"
                        [style.background]="paletteFor(i)"></div>
                   <span class="flex-1 truncate text-slate-700 dark:text-slate-300">
-                    {{ lang.pick(s.label) }}
+                    {{ sliceLabel(s) }}
                   </span>
                   <span class="tabular text-slate-900 dark:text-slate-100 font-medium">
                     {{ s.value | number:'1.0-2' }}
@@ -371,6 +372,15 @@ export class BiPanelPageComponent implements OnInit {
     const p = this.panel();
     if (!p) return;
     this.panel.set({ ...p, insights: p.insights.filter((i) => i.code !== code) });
+  }
+
+  /**
+   * Category-slice label with a data-value Arabic fallback for the few
+   * payment-method / transaction-type names the server leaves untranslated
+   * (e.g. "TakeAWay", "Dine In", "LEDGE"). Server-translated values pass through.
+   */
+  sliceLabel(s: CategorySlice): string {
+    return dataValueLabel(this.lang.pick(s.label), s.key, this.lang.language());
   }
 
   barWidth(v: number, max: number): number {

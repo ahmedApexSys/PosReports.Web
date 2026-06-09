@@ -23,5 +23,5 @@ import { BiPanelPageComponent } from '../../shared/bi-panel-page/bi-panel-page.c
 export class PerfSpeedComponent {
   private readonly api = inject(BiApi);
   readonly fetch = (req: BiReportRequest): Observable<BiPanel> =>
-    this.api.serviceSpeedInsights({ fromDate: req.fromDate, toDate: req.toDate, branchId: req.branchId });
+    this.api.serviceSpeedInsights({ fromDate: req.fromDate, toDate: req.toDate, branchId: req.branchId, language: req.language });
 }

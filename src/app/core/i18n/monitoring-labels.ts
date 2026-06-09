@@ -205,6 +205,81 @@ export function orderActionDescription(r: OrderActionLike, lang: Lang): string {
   return segs.join(' · ');
 }
 
+/**
+ * Arabic for a BI category-slice / data-derived label (payment method,
+ * transaction type, payment status). Some BI endpoints translate these
+ * server-side and some don't (e.g. "Delivery" → "ديليفري" but "TakeAWay"
+ * and "LEDGE" come back raw). We only override when the text the server
+ * gave us still looks English (contains Latin letters); anything already
+ * Arabic passes through untouched, so we never clobber a good server value.
+ * Keyed off the slice `key` (stable) with the label text as a fallback.
+ */
+const DATA_VALUE_AR: Record<string, string> = {
+  takeaway: 'تيك أواي', takeout: 'تيك أواي',
+  dinein: 'صالة', dine: 'صالة', hall: 'صالة',
+  delivery: 'دليفري', deliver: 'دليفري',
+  cash: 'كاش',
+  visa: 'فيزا / كارت', visacard: 'فيزا / كارت', card: 'كارت',
+  ledge: 'آجل', leadge: 'آجل',
+  hosbitality: 'ضيافة', hospitality: 'ضيافة',
+  officer: 'أوفيسر',
+  fawry: 'فوري', instapay: 'إنستاباي', wallet: 'محفظة', visamada: 'فيزا / مدى',
+  paid: 'مدفوع', unpaid: 'غير مدفوع',
+};
+export function dataValueLabel(text: string | null | undefined, keyHint: string | null | undefined, lang: Lang): string {
+  const s = (text || '').trim();
+  if (lang !== 'ar') return s;
+  if (s && !/[A-Za-z]/.test(s)) return s; // already Arabic from the server
+  const k = key(keyHint || s);
+  return DATA_VALUE_AR[k] || s;
+}
+
+/**
+ * Arabic for the finite, structural BI text the `/Insights` controllers
+ * (ServiceSpeed / ItemRanking / HighlySales / LowSales) return English-only:
+ * those endpoints fill `BiText.picked` with English regardless of the request
+ * language and leave `.en` / `.ar` empty, so there is no Arabic to fall back to.
+ * We map the known KPI labels, chart titles, and SLA buckets here. Dynamic
+ * conclusions (e.g. "15 deliveries · avg total 608 min …") are NOT mapped —
+ * they vary by data; those stay English until the API gains real bilingual text.
+ * Exact match on a normalised key; anything unknown (item names, etc.) is kept.
+ */
+const BI_TEXT_AR: Record<string, string> = {
+  'active pilots': 'الطيارون النشطون',
+  'avg pickup time': 'متوسط وقت الاستلام',
+  'avg total time (order→back)': 'متوسط الوقت الكلي (من الأوردر للرجوع)',
+  'items pareto (by quantity)': 'باريتو الأصناف (بالكمية)',
+  'pilots ranked by avg total time (fastest first)': 'ترتيب الطيارين بمتوسط الوقت الكلي (الأسرع أولاً)',
+  'quantity': 'الكمية',
+  'revenue': 'الإيراد',
+  'sla buckets (total delivery time)': 'فترات SLA (إجمالي وقت التوصيل)',
+  'slow movers (by revenue)': 'الأبطأ مبيعًا (بالإيراد)',
+  'top 10 share': 'نصيب أعلى 10',
+  'top sellers (by revenue)': 'الأعلى مبيعًا (بالإيراد)',
+  'total deliveries': 'إجمالي التوصيلات',
+  'total items': 'إجمالي الأصناف',
+  'total quantity': 'إجمالي الكمية',
+  // SLA delivery-time buckets (category slice labels on the Service Speed page)
+  '0-30 min': '0-30 دقيقة',
+  '30-45 min': '30-45 دقيقة',
+  '45-60 min': '45-60 دقيقة',
+  '60+ min': '60+ دقيقة',
+};
+function biKey(s: string): string {
+  return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+/**
+ * Map an English BI label to Arabic when we know it. Only touches strings that
+ * still contain Latin letters (so server-provided Arabic passes through), and
+ * only those present in BI_TEXT_AR — everything else is returned unchanged.
+ */
+export function biTextLabel(text: string | null | undefined, lang: Lang): string {
+  const s = (text || '').trim();
+  if (lang !== 'ar' || !s) return s;
+  if (!/[A-Za-z]/.test(s)) return s;
+  return BI_TEXT_AR[biKey(s)] || s;
+}
+
 /** Build a feed-row description from a unified-log row (action + entity + parsed net). */
 export function unifiedDescription(
   r: { actionType?: string | null; entityName?: string | null; newValue?: string | null; logSource?: string | null },

@@ -92,6 +92,7 @@ export class PerfSpeedPilotComponent {
       fromDate: req.fromDate,
       toDate: req.toDate,
       branchId: req.branchId,
+      language: req.language,
       pilotId: id ?? '',
     });
   };

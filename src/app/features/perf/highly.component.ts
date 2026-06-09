@@ -24,5 +24,5 @@ import { BiPanelPageComponent } from '../../shared/bi-panel-page/bi-panel-page.c
 export class PerfHighlyComponent {
   private readonly api = inject(BiApi);
   readonly fetch = (req: BiReportRequest): Observable<BiPanel> =>
-    this.api.highlySalesInsights({ fromDate: req.fromDate, toDate: req.toDate, branchId: req.branchId });
+    this.api.highlySalesInsights({ fromDate: req.fromDate, toDate: req.toDate, branchId: req.branchId, language: req.language });
 }

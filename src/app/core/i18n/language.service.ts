@@ -1,5 +1,6 @@
 import { Injectable, signal, effect } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { biTextLabel } from './monitoring-labels';
 
 export type Language = 'en' | 'ar';
 
@@ -27,11 +28,22 @@ export class LanguageService {
     this.setLanguage(this.language() === 'en' ? 'ar' : 'en');
   }
 
-  /** Pick the right side of a bilingual `BiText` based on current language. */
+  /**
+   * Pick the right side of a bilingual `BiText` based on the CURRENT client
+   * language. We deliberately prefer the explicit `ar`/`en` side over the
+   * server's `picked` field: some endpoints (the `/Insights` controllers)
+   * return `picked` resolved to English regardless of the request's language,
+   * which left whole reports in English. Preferring the client side fixes that
+   * centrally AND makes the language toggle instant (no refetch). `picked` is
+   * kept only as a last-resort fallback when a side is missing.
+   */
   pick(text: { en?: string; ar?: string; picked?: string } | null | undefined): string {
     if (!text) return '';
-    if (text.picked) return text.picked;
-    return this.language() === 'ar' ? (text.ar ?? text.en ?? '') : (text.en ?? text.ar ?? '');
+    const ar = (text.ar ?? '').trim();
+    const en = (text.en ?? '').trim();
+    return this.language() === 'ar'
+      ? biTextLabel(ar || en || (text.picked ?? ''), 'ar')
+      : (en || ar || (text.picked ?? ''));
   }
 
   private readStored(): Language {
