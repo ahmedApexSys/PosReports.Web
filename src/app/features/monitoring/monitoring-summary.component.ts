@@ -215,11 +215,11 @@ import { actionLabel, entityLabel, sourceLabel } from '../../core/i18n/monitorin
                 <span class="shrink-0 mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded" [class]="srcClass(r.logSource)">{{ srcLabel(r.logSource) }}</span>
                 <div class="flex-1 min-w-0">
                   <div class="text-sm font-medium text-slate-800 dark:text-slate-100">{{ actLabel(r.actionType) }}<span *ngIf="r.fieldName" class="text-xs text-slate-400 ms-1">{{ r.fieldName }}</span></div>
-                  <p *ngIf="r.description" class="text-xs text-slate-600 dark:text-slate-300 truncate">{{ r.description }}</p>
-                  <div *ngIf="r.oldValue || r.newValue" class="text-[11px] text-slate-500 flex items-center gap-1 min-w-0">
-                    <span class="truncate max-w-[40%]">{{ r.oldValue }}</span>
+                  <p *ngIf="cleanDesc(r.description) as d" class="text-xs text-slate-600 dark:text-slate-300 truncate">{{ d }}</p>
+                  <div *ngIf="cleanVal(r.oldValue) || cleanVal(r.newValue)" class="text-[11px] text-slate-500 flex items-center gap-1 min-w-0">
+                    <span class="truncate max-w-[45%]">{{ cleanVal(r.oldValue) }}</span>
                     <lucide-icon [img]="ArrowIcon" class="h-3 w-3 shrink-0"></lucide-icon>
-                    <span class="truncate max-w-[40%]">{{ r.newValue }}</span>
+                    <span class="truncate max-w-[45%]">{{ cleanVal(r.newValue) }}</span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">{{ r.userName }} · {{ r.actionDate | date:'MMM d' }} {{ r.actionTime }}</div>
                 </div>
@@ -336,6 +336,27 @@ export class MonitoringSummaryComponent {
   srcLabel(s: string): string { return sourceLabel(s, this.lang.language()); }
   actLabel(s: string): string { return actionLabel(s, this.lang.language()); }
   entLabel(s: string): string { return entityLabel(s, this.lang.language()); }
+
+  /**
+   * Server descriptions sometimes append a raw JSON snapshot of the whole
+   * entity (e.g. "Super created Discount '10%' {"Id":1,...}"). Keep the
+   * human prose, drop the JSON blob so the row stays readable.
+   */
+  cleanDesc(s: string | null | undefined): string {
+    const t = (s || '').trim();
+    if (!t) return '';
+    const i = t.search(/[{\[]/);
+    if (i === 0) return '';                                   // pure JSON → nothing readable
+    if (i > 0) return t.slice(0, i).replace(/[\s:,;–-]+$/, '').trim();
+    return t;
+  }
+
+  /** Hide raw JSON snapshots in the old→new value cells; keep short scalar changes. */
+  cleanVal(s: string | null | undefined): string {
+    const t = (s || '').trim();
+    if (!t || t.startsWith('{') || t.startsWith('[')) return '';
+    return t.length > 80 ? t.slice(0, 80) + '…' : t;
+  }
 
   srcClass(src: string): string {
     if (src === 'Order') return 'bg-info-soft text-info';
