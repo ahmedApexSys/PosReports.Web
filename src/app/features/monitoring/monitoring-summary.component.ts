@@ -200,6 +200,12 @@ import { actionLabel, entityLabel, sourceLabel } from '../../core/i18n/monitorin
             </button>
           </div>
 
+          <p class="text-xs text-slate-400">
+            {{ lang.language() === 'ar'
+                ? 'السجل بيشمل كل الفترات — مش محصور بالتاريخ المختار في الأعلى.'
+                : 'History spans all time — not limited to the header date range.' }}
+          </p>
+
           <div *ngIf="entityError()" class="text-sm text-critical">{{ entityError() }}</div>
 
           <div *ngIf="entityRows() as er">
@@ -307,7 +313,17 @@ export class MonitoringSummaryComponent {
     this.entityLoading.set(true);
     this.entityError.set('');
     this.entitySearched.set(true);
-    this.api.entityHistory(t, i, this.filter.fromDate(), this.filter.toDate()).pipe(
+    // An entity's history spans its whole life. Look across a wide window
+    // (independent of the often-narrow global header date filter) so older
+    // setup changes — discounts, menu, pricing created months ago — are still
+    // found. Without this, looking up anything not touched in the last few
+    // days returned an empty "no history", which read as broken.
+    const now = new Date();
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const fromWide = fmt(new Date(now.getFullYear() - 5, 0, 1));
+    const toWide = fmt(new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()));
+    this.api.entityHistory(t, i, fromWide, toWide).pipe(
       catchError((e) => { this.entityError.set(e?.message || 'Failed to load history.'); return of([] as UnifiedAuditLog[]); }),
       finalize(() => this.entityLoading.set(false)),
     ).subscribe((rows) => this.entityRows.set(rows));
