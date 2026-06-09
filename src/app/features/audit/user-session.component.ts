@@ -13,6 +13,7 @@ import {
 import { PickerItem } from '../../core/models/picker.models';
 import { FilterService } from '../../core/filters/filter.service';
 import { LanguageService } from '../../core/i18n/language.service';
+import { actionLabel } from '../../core/i18n/monitoring-labels';
 import { AuditReportPageComponent } from '../../shared/audit-report-page/audit-report-page.component';
 import { AuditEventCardComponent } from '../../shared/audit-event-card/audit-event-card.component';
 import { PickerComponent } from '../../shared/picker/picker.component';
@@ -108,7 +109,7 @@ import { PickerComponent } from '../../shared/picker/picker.component';
             <span *ngFor="let kv of breakdownEntries(s)"
                   class="inline-flex items-center gap-1 px-2 py-0.5 rounded-card-sm text-[11px] ring-1 tabular"
                   [class]="chipClassFor(kv.key)">
-              <span class="font-medium">{{ kv.key }}</span>
+              <span class="font-medium">{{ actLabel(kv.key) }}</span>
               <span class="opacity-75">·</span>
               <span class="font-semibold">{{ kv.value }}</span>
             </span>
@@ -181,7 +182,7 @@ import { PickerComponent } from '../../shared/picker/picker.component';
                       [class.dark:bg-surface-dark-subtle]="sessionFilters().get(sessionKey(s)) !== kv.key"
                       [class.ring-slate-300]="sessionFilters().get(sessionKey(s)) !== kv.key"
                       [class.dark:ring-slate-700]="sessionFilters().get(sessionKey(s)) !== kv.key">
-                {{ kv.key }} ({{ kv.value }})
+                {{ actLabel(kv.key) }} ({{ kv.value }})
               </button>
             </div>
             <div class="space-y-2 mt-3">
@@ -280,6 +281,9 @@ export class AuditUserSessionComponent implements OnInit {
       .map(([key, value]) => ({ key, value: value as number }))
       .sort((a, b) => b.value - a.value);
   }
+
+  /** Bilingual action label for the breakdown chips / filter buttons. */
+  actLabel(key: string): string { return actionLabel(key, this.lang.language()); }
 
   /** Stable per-session key — loginAt is unique enough within a user view. */
   sessionKey(s: UserSession): string { return s.loginAt; }
