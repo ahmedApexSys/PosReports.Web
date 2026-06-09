@@ -76,6 +76,18 @@ type SourceTab = 'all' | 'Order' | 'System' | 'Menu';
           </button>
         </div>
 
+        <!-- Transaction-type tabs -->
+        <div class="inline-flex rounded-card-sm ring-1 ring-slate-200 dark:ring-slate-700 overflow-hidden">
+          <button *ngFor="let t of txTabs" type="button" (click)="setTx(t.id)"
+                  class="px-3 py-1.5 text-xs font-medium transition-colors"
+                  [class.bg-brand-600]="txType() === t.id"
+                  [class.text-white]="txType() === t.id"
+                  [class.text-slate-600]="txType() !== t.id"
+                  [class.dark:text-slate-300]="txType() !== t.id">
+            {{ lang.language() === 'ar' ? t.ar : t.en }}
+          </button>
+        </div>
+
         <!-- Search -->
         <div class="relative flex-1 min-w-[180px] max-w-xs">
           <lucide-icon [img]="SearchIcon" class="absolute start-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"></lucide-icon>
@@ -180,6 +192,7 @@ export class LiveFeedComponent implements OnDestroy {
   readonly searchTerm = signal('');
   readonly page = signal(1);
   readonly pageSize = signal(50);
+  readonly txType = signal<number | null>(null);
 
   readonly autoRefresh = signal(false);
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -191,6 +204,12 @@ export class LiveFeedComponent implements OnDestroy {
     { key: 'Order', en: 'Orders', ar: 'أوردرات' },
     { key: 'System', en: 'System', ar: 'النظام' },
     { key: 'Menu', en: 'Menu', ar: 'المنيو' },
+  ];
+  readonly txTabs: { id: number | null; en: string; ar: string }[] = [
+    { id: null, en: 'All types', ar: 'كل الأنواع' },
+    { id: 1, en: 'Dine-In', ar: 'صالة' },
+    { id: 2, en: 'Delivery', ar: 'دليفري' },
+    { id: 3, en: 'Take-Away', ar: 'تيك أواي' },
   ];
 
   readonly RefreshIcon = RefreshCw;
@@ -210,7 +229,7 @@ export class LiveFeedComponent implements OnDestroy {
     effect(() => {
       const ok = this.filter.canFetch();
       // dependencies — effect re-runs when any change:
-      this.page(); this.pageSize(); this.source(); this.successFilter(); this.searchTerm();
+      this.page(); this.pageSize(); this.source(); this.successFilter(); this.searchTerm(); this.txType();
       if (ok) this.reload();
       else this.data.set([]);
     });
@@ -219,6 +238,7 @@ export class LiveFeedComponent implements OnDestroy {
   ngOnDestroy(): void { this.stopTimer(); }
 
   setSource(s: SourceTab): void { this.page.set(1); this.source.set(s); }
+  setTx(id: number | null): void { this.page.set(1); this.txType.set(id); }
   setSuccess(v: 'all' | 'ok' | 'fail'): void { this.page.set(1); this.successFilter.set(v); }
   setPageSize(n: number): void { this.page.set(1); this.pageSize.set(n); }
   setPage(p: number): void { this.page.set(p); }
@@ -245,6 +265,7 @@ export class LiveFeedComponent implements OnDestroy {
       logSource: this.source() === 'all' ? null : this.source(),
       successOnly: this.successFilter() === 'all' ? null : this.successFilter() === 'ok',
       searchText: this.searchTerm() || null,
+      transactionType: this.txType(),
       page: this.page(),
       pageSize: this.pageSize(),
     }).pipe(

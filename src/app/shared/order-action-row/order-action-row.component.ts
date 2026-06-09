@@ -1,5 +1,6 @@
 import { Component, Input, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import {
   LucideAngularModule, ChevronDown, ArrowRight, User, Clock, Monitor,
   TriangleAlert, CheckCircle2, XCircle, ArrowLeftRight, Split, Receipt,
@@ -89,6 +90,11 @@ import { actionLabel, txTypeLabel, orderActionDescription } from '../../core/i18
 
       <!-- Body -->
       <div *ngIf="expanded()" class="px-3 md:px-4 pb-3 pt-1 border-t border-slate-100 dark:border-slate-800 space-y-3">
+        <!-- Open the full order journey -->
+        <button *ngIf="row.orderId" type="button" (click)="openJourney($event)"
+                class="text-xs text-brand-600 hover:underline font-medium">
+          {{ lang.language() === 'ar' ? 'افتح رحلة الأوردر ←' : 'Open order journey →' }}
+        </button>
         <!-- Error -->
         <div *ngIf="!row.success && row.errorMessage"
              class="text-xs rounded-card-sm bg-critical-soft text-critical px-2 py-1.5">
@@ -159,6 +165,7 @@ export class OrderActionRowComponent {
   @Input({ required: true }) row!: OrderActionLogRow;
 
   readonly lang = inject(LanguageService);
+  private readonly router = inject(Router);
   readonly expanded = signal(false);
 
   readonly ChevronIcon = ChevronDown;
@@ -191,6 +198,13 @@ export class OrderActionRowComponent {
   desc(): string {
     const l = this.lang.language();
     return l === 'ar' ? orderActionDescription(this.row, 'ar') : (this.row?.description || orderActionDescription(this.row, 'en'));
+  }
+
+  openJourney(ev: Event): void {
+    ev.stopPropagation();
+    if (this.row?.orderId) {
+      this.router.navigate(['/audit/order-journey'], { queryParams: { orderId: this.row.orderId } });
+    }
   }
 
   changedList(): string[] {
