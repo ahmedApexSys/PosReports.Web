@@ -58,13 +58,15 @@ type Mode = 'browse' | 'order' | 'receipt';
 
         <!-- Browse filters -->
         <div *ngIf="mode() === 'browse'" class="flex flex-wrap items-center gap-2">
-          <select [ngModel]="trxType()" (ngModelChange)="setTrx($event)"
-                  class="bg-white dark:bg-surface-dark-subtle border border-slate-300 dark:border-slate-700 rounded-card-sm px-2 py-1.5 text-xs">
-            <option [ngValue]="null">{{ lang.language() === 'ar' ? 'كل الأنواع' : 'All types' }}</option>
-            <option [ngValue]="1">{{ lang.language() === 'ar' ? 'صالة' : 'Dine-In' }}</option>
-            <option [ngValue]="2">{{ lang.language() === 'ar' ? 'ديليفري' : 'Delivery' }}</option>
-            <option [ngValue]="3">{{ lang.language() === 'ar' ? 'تيك أواي' : 'Take-away' }}</option>
-          </select>
+          <!-- Transaction-type tabs (consistent with the Live Feed) -->
+          <div class="inline-flex rounded-card-sm ring-1 ring-slate-200 dark:ring-slate-700 overflow-hidden">
+            <button *ngFor="let t of txTabs" type="button" (click)="setTrx(t.id)"
+                    class="px-3 py-1.5 text-xs font-medium transition-colors"
+                    [class.bg-brand-600]="trxType() === t.id" [class.text-white]="trxType() === t.id"
+                    [class.text-slate-600]="trxType() !== t.id" [class.dark:text-slate-300]="trxType() !== t.id">
+              {{ lang.language() === 'ar' ? t.ar : t.en }}
+            </button>
+          </div>
           <div class="relative min-w-[150px]">
             <lucide-icon [img]="FilterIcon" class="absolute start-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"></lucide-icon>
             <input type="text" [(ngModel)]="tableText" (keyup.enter)="applyTable()"
@@ -164,6 +166,14 @@ export class OrderActionsComponent {
     { key: 'browse', en: 'Browse', ar: 'تصفّح' },
     { key: 'order', en: 'By Order #', ar: 'برقم الأوردر' },
     { key: 'receipt', en: 'By Receipt #', ar: 'برقم الإيصال' },
+  ];
+
+  /** Transaction-type tabs for browse mode (id maps to the server's TransactionType). */
+  readonly txTabs: { id: number | null; en: string; ar: string }[] = [
+    { id: null, en: 'All types', ar: 'كل الأنواع' },
+    { id: 1, en: 'Dine-In', ar: 'صالة' },
+    { id: 2, en: 'Delivery', ar: 'دليفري' },
+    { id: 3, en: 'Take-away', ar: 'تيك أواي' },
   ];
 
   readonly RefreshIcon = RefreshCw;

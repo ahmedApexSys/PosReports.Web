@@ -176,6 +176,7 @@ export class ShellComponent {
         { labelEn: 'Order Actions',      labelAr: 'حركات الأوردرات', route: '/monitoring/orders',  icon: ScrollText },
         { labelEn: 'Table Actions',      labelAr: 'حركات الطاولات',  route: '/monitoring/tables',  icon: Armchair },
         { labelEn: 'Activity Summary',   labelAr: 'ملخص النشاط',     route: '/monitoring/summary', icon: Gauge },
+        { labelEn: 'By User',            labelAr: 'حسب المستخدم',    route: '/monitoring/by-user', icon: UserCog },
       ],
     },
     {
