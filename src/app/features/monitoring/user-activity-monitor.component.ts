@@ -13,7 +13,9 @@ import { MonitoringApi } from '../../core/api/monitoring.api';
 import { OrderActionLogRow, UserActivitySummary } from '../../core/models/monitoring.models';
 import { OrderActionRowComponent } from '../../shared/order-action-row/order-action-row.component';
 import { PagerComponent } from '../../shared/pager/pager.component';
+import { ExportMenuComponent } from '../../shared/export-menu/export-menu.component';
 import { actionLabel } from '../../core/i18n/monitoring-labels';
+import { orderActionExportColumns } from '../../core/export/monitoring-export-columns';
 
 /**
  * By-User monitoring — "who did what". Lists every user active in the branch +
@@ -28,7 +30,7 @@ import { actionLabel } from '../../core/i18n/monitoring-labels';
 @Component({
   selector: 'app-user-activity-monitor',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, OrderActionRowComponent, PagerComponent],
+  imports: [CommonModule, FormsModule, LucideAngularModule, OrderActionRowComponent, PagerComponent, ExportMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-5">
@@ -175,11 +177,18 @@ import { actionLabel } from '../../core/i18n/monitoring-labels';
               </div>
 
               <!-- Their order actions -->
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between gap-2">
                 <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   {{ ar() ? 'حركات الأوردرات' : 'Order actions' }}
                   <span class="text-xs text-slate-400">({{ totalCount() }})</span>
                 </h2>
+                <app-export-menu *ngIf="rows().length"
+                  [rows]="rows()" [columns]="exportCols"
+                  [titleEn]="'User actions — ' + (u.userName || '')"
+                  [titleAr]="'حركات المستخدم — ' + (u.userName || '')"
+                  [branch]="rows()[0]?.branchName"
+                  [fromDate]="filter.fromDate()" [toDate]="filter.toDate()"
+                  fileBase="user-actions"></app-export-menu>
               </div>
 
               <div *ngIf="rowsLoading() && !rows().length" class="space-y-2">
@@ -227,6 +236,7 @@ export class UserActivityMonitorComponent {
   // ── drill-down state ─────────────────────────────────────────────
   readonly selected = signal<UserActivitySummary | null>(null);
   readonly rows = signal<OrderActionLogRow[]>([]);
+  readonly exportCols = orderActionExportColumns();
   readonly rowsLoading = signal(false);
   readonly rowsErr = signal('');
   readonly page = signal(1);

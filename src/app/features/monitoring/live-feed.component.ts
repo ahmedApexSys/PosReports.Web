@@ -4,7 +4,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  LucideAngularModule, RefreshCw, Loader, Building2, Search, Download,
+  LucideAngularModule, RefreshCw, Loader, Building2, Search,
   Play, Pause, ArrowRight, User, Clock, CheckCircle2, XCircle,
 } from 'lucide-angular';
 import { catchError, finalize, of } from 'rxjs';
@@ -14,6 +14,8 @@ import { MonitoringApi } from '../../core/api/monitoring.api';
 import { UnifiedAuditLog } from '../../core/models/monitoring.models';
 import { actionLabel, entityLabel, sourceLabel, categoryLabel, entityNameLabel, unifiedDescription } from '../../core/i18n/monitoring-labels';
 import { PagerComponent } from '../../shared/pager/pager.component';
+import { ExportMenuComponent } from '../../shared/export-menu/export-menu.component';
+import { unifiedAuditExportColumns } from '../../core/export/monitoring-export-columns';
 
 type SourceTab = 'all' | 'Order' | 'System' | 'Menu';
 
@@ -26,7 +28,7 @@ type SourceTab = 'all' | 'Order' | 'System' | 'Menu';
 @Component({
   selector: 'app-live-feed',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, PagerComponent],
+  imports: [CommonModule, FormsModule, LucideAngularModule, PagerComponent, ExportMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-5">
@@ -50,10 +52,14 @@ type SourceTab = 'all' | 'Order' | 'System' | 'Menu';
                 ? (lang.language() === 'ar' ? 'إيقاف التحديث' : 'Stop auto')
                 : (lang.language() === 'ar' ? 'تحديث تلقائي' : 'Auto-refresh') }}
           </button>
-          <button (click)="exportCsv()" class="btn-ghost text-sm" [disabled]="!data().length">
-            <lucide-icon [img]="DownloadIcon" class="h-4 w-4"></lucide-icon>
-            {{ lang.language() === 'ar' ? 'تصدير CSV' : 'Export CSV' }}
-          </button>
+          <app-export-menu
+            [rows]="data()" [columns]="exportCols"
+            titleEn="Live Activity Feed" titleAr="سجل النشاط المباشر"
+            subtitleEn="Order, table, system & menu actions"
+            subtitleAr="حركات الأوردرات والطاولات والنظام والمنيو"
+            [branch]="data()[0]?.branchName"
+            [fromDate]="filter.fromDate()" [toDate]="filter.toDate()"
+            fileBase="activity-feed"></app-export-menu>
           <button (click)="reload()" class="btn-ghost text-sm" [disabled]="loading() || !filter.canFetch()">
             <lucide-icon [img]="loading() ? LoaderIcon : RefreshIcon" class="h-4 w-4"
                          [class.animate-spin]="loading()"></lucide-icon>
@@ -216,7 +222,7 @@ export class LiveFeedComponent implements OnDestroy {
   readonly LoaderIcon = Loader;
   readonly BuildingIcon = Building2;
   readonly SearchIcon = Search;
-  readonly DownloadIcon = Download;
+  readonly exportCols = unifiedAuditExportColumns();
   readonly PlayIcon = Play;
   readonly PauseIcon = Pause;
   readonly ArrowIcon = ArrowRight;
@@ -303,26 +309,4 @@ export class LiveFeedComponent implements OnDestroy {
     return 'bg-slate-100 dark:bg-surface-dark-muted text-slate-500';
   }
 
-  exportCsv(): void {
-    const rows = this.data();
-    if (!rows.length) return;
-    const headers = ['Date', 'Time', 'Source', 'Category', 'Action', 'EntityType', 'EntityName',
-      'User', 'Role', 'Branch', 'Old', 'New', 'Success', 'Description'];
-    const esc = (v: unknown) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-    const lines = [headers.join(',')];
-    for (const r of rows) {
-      lines.push([
-        (r.actionDate || '').slice(0, 10), r.actionTime, r.logSource, r.category, r.actionType,
-        r.entityType, r.entityName, r.userName, r.userRole, r.branchName,
-        r.oldValue, r.newValue, r.success, r.description,
-      ].map(esc).join(','));
-    }
-    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `activity-feed-${(this.filter.fromDate() || '').slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 }

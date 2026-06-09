@@ -13,6 +13,8 @@ import { MonitoringApi } from '../../core/api/monitoring.api';
 import { OrderActionLogRow } from '../../core/models/monitoring.models';
 import { OrderActionRowComponent } from '../../shared/order-action-row/order-action-row.component';
 import { PagerComponent } from '../../shared/pager/pager.component';
+import { ExportMenuComponent } from '../../shared/export-menu/export-menu.component';
+import { orderActionExportColumns } from '../../core/export/monitoring-export-columns';
 
 type Mode = 'browse' | 'order' | 'receipt';
 
@@ -24,7 +26,7 @@ type Mode = 'browse' | 'order' | 'receipt';
 @Component({
   selector: 'app-order-actions',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, OrderActionRowComponent, PagerComponent],
+  imports: [CommonModule, FormsModule, LucideAngularModule, OrderActionRowComponent, PagerComponent, ExportMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-5">
@@ -39,10 +41,20 @@ type Mode = 'browse' | 'order' | 'receipt';
                 : 'Every order mutation — with the before/after state of each step.' }}
           </p>
         </div>
-        <button (click)="run()" class="btn-ghost text-sm" [disabled]="loading() || !canRun()">
-          <lucide-icon [img]="loading() ? LoaderIcon : RefreshIcon" class="h-4 w-4" [class.animate-spin]="loading()"></lucide-icon>
-          {{ lang.language() === 'ar' ? 'تحديث' : 'Refresh' }}
-        </button>
+        <div class="flex items-center gap-2">
+          <app-export-menu
+            [rows]="rows()" [columns]="exportCols"
+            titleEn="Order Actions" titleAr="حركات الأوردرات"
+            subtitleEn="Every order mutation with before/after"
+            subtitleAr="كل تعديل على الأوردر مع الحالة قبل وبعد"
+            [branch]="rows()[0]?.branchName"
+            [fromDate]="filter.fromDate()" [toDate]="filter.toDate()"
+            fileBase="order-actions"></app-export-menu>
+          <button (click)="run()" class="btn-ghost text-sm" [disabled]="loading() || !canRun()">
+            <lucide-icon [img]="loading() ? LoaderIcon : RefreshIcon" class="h-4 w-4" [class.animate-spin]="loading()"></lucide-icon>
+            {{ lang.language() === 'ar' ? 'تحديث' : 'Refresh' }}
+          </button>
+        </div>
       </div>
 
       <!-- Mode + filters -->
@@ -146,6 +158,7 @@ export class OrderActionsComponent {
   private readonly api = inject(MonitoringApi);
 
   readonly rows = signal<OrderActionLogRow[]>([]);
+  readonly exportCols = orderActionExportColumns();
   readonly totalCount = signal(0);
   readonly loading = signal(false);
   readonly error = signal('');
