@@ -25,6 +25,16 @@ const lazy = {
   dashboard: () =>
     import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
 
+  // ── Monitoring (4 — raw action-log feeds) ──────────────────────
+  monFeed: () =>
+    import('./features/monitoring/live-feed.component').then(m => m.LiveFeedComponent),
+  monOrders: () =>
+    import('./features/monitoring/order-actions.component').then(m => m.OrderActionsComponent),
+  monTables: () =>
+    import('./features/monitoring/table-actions.component').then(m => m.TableActionsComponent),
+  monSummary: () =>
+    import('./features/monitoring/monitoring-summary.component').then(m => m.MonitoringSummaryComponent),
+
   // ── Business Intelligence (7 sub-pages, dashboard is the 8th) ──
   biKpi: () =>
     import('./features/bi/kpi-summary.component').then(m => m.KpiSummaryComponent),
@@ -115,6 +125,12 @@ export const routes: Routes = [
 
       // ── Dashboard (1) ───────────────────────────────────────
       { path: 'dashboard',                 loadComponent: lazy.dashboard,         title: 'Dashboard' },
+
+      // ── Monitoring (4 — order/table/system action logs) ─────
+      { path: 'monitoring/feed',           loadComponent: lazy.monFeed,           title: 'Live Activity Feed' },
+      { path: 'monitoring/orders',         loadComponent: lazy.monOrders,         title: 'Order Actions' },
+      { path: 'monitoring/tables',         loadComponent: lazy.monTables,         title: 'Table Actions' },
+      { path: 'monitoring/summary',        loadComponent: lazy.monSummary,        title: 'Activity Summary' },
 
       // ── Business Intelligence (7 sub-pages) ─────────────────
       { path: 'bi/kpi',                    loadComponent: lazy.biKpi,             title: 'KPI Summary' },

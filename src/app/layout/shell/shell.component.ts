@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router } from '@angular/router';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -165,6 +165,17 @@ export class ShellComponent {
       titleEn: 'Overview', titleAr: 'لوحة العامة',
       items: [
         { labelEn: 'Dashboard',   labelAr: 'الرئيسية',   route: '/dashboard', icon: LayoutDashboard },
+      ],
+    },
+    {
+      // Raw action-log monitoring — who did what on every order/table,
+      // with before/after. Surfaces /api/AuditReport/* + /api/OrderActionLog/*.
+      titleEn: 'Monitoring', titleAr: 'المراقبة',
+      items: [
+        { labelEn: 'Live Activity Feed', labelAr: 'النشاط المباشر',  route: '/monitoring/feed',    icon: Activity },
+        { labelEn: 'Order Actions',      labelAr: 'حركات الأوردرات', route: '/monitoring/orders',  icon: ScrollText },
+        { labelEn: 'Table Actions',      labelAr: 'حركات الطاولات',  route: '/monitoring/tables',  icon: Armchair },
+        { labelEn: 'Activity Summary',   labelAr: 'ملخص النشاط',     route: '/monitoring/summary', icon: Gauge },
       ],
     },
     {
