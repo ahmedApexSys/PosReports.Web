@@ -48,6 +48,7 @@ export interface ExportMeta {
 const BRAND = '#0F766E';
 const BRAND_DARK = '#0b5a52';
 const HEAD_TEXT = '#ffffff';
+const HEAD_TINT = '#e6f1f0';
 const ZEBRA = '#f5f7f9';
 const BORDER = '#d8dee4';
 const GOOD_BG = '#dcfce7';
@@ -109,6 +110,13 @@ export class ExportService {
     const subtitle = ar ? (meta.subtitleAr || meta.subtitleEn) : (meta.subtitleEn || meta.subtitleAr);
     const L = (en: string, arr: string) => (ar ? arr : en);
 
+    // Print legibility: a colour-filled header with white text vanishes when the
+    // browser's "Save as PDF" drops backgrounds (and muddies on a mono printer).
+    // For the PDF path use dark ink on a light tint — it degrades cleanly to
+    // dark-on-white; the Excel path keeps the bold filled header.
+    const headBg = forExcel ? BRAND : HEAD_TINT;
+    const headTx = forExcel ? HEAD_TEXT : BRAND_DARK;
+
     const metaBits: string[] = [];
     if (meta.branch) metaBits.push(`${L('Branch', 'الفرع')}: <b>${esc(meta.branch)}</b>`);
     if (meta.fromDate || meta.toDate)
@@ -120,7 +128,7 @@ export class ExportService {
       const h1 = ar ? c.headerAr : c.headerEn;
       const h2 = ar ? c.headerEn : c.headerAr;
       const sub = (h2 && h2 !== h1) ? `<div style="font-weight:400;font-size:10px;opacity:.8">${esc(h2)}</div>` : '';
-      return `<th style="background:${BRAND};color:${HEAD_TEXT};border:1px solid ${BRAND_DARK};padding:8px 10px;text-align:center;font-weight:700;white-space:nowrap">${esc(h1)}${sub}</th>`;
+      return `<th style="background:${headBg};color:${headTx};border:1px solid ${forExcel ? BRAND_DARK : BORDER};border-bottom:2px solid ${BRAND};padding:8px 10px;text-align:center;font-weight:700;white-space:nowrap">${esc(h1)}${sub}</th>`;
     }).join('');
 
     const body = rows.map((r, i) => {
