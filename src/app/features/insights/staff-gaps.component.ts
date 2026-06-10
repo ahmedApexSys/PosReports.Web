@@ -4,6 +4,8 @@ import { OwnerInsightsApi } from '../../core/api/owner-insights.api';
 import { StaffScorecardDto, StaffScoreDto } from '../../core/models/owner-insights.models';
 import { FilterService } from '../../core/filters/filter.service';
 import { LanguageService } from '../../core/i18n/language.service';
+import { ExportMenuComponent } from '../../shared/export-menu/export-menu.component';
+import { ExportColumn } from '../../core/export/export.service';
 
 /**
  * `POST /api/BusinessIntelligence/StaffAccountabilityScorecard`
@@ -18,20 +20,30 @@ import { LanguageService } from '../../core/i18n/language.service';
 @Component({
   selector: 'app-staff-gaps',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ExportMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
       <!-- Page header -->
-      <div>
-        <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
-          {{ lang.language() === 'ar' ? 'فجوات أداء الموظفين' : 'Staff productivity gaps' }}
-        </h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          {{ lang.language() === 'ar'
-              ? 'كفاءة + نزاهة + إنتاجية لكل موظف — الأسوأ أولاً'
-              : 'Efficiency + Integrity + Productivity per user — worst first' }}
-        </p>
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
+            {{ lang.language() === 'ar' ? 'فجوات أداء الموظفين' : 'Staff productivity gaps' }}
+          </h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {{ lang.language() === 'ar'
+                ? 'كفاءة + نزاهة + إنتاجية لكل موظف — الأسوأ أولاً'
+                : 'Efficiency + Integrity + Productivity per user — worst first' }}
+          </p>
+        </div>
+        <app-export-menu *ngIf="sortedStaff().length"
+          [rows]="sortedStaff()" [columns]="exportCols"
+          titleEn="Staff productivity gaps" titleAr="فجوات أداء الموظفين"
+          subtitleEn="Efficiency + Integrity + Productivity per user"
+          subtitleAr="كفاءة + نزاهة + إنتاجية لكل موظف"
+          [branch]="null"
+          [fromDate]="filter.fromDate()" [toDate]="filter.toDate()"
+          fileBase="staff-gaps"></app-export-menu>
       </div>
 
       <div *ngIf="loading()" class="card-padded animate-pulse">
@@ -184,12 +196,29 @@ import { LanguageService } from '../../core/i18n/language.service';
 })
 export class StaffGapsComponent {
   private readonly api = inject(OwnerInsightsApi);
-  private readonly filter = inject(FilterService);
+  readonly filter = inject(FilterService);
   readonly lang = inject(LanguageService);
 
   readonly data = signal<StaffScorecardDto | null>(null);
   readonly loading = signal(false);
   readonly error = signal('');
+
+  readonly exportCols: ExportColumn<StaffScoreDto>[] = [
+    { headerEn: 'User', headerAr: 'المستخدم', width: 20, value: r => r.userName },
+    { headerEn: 'Role', headerAr: 'الدور', width: 14, value: r => r.userRole || '' },
+    { headerEn: 'Orders', headerAr: 'عدد الأوردرات', width: 11, numeric: true, value: r => r.ordersProcessed },
+    { headerEn: 'Revenue', headerAr: 'الإيراد', width: 14, numeric: true, value: r => r.totalRevenue },
+    { headerEn: 'Avg order', headerAr: 'متوسط الفاتورة', width: 13, numeric: true, value: r => r.avgOrderValue },
+    { headerEn: 'Discounts', headerAr: 'الخصم', width: 11, numeric: true, value: r => r.discountsApplied },
+    { headerEn: 'Disc. amount', headerAr: 'قيمة الخصم', width: 13, numeric: true, value: r => r.discountAmount },
+    { headerEn: 'Voids', headerAr: 'Void', width: 10, numeric: true, value: r => r.voidsPerformed },
+    { headerEn: 'Void amount', headerAr: 'قيمة الـ Void', width: 13, numeric: true, value: r => r.voidAmount },
+    { headerEn: 'Pay edits', headerAr: 'تعديل دفع', width: 11, numeric: true, value: r => r.paymentEdits },
+    { headerEn: 'Efficiency', headerAr: 'كفاءة', width: 10, numeric: true, value: r => r.efficiencyScore },
+    { headerEn: 'Integrity', headerAr: 'نزاهة', width: 10, numeric: true, value: r => r.integrityScore },
+    { headerEn: 'Productivity', headerAr: 'إنتاجية', width: 10, numeric: true, value: r => r.productivityScore },
+    { headerEn: 'Overall', headerAr: 'إجمالي', width: 10, numeric: true, value: r => r.overallScore, tone: r => r.overallScore >= 75 ? 'good' : (r.overallScore < 50 ? 'bad' : null) },
+  ];
 
   /** Sort by Overall ASC so the worst performers land at the top. */
   readonly sortedStaff = computed<StaffScoreDto[]>(() => {

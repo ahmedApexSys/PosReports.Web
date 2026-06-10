@@ -4,6 +4,8 @@ import { OwnerInsightsApi } from '../../core/api/owner-insights.api';
 import { TopPayingCustomersResult, TopCustomerRow } from '../../core/models/owner-insights.models';
 import { FilterService } from '../../core/filters/filter.service';
 import { LanguageService } from '../../core/i18n/language.service';
+import { ExportMenuComponent } from '../../shared/export-menu/export-menu.component';
+import { ExportColumn } from '../../core/export/export.service';
 
 /**
  * `POST /api/OwnerInsights/TopPayingCustomers`
@@ -16,20 +18,29 @@ import { LanguageService } from '../../core/i18n/language.service';
 @Component({
   selector: 'app-top-customers',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ExportMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
       <!-- Page header -->
-      <div>
-        <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
-          {{ lang.language() === 'ar' ? 'أفضل العملاء دفعاً' : 'Top paying customers' }}
-        </h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          {{ lang.language() === 'ar'
-              ? 'مين العملاء اللي بيدفعوا أكتر — ركّز عليهم لبرامج الولاء'
-              : 'Who pays you the most — direct loyalty effort here' }}
-        </p>
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
+            {{ lang.language() === 'ar' ? 'أفضل العملاء دفعاً' : 'Top paying customers' }}
+          </h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {{ lang.language() === 'ar'
+                ? 'مين العملاء اللي بيدفعوا أكتر — ركّز عليهم لبرامج الولاء'
+                : 'Who pays you the most — direct loyalty effort here' }}
+          </p>
+        </div>
+        <app-export-menu *ngIf="data()?.customers?.length"
+          [rows]="data()!.customers" [columns]="exportCols"
+          titleEn="Top paying customers" titleAr="أفضل العملاء دفعاً"
+          subtitleEn="Who pays you the most" subtitleAr="مين العملاء اللي بيدفعوا أكتر"
+          [branch]="null"
+          [fromDate]="filter.fromDate()" [toDate]="filter.toDate()"
+          fileBase="top-customers"></app-export-menu>
       </div>
 
       <!-- Loading -->
@@ -150,12 +161,24 @@ import { LanguageService } from '../../core/i18n/language.service';
 })
 export class TopCustomersComponent {
   private readonly api = inject(OwnerInsightsApi);
-  private readonly filter = inject(FilterService);
+  readonly filter = inject(FilterService);
   readonly lang = inject(LanguageService);
 
   readonly data = signal<TopPayingCustomersResult | null>(null);
   readonly loading = signal(false);
   readonly error = signal('');
+
+  readonly exportCols: ExportColumn<TopCustomerRow>[] = [
+    { headerEn: 'Customer', headerAr: 'العميل', width: 22, value: (r, l) => r.customerName || (l === 'ar' ? '(غير معروف)' : '(unknown)') },
+    { headerEn: 'Mobile', headerAr: 'موبايل', width: 16, value: r => r.mobilePhone || '' },
+    { headerEn: 'Orders', headerAr: 'عدد الأوردرات', width: 11, numeric: true, value: r => r.ordersCount },
+    { headerEn: 'Total net', headerAr: 'الإجمالي', width: 14, numeric: true, value: r => r.totalNet },
+    { headerEn: 'Avg ticket', headerAr: 'متوسط الفاتورة', width: 14, numeric: true, value: r => r.avgTicket },
+    { headerEn: 'First order', headerAr: 'أول طلب', width: 12, value: r => (r.firstOrderAt || '').slice(0, 10) },
+    { headerEn: 'Last order', headerAr: 'آخر طلب', width: 12, value: r => (r.lastOrderAt || '').slice(0, 10) },
+    { headerEn: 'Branches', headerAr: 'الفروع', width: 10, numeric: true, value: r => r.branchesSeen },
+    { headerEn: 'Top type', headerAr: 'أكتر معاملة', width: 14, value: r => r.topTransaction || '' },
+  ];
 
   constructor() {
     effect(() => {

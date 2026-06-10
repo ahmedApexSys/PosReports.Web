@@ -12,9 +12,11 @@ import {
   ApexYAxis,
 } from 'ng-apexcharts';
 import { OwnerInsightsApi } from '../../core/api/owner-insights.api';
-import { ItemsNotPaidResult } from '../../core/models/owner-insights.models';
+import { ItemsNotPaidResult, ItemsNotPaidRow } from '../../core/models/owner-insights.models';
 import { FilterService } from '../../core/filters/filter.service';
 import { LanguageService } from '../../core/i18n/language.service';
+import { ExportMenuComponent } from '../../shared/export-menu/export-menu.component';
+import { ExportColumn } from '../../core/export/export.service';
 
 /**
  * `POST /api/OwnerInsights/ItemsNotPaid`
@@ -29,20 +31,29 @@ import { LanguageService } from '../../core/i18n/language.service';
 @Component({
   selector: 'app-items-not-paid',
   standalone: true,
-  imports: [CommonModule, NgApexchartsModule],
+  imports: [CommonModule, NgApexchartsModule, ExportMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
       <!-- Page header -->
-      <div>
-        <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
-          {{ lang.language() === 'ar' ? 'أصناف غير مدفوعة' : 'Items not paid' }}
-        </h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          {{ lang.language() === 'ar'
-              ? 'أصناف اتعملها void أو إلغاء — قرار: تدريب الموظفين أو شطب الصنف'
-              : 'Items voided or cancelled — decision: retrain staff or pull the item' }}
-        </p>
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
+            {{ lang.language() === 'ar' ? 'أصناف غير مدفوعة' : 'Items not paid' }}
+          </h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {{ lang.language() === 'ar'
+                ? 'أصناف اتعملها void أو إلغاء — قرار: تدريب الموظفين أو شطب الصنف'
+                : 'Items voided or cancelled — decision: retrain staff or pull the item' }}
+          </p>
+        </div>
+        <app-export-menu *ngIf="data()?.items?.length"
+          [rows]="data()!.items" [columns]="exportCols"
+          titleEn="Items not paid" titleAr="أصناف غير مدفوعة"
+          subtitleEn="Items voided or cancelled" subtitleAr="أصناف اتعملها void أو إلغاء"
+          [branch]="null"
+          [fromDate]="filter.fromDate()" [toDate]="filter.toDate()"
+          fileBase="items-not-paid"></app-export-menu>
       </div>
 
       <div *ngIf="loading()" class="card-padded animate-pulse">
@@ -179,12 +190,21 @@ import { LanguageService } from '../../core/i18n/language.service';
 })
 export class ItemsNotPaidComponent {
   private readonly api = inject(OwnerInsightsApi);
-  private readonly filter = inject(FilterService);
+  readonly filter = inject(FilterService);
   readonly lang = inject(LanguageService);
 
   readonly data = signal<ItemsNotPaidResult | null>(null);
   readonly loading = signal(false);
   readonly error = signal('');
+
+  readonly exportCols: ExportColumn<ItemsNotPaidRow>[] = [
+    { headerEn: 'Item', headerAr: 'الصنف', width: 28, value: r => r.itemName || '' },
+    { headerEn: 'Item ID', headerAr: 'كود الصنف', width: 10, numeric: true, value: r => r.itemId },
+    { headerEn: 'Source', headerAr: 'المصدر', width: 12, value: r => r.source },
+    { headerEn: 'Events', headerAr: 'عدد', width: 10, numeric: true, value: r => r.voidedCount },
+    { headerEn: 'Qty', headerAr: 'كمية', width: 10, numeric: true, value: r => r.voidedQty },
+    { headerEn: 'Lost value', headerAr: 'القيمة', width: 14, numeric: true, value: r => r.voidedValue },
+  ];
 
   // ── Chart config ─────────────────────────────────────────────────────
   readonly chartConfig: ApexChart = {
