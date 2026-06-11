@@ -1,8 +1,8 @@
 # PosReports.Web — Claude Code Project Memory
 
 > **Remote** (added 2026-05-25): `github.com/ahmedApexSys/PosReports.Web`
-> **Branches on origin**: `main` · `AddClaudeDocs+24-05-2026` · `Production` (all at `cd1c346`)
-> **Current working branch**: `AddClaudeDocs+24-05-2026` (= Production tip)
+> **Branches on origin**: `main` · `Production` · `FixReservationEdit-IsPaidOrder+09-06-2026`
+> **Current working branch**: `FixReservationEdit-IsPaidOrder+09-06-2026` — **FF-merged to `Production` 2026-06-11** (Monitoring module, global header date-range picker with presets+persistence, xlsx/pdf/csv exports on Insights/BI pages, export PDF header-legibility fix, diagnostic-log cleanup). Deploy via the app's own build+publish.
 >
 > **Session 2026-05-25** — repo pushed to GitHub for the first time. WIP audit /
 > owner-insights work captured in commit `cd1c346` (18 files: routes, audit
