@@ -103,7 +103,17 @@ const lazy = {
   perfSpeedPilot: () =>
     import('./features/perf/speed-pilot.component').then(m => m.PerfSpeedPilotComponent),
 
-  // ── Placeholder (utility pages still pending UI) ───────────────
+  // ── Utility pages ──────────────────────────────────────────────
+  profile: () =>
+    import('./features/profile/profile.component').then(m => m.ProfileComponent),
+  settings: () =>
+    import('./features/settings/settings.component').then(m => m.SettingsComponent),
+  notifications: () =>
+    import('./features/notifications/notifications.component').then(m => m.NotificationsComponent),
+  help: () =>
+    import('./features/help/help.component').then(m => m.HelpComponent),
+
+  // ── Placeholder (fallback for any not-yet-built route) ─────────
   placeholder: () =>
     import('./features/placeholder/placeholder.component').then(m => m.PlaceholderComponent),
 };
@@ -173,11 +183,11 @@ export const routes: Routes = [
       { path: 'perf/speed',                loadComponent: lazy.perfSpeed,         title: 'Service Speed' },
       { path: 'perf/speed-pilot',          loadComponent: lazy.perfSpeedPilot,    title: 'Speed by Pilot' },
 
-      // ── Utility (still using PlaceholderComponent) ──────────
-      { path: 'profile',                   loadComponent: lazy.placeholder,       title: 'Profile' },
-      { path: 'settings',                  loadComponent: lazy.placeholder,       title: 'Settings' },
-      { path: 'help',                      loadComponent: lazy.placeholder,       title: 'Help' },
-      { path: 'notifications',             loadComponent: lazy.placeholder,       title: 'Notifications' },
+      // ── Utility ─────────────────────────────────────────────
+      { path: 'profile',                   loadComponent: lazy.profile,           title: 'Profile' },
+      { path: 'settings',                  loadComponent: lazy.settings,          title: 'Settings' },
+      { path: 'help',                      loadComponent: lazy.help,              title: 'Help' },
+      { path: 'notifications',             loadComponent: lazy.notifications,     title: 'Notifications' },
 
       // Catch-all → placeholder (the URL chip on the card shows where you are)
       { path: '**',                        loadComponent: lazy.placeholder },

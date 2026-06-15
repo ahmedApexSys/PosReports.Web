@@ -1,10 +1,11 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router } from '@angular/router';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, UserRound, Settings, CircleHelp } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
+import { NotificationCenterService } from '../../core/notifications/notification-center.service';
 import { BranchPickerComponent } from '../../shared/branch-picker/branch-picker.component';
 import { DateRangePickerComponent } from '../../shared/date-range-picker/date-range-picker.component';
 
@@ -40,6 +41,11 @@ interface NavGroup {
       <div *ngIf="mobileNavOpen()"
            (click)="mobileNavOpen.set(false)"
            class="fixed inset-0 z-30 bg-black/40 lg:hidden"></div>
+
+      <!-- User-menu close backdrop (invisible; click anywhere to dismiss) -->
+      <div *ngIf="userMenuOpen()"
+           (click)="userMenuOpen.set(false)"
+           class="fixed inset-0 z-40"></div>
 
       <!-- ── Sidebar ────────────────────────────────────────────── -->
       <aside class="fixed lg:sticky top-0 z-40 h-screen lg:shrink-0
@@ -126,12 +132,61 @@ interface NavGroup {
             <app-date-range-picker></app-date-range-picker>
           </div>
 
-          <div class="flex items-center gap-2">
-            <div class="text-xs text-slate-600 dark:text-slate-300 hidden md:block">
-              {{ auth.profile()?.name_En || auth.profile()?.userName || 'User' }}
-            </div>
-            <div class="h-9 w-9 rounded-full bg-brand-700 text-white flex items-center justify-center text-sm font-semibold">
-              {{ initials() }}
+          <div class="flex items-center gap-1.5">
+            <!-- Notifications bell -->
+            <a routerLink="/notifications" class="relative btn-ghost p-2"
+               [attr.aria-label]="lang.language() === 'ar' ? 'الإشعارات' : 'Notifications'">
+              <lucide-icon [img]="BellIcon" class="h-5 w-5"></lucide-icon>
+              <span *ngIf="notif.unreadCount() > 0"
+                    class="absolute -top-0.5 -end-0.5 min-w-[1rem] h-4 px-1 rounded-full bg-critical
+                           text-white text-[10px] font-bold leading-4 text-center">
+                {{ notif.unreadCount() > 9 ? '9+' : notif.unreadCount() }}
+              </span>
+            </a>
+
+            <!-- User menu -->
+            <div class="relative">
+              <button (click)="userMenuOpen.set(!userMenuOpen())"
+                      class="flex items-center gap-2 rounded-card-sm p-1 md:pe-2
+                             hover:bg-surface-muted dark:hover:bg-surface-dark-muted transition-colors"
+                      aria-haspopup="menu" [attr.aria-expanded]="userMenuOpen()">
+                <div class="h-9 w-9 rounded-full bg-brand-700 text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                  {{ initials() }}
+                </div>
+                <div class="text-start hidden md:block max-w-[10rem]">
+                  <div class="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate leading-tight">
+                    {{ auth.profile()?.name_En || auth.profile()?.userName || 'User' }}
+                  </div>
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate leading-tight">
+                    {{ auth.profile()?.branchName || (lang.language() === 'ar' ? 'تقارير' : 'Reports') }}
+                  </div>
+                </div>
+                <lucide-icon [img]="ChevronDownIcon"
+                             class="h-4 w-4 text-slate-400 hidden md:block transition-transform duration-200"
+                             [class.rotate-180]="userMenuOpen()"></lucide-icon>
+              </button>
+
+              <!-- Dropdown -->
+              <div *ngIf="userMenuOpen()"
+                   class="absolute end-0 mt-2 w-56 z-50 rounded-card bg-white dark:bg-surface-dark-subtle
+                          shadow-card dark:shadow-card-dk ring-1 ring-slate-200 dark:ring-slate-800 p-1.5"
+                   role="menu">
+                <a *ngFor="let m of userMenu"
+                   [routerLink]="m.route" (click)="userMenuOpen.set(false)" role="menuitem"
+                   class="flex items-center gap-3 px-3 py-2 rounded-card-sm text-sm font-medium
+                          text-slate-700 dark:text-slate-200
+                          hover:bg-surface-muted dark:hover:bg-surface-dark-muted transition-colors">
+                  <lucide-icon [img]="m.icon" class="h-4 w-4 text-slate-400"></lucide-icon>
+                  {{ lang.language() === 'ar' ? m.labelAr : m.labelEn }}
+                </a>
+                <div class="my-1 h-px bg-slate-100 dark:bg-slate-800"></div>
+                <button (click)="userMenuOpen.set(false); auth.logout()" role="menuitem"
+                        class="w-full flex items-center gap-3 px-3 py-2 rounded-card-sm text-sm font-medium
+                               text-critical hover:bg-critical-soft/60 dark:hover:bg-critical/10 transition-colors">
+                  <lucide-icon [img]="LogoutIcon" class="h-4 w-4"></lucide-icon>
+                  {{ lang.language() === 'ar' ? 'تسجيل خروج' : 'Sign out' }}
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -148,15 +203,27 @@ export class ShellComponent {
   readonly auth = inject(AuthService);
   readonly lang = inject(LanguageService);
   readonly theme = inject(ThemeService);
+  readonly notif = inject(NotificationCenterService);
   private readonly router = inject(Router);
 
   readonly collapsed = signal(false);
   readonly mobileNavOpen = signal(false);
+  readonly userMenuOpen = signal(false);
 
   readonly MenuIcon = Menu;
   readonly CloseIcon = X;
   readonly GlobeIcon = Globe;
   readonly LogoutIcon = LogOut;
+  readonly BellIcon = Bell;
+  readonly ChevronDownIcon = ChevronDown;
+
+  /** Items in the header user-avatar dropdown. */
+  readonly userMenu: NavItem[] = [
+    { labelEn: 'Profile',       labelAr: 'الملف الشخصي', route: '/profile',       icon: UserRound },
+    { labelEn: 'Settings',      labelAr: 'الإعدادات',    route: '/settings',      icon: Settings },
+    { labelEn: 'Notifications', labelAr: 'الإشعارات',    route: '/notifications', icon: Bell },
+    { labelEn: 'Help',          labelAr: 'المساعدة',     route: '/help',          icon: CircleHelp },
+  ];
 
   readonly groups: NavGroup[] = [
     {
@@ -300,5 +367,6 @@ export class ShellComponent {
   @HostListener('window:keydown.escape')
   onEsc(): void {
     this.mobileNavOpen.set(false);
+    this.userMenuOpen.set(false);
   }
 }
