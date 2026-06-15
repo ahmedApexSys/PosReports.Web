@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router } from '@angular/router';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, UserRound, Settings, CircleHelp } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, UserRound, Settings, CircleHelp, ReceiptText } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -230,6 +230,14 @@ export class ShellComponent {
       titleEn: 'Overview', titleAr: 'لوحة العامة',
       items: [
         { labelEn: 'Dashboard',   labelAr: 'الرئيسية',   route: '/dashboard', icon: LayoutDashboard },
+      ],
+    },
+    {
+      // Sales reports migrated from the legacy reports app — config-driven
+      // tabular reports (SalePeriod/* + the other sales/discount/voucher endpoints).
+      titleEn: 'Sales', titleAr: 'المبيعات',
+      items: [
+        { labelEn: 'Sales Period', labelAr: 'مبيعات الفترة', route: '/sales/period', icon: ReceiptText },
       ],
     },
     {

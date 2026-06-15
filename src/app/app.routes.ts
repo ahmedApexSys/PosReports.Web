@@ -103,6 +103,10 @@ const lazy = {
   perfSpeedPilot: () =>
     import('./features/perf/speed-pilot.component').then(m => m.PerfSpeedPilotComponent),
 
+  // ── Sales reports (migrated from the legacy reports app) ───────
+  salesPeriod: () =>
+    import('./features/sales/sales-period.component').then(m => m.SalesPeriodComponent),
+
   // ── Utility pages ──────────────────────────────────────────────
   profile: () =>
     import('./features/profile/profile.component').then(m => m.ProfileComponent),
@@ -182,6 +186,9 @@ export const routes: Routes = [
       { path: 'perf/low',                  loadComponent: lazy.perfLow,           title: 'Low Sales' },
       { path: 'perf/speed',                loadComponent: lazy.perfSpeed,         title: 'Service Speed' },
       { path: 'perf/speed-pilot',          loadComponent: lazy.perfSpeedPilot,    title: 'Speed by Pilot' },
+
+      // ── Sales reports ───────────────────────────────────────
+      { path: 'sales/period',              loadComponent: lazy.salesPeriod,       title: 'Sales Period' },
 
       // ── Utility ─────────────────────────────────────────────
       { path: 'profile',                   loadComponent: lazy.profile,           title: 'Profile' },
