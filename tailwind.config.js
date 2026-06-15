@@ -10,19 +10,20 @@ module.exports = {
       // Driven by docs/business-intelligence/README.md §4 — these MUST match
       // the colour codes referenced in the API insight contracts.
       colors: {
-        // Brand primary — deep teal, restaurant-warm but professional
+        // Brand primary — Apex red (from the Apex Systems logo, ~#E2231A),
+        // deepened at 700 so white text on primary buttons passes AA contrast.
         brand: {
-          50:  '#F0FDFA',
-          100: '#CCFBF1',
-          200: '#99F6E4',
-          300: '#5EEAD4',
-          400: '#2DD4BF',
-          500: '#14B8A6',
-          600: '#0D9488',
-          700: '#0F766E',  // primary
-          800: '#115E59',
-          900: '#134E4A',
-          950: '#042F2E',
+          50:  '#FEF2F1',
+          100: '#FCE0DE',
+          200: '#F9C2BD',
+          300: '#F2978F',
+          400: '#EC5B50',
+          500: '#E2231A',  // Apex red
+          600: '#C41D15',
+          700: '#A81813',  // primary (white text passes AA)
+          800: '#8A1410',
+          900: '#71120F',
+          950: '#3F0907',
         },
         // Severity tones (Good / Info / Warning / High / Critical)
         good:     { DEFAULT: '#10B981', soft: '#D1FAE5', ring: '#34D399' },
@@ -63,6 +64,19 @@ module.exports = {
       transitionDuration: {
         '180': '180ms',
         '220': '220ms',
+        '300': '300ms',
+      },
+      animation: {
+        'fade-in':  'fadeIn 0.28s ease-out both',
+        'slide-up': 'slideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'pop-in':   'popIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'shimmer':  'shimmer 1.4s ease-in-out infinite',
+      },
+      keyframes: {
+        fadeIn:  { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+        slideUp: { '0%': { transform: 'translateY(10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+        popIn:   { '0%': { transform: 'scale(0.96)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+        shimmer: { '0%, 100%': { opacity: '0.55' }, '50%': { opacity: '1' } },
       },
       // Container max-width for wide screens (so 4K doesn't blow up line length)
       maxWidth: {

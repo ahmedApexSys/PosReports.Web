@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Observable, of } from 'rxjs';
-import { LucideAngularModule, Search, ChevronLeft, Loader } from 'lucide-angular';
+import { LucideAngularModule, Search, ChevronLeft, Loader, Clock, Timer, Bike } from 'lucide-angular';
 import { AuditApi } from '../../core/api/audit.api';
 import {
   AuditPageContext,
@@ -301,6 +301,32 @@ import { AuditEventCardComponent } from '../../shared/audit-event-card/audit-eve
             </span>
           </div>
 
+          <!-- ── Timing: order-taken → finish, and pilot assign → return → collect ── -->
+          <div *ngIf="hasAnyTiming(data)" class="flex items-center gap-1.5 flex-wrap mt-3">
+            <span class="text-[10px] text-slate-400">{{ lang.language() === 'ar' ? 'التوقيتات' : 'Timing' }}:</span>
+            <span *ngIf="orderToFinishMins(data) !== null" class="time-chip">
+              <lucide-icon [img]="ClockIcon" class="h-3 w-3"></lucide-icon>
+              {{ lang.language() === 'ar' ? 'الأوردر ← الدفع' : 'Order → Pay' }}
+              <b class="tabular">{{ fmtDur(orderToFinishMins(data)) }}</b>
+            </span>
+            <ng-container *ngIf="isDelivery(data)">
+              <span *ngIf="assignToReturnMins(data) !== null" class="time-chip">
+                <lucide-icon [img]="BikeIcon" class="h-3 w-3"></lucide-icon>
+                {{ lang.language() === 'ar' ? 'إسناد ← رجوع' : 'Assign → Return' }}
+                <b class="tabular">{{ fmtDur(assignToReturnMins(data)) }}</b>
+              </span>
+              <span *ngIf="returnToCollectMins(data) !== null" class="time-chip">
+                {{ lang.language() === 'ar' ? 'رجوع ← تحصيل' : 'Return → Collect' }}
+                <b class="tabular">{{ fmtDur(returnToCollectMins(data)) }}</b>
+              </span>
+              <span *ngIf="assignToCollectMins(data) !== null" class="time-chip time-chip-strong">
+                <lucide-icon [img]="TimerIcon" class="h-3 w-3"></lucide-icon>
+                {{ lang.language() === 'ar' ? 'إجمالي الطيار' : 'Pilot total' }}
+                <b class="tabular">{{ fmtDur(assignToCollectMins(data)) }}</b>
+              </span>
+            </ng-container>
+          </div>
+
           <!-- People involved + summary stats -->
           <div class="flex items-center gap-4 flex-wrap mt-3 text-xs text-slate-500 dark:text-slate-400">
             <span *ngIf="data.usersInvolved?.length">
@@ -368,6 +394,12 @@ import { AuditEventCardComponent } from '../../shared/audit-event-card/audit-eve
       </ng-template>
     </app-audit-report-page>
   `,
+  styles: [`
+    .time-chip { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-card-sm text-[11px]
+                 bg-brand-50 text-brand-700 ring-1 ring-brand-200/60
+                 dark:bg-brand-900/30 dark:text-brand-300 dark:ring-brand-800/60; }
+    .time-chip-strong { @apply bg-brand-700 text-white ring-0 dark:bg-brand-600; }
+  `],
 })
 export class AuditOrderJourneyComponent implements OnInit {
   private readonly api = inject(AuditApi);
@@ -403,6 +435,9 @@ export class AuditOrderJourneyComponent implements OnInit {
   readonly SearchIcon = Search;
   readonly BackIcon = ChevronLeft;
   readonly LoaderIcon = Loader;
+  readonly ClockIcon = Clock;
+  readonly TimerIcon = Timer;
+  readonly BikeIcon = Bike;
 
   @ViewChild('page') pageRef?: AuditReportPageComponent<OrderJourneyResult>;
 
@@ -585,6 +620,58 @@ export class AuditOrderJourneyComponent implements OnInit {
     return Object.entries(data.actionBreakdown)
       .map(([key, value]) => ({ key, value: value as number }))
       .sort((a, b) => b.value - a.value);
+  }
+
+  // ── Timing: derive durations from the chronological action timeline ──
+  /** First action of any of the given types → a Date built from actionDate + actionTime. */
+  private actionAt(data: OrderJourneyResult, ...types: string[]): Date | null {
+    const r = (data.timeline || []).find(x => types.includes(x.actionType));
+    if (!r) return null;
+    const date = (r.actionDate || '').slice(0, 10);
+    const time = r.actionTime || '00:00:00';
+    const d = new Date(`${date}T${time}`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  private mins(a: Date | null, b: Date | null): number | null {
+    if (!a || !b) return null;
+    const m = Math.round((b.getTime() - a.getTime()) / 60000);
+    return m >= 0 ? m : null;
+  }
+
+  isDelivery(data: OrderJourneyResult): boolean {
+    return (data.transactionTypeName || '').toLowerCase().includes('deliver')
+        || (data.timeline || []).some(r => r.transactionType === 2);
+  }
+
+  /** Order taken (first Send, or opened) → finished (Pay/EditPay). */
+  orderToFinishMins(data: OrderJourneyResult): number | null {
+    const start = this.actionAt(data, 'Send') ?? (data.openedAt ? new Date(data.openedAt) : null);
+    return this.mins(start, this.actionAt(data, 'Pay', 'EditPay'));
+  }
+
+  assignToReturnMins(data: OrderJourneyResult): number | null {
+    return this.mins(this.actionAt(data, 'Assign'), this.actionAt(data, 'Return'));
+  }
+  returnToCollectMins(data: OrderJourneyResult): number | null {
+    return this.mins(this.actionAt(data, 'Return'), this.actionAt(data, 'CollectMoney'));
+  }
+  assignToCollectMins(data: OrderJourneyResult): number | null {
+    return this.mins(this.actionAt(data, 'Assign'), this.actionAt(data, 'CollectMoney'));
+  }
+
+  hasAnyTiming(data: OrderJourneyResult): boolean {
+    return this.orderToFinishMins(data) !== null || this.actionAt(data, 'Assign') !== null;
+  }
+
+  /** "1h 12m" / "45m" / "0m" — bilingual unit. */
+  fmtDur(m: number | null): string {
+    if (m === null || m === undefined) return '—';
+    const ar = this.lang.language() === 'ar';
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    if (h > 0) return ar ? `${h}س ${min}د` : `${h}h ${min}m`;
+    return ar ? `${min}د` : `${min}m`;
   }
 
   /** Compact 2-3 char label for the money-flow dots. */

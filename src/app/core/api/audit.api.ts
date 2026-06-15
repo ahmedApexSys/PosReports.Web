@@ -1,13 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, expand, reduce, EMPTY } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api.models';
+import { aggregateOrders, aggregateDays, round2 } from '../audit/order-aggregate';
 import {
   AuditNarrativeRow,
   AuditReportFilterRequest,
   AuditReportPagedResult,
   AuditTotalsResult,
+  BilingualText,
+  OrderSummaryRow,
+  OrderTotalsByDayResult,
   DailyDigestResult,
   DeliveryReportRequest,
   DineInReportRequest,
@@ -42,6 +46,61 @@ export class AuditApi {
   }
   totals(req: AuditReportFilterRequest): Observable<AuditTotalsResult> {
     return this.post<AuditTotalsResult>('Totals', req);
+  }
+
+  /**
+   * Per-ORDER daily summary — the owner wants ONE row per order (its totals),
+   * not one row per action and no repeated orders. Pulls the full action feed
+   * for the window (loops pages, capped) and collapses it to OrderSummaryRow[]
+   * client-side, returned in the paged-result shape the page-shell expects.
+   */
+  dailyPerOrder(req: AuditReportFilterRequest): Observable<AuditReportPagedResult<OrderSummaryRow>> {
+    const PAGE = 200;
+    const MAX_PAGES = 40;                       // safety cap (~8000 actions)
+    const fetchPage = (page: number) => this.daily({ ...req, page, pageSize: PAGE });
+    return fetchPage(1).pipe(
+      expand(res => (res.hasNextPage && res.page < MAX_PAGES) ? fetchPage(res.page + 1) : EMPTY),
+      reduce((acc, res) => {
+        acc.rows.push(...(res.data || []));
+        acc.conclusion = res.conclusion;
+        if (res.hasNextPage && res.page >= MAX_PAGES) acc.truncated = true;
+        return acc;
+      }, { rows: [] as AuditNarrativeRow[], conclusion: undefined as BilingualText | undefined, truncated: false }),
+      map(acc => {
+        const orders = aggregateOrders(acc.rows);
+        return {
+          data: orders,
+          totalCount: orders.length,
+          page: 1,
+          pageSize: Math.max(1, orders.length),
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          conclusion: acc.conclusion ?? { description: '', descriptionEn: '', descriptionAr: '' },
+          buckets: [],
+        } as AuditReportPagedResult<OrderSummaryRow>;
+      }),
+    );
+  }
+
+  /** Per-DAY rollup of order totals (GroupBy date, summed) — reuses the
+   *  per-order aggregation so an order is never double-counted across actions. */
+  totalsByDay(req: AuditReportFilterRequest): Observable<OrderTotalsByDayResult> {
+    return this.dailyPerOrder(req).pipe(map(paged => {
+      const orders = paged.data;
+      return {
+        days: aggregateDays(orders),
+        summary: {
+          uniqueOrders: orders.length,
+          paidOrders: orders.filter(o => o.wasPaid).length,
+          totalNet: round2(orders.reduce((s, o) => s + (o.finalNet || 0), 0)),
+          totalDiscount: round2(orders.reduce((s, o) => s + (o.discount || 0), 0)),
+          voidedOrders: orders.filter(o => o.wasVoided).length,
+          cancelledOrders: orders.filter(o => o.wasCancelled).length,
+        },
+        conclusion: paged.conclusion,
+      } as OrderTotalsByDayResult;
+    }));
   }
   suspiciousActivity(req: AuditReportFilterRequest): Observable<SuspiciousActivityResult> {
     return this.post<SuspiciousActivityResult>('SuspiciousActivity', req);

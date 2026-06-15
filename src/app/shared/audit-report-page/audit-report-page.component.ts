@@ -19,6 +19,7 @@ import { FilterService } from '../../core/filters/filter.service';
 import { AuditPageContext } from '../../core/models/audit.models';
 import { AuditFilterBarComponent } from '../audit-filter-bar/audit-filter-bar.component';
 import { PagerComponent } from '../pager/pager.component';
+import { LoadingSkeletonComponent } from '../loading-skeleton/loading-skeleton.component';
 
 /**
  * Page shell for the audit-narrative endpoints. Owns:
@@ -49,7 +50,7 @@ import { PagerComponent } from '../pager/pager.component';
   standalone: true,
   imports: [
     CommonModule, FormsModule, LucideAngularModule,
-    AuditFilterBarComponent, PagerComponent,
+    AuditFilterBarComponent, PagerComponent, LoadingSkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -122,18 +123,8 @@ import { PagerComponent } from '../pager/pager.component';
         </p>
       </div>
 
-      <!-- Skeleton state -->
-      <div *ngIf="filter.canFetch() && loading() && !data()" class="space-y-4 md:space-y-6">
-        <div class="card-padded animate-pulse h-24">
-          <div class="h-3 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
-          <div class="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded mt-3"></div>
-          <div class="h-4 w-2/3 bg-slate-200 dark:bg-slate-700 rounded mt-2"></div>
-        </div>
-        <div class="card-padded animate-pulse h-64">
-          <div class="h-4 w-48 bg-slate-200 dark:bg-slate-700 rounded"></div>
-          <div class="h-48 w-full bg-slate-200 dark:bg-slate-700 rounded mt-4"></div>
-        </div>
-      </div>
+      <!-- Skeleton state (shimmer) -->
+      <app-loading-skeleton *ngIf="filter.canFetch() && loading() && !data()" [rows]="6"></app-loading-skeleton>
 
       <!-- Loaded state -->
       <ng-container *ngIf="filter.canFetch() && !loading()">

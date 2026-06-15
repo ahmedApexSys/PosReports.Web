@@ -151,6 +151,63 @@ export interface AuditTotalsResult {
   conclusion: BilingualText;
 }
 
+/**
+ * ONE summary row per ORDER — derived client-side by grouping the Daily
+ * action feed on orderId (the owner wants per-order totals, not per-action,
+ * no repeated orders). Its final net is the order's net at its LAST action.
+ */
+export interface OrderSummaryRow {
+  orderId: number;
+  receiptNumber: number;
+  tableName: string;
+  transactionType: number;
+  transactionTypeName: string;
+  branchName: string;
+  finalNet: number;
+  finalTotal: number;
+  discount: number;
+  itemCount: number;
+  actionCount: number;
+  actionTypes: string[];
+  users: string[];
+  waiterName: string;
+  cashierName: string;
+  firstAt: string;   // ISO datetime
+  lastAt: string;    // ISO datetime
+  wasPaid: boolean;
+  hadDiscount: boolean;
+  wasVoided: boolean;
+  wasCancelled: boolean;
+}
+
+/** Per-DAY rollup — sum of each day's ORDER totals (GroupBy date). */
+export interface DayTotalsRow {
+  date: string;          // yyyy-MM-dd
+  orders: number;
+  paidOrders: number;
+  totalNet: number;
+  totalDiscount: number;
+  voidedOrders: number;
+  cancelledOrders: number;
+}
+
+export interface DayTotalsSummary {
+  uniqueOrders: number;
+  paidOrders: number;
+  totalNet: number;
+  totalDiscount: number;
+  voidedOrders: number;
+  cancelledOrders: number;
+}
+
+export interface OrderTotalsByDayResult {
+  days: DayTotalsRow[];
+  summary: DayTotalsSummary;
+  conclusion: BilingualText;
+  /** True when the source feed was capped (very busy window) — totals may be partial. */
+  truncated?: boolean;
+}
+
 export interface OrderJourneyResult {
   orderId: number;
   receiptNumber: number;

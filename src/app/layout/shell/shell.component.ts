@@ -192,7 +192,7 @@ interface NavGroup {
         </header>
 
         <!-- Content -->
-        <main id="main" class="flex-1 p-4 md:p-6 max-w-screen-3xl mx-auto w-full">
+        <main id="main" class="flex-1 p-4 md:p-6 max-w-screen-3xl mx-auto w-full animate-fade-in">
           <router-outlet></router-outlet>
         </main>
       </div>
