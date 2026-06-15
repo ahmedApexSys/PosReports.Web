@@ -8,6 +8,7 @@ import {
 import { LanguageService } from '../../core/i18n/language.service';
 import { OrderActionLogRow } from '../../core/models/monitoring.models';
 import { actionLabel, txTypeLabel, orderActionDescription } from '../../core/i18n/monitoring-labels';
+import { OrderSnapshotDiffComponent } from '../order-snapshot-diff/order-snapshot-diff.component';
 
 /**
  * Expandable card for a single OrderActionLog row — the atomic unit of the
@@ -18,7 +19,7 @@ import { actionLabel, txTypeLabel, orderActionDescription } from '../../core/i18
 @Component({
   selector: 'app-order-action-row',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule],
+  imports: [CommonModule, LucideAngularModule, OrderSnapshotDiffComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="rounded-card ring-1 ring-slate-200 dark:ring-slate-800
@@ -139,17 +140,10 @@ import { actionLabel, txTypeLabel, orderActionDescription } from '../../core/i18
           <span *ngIf="row.durationMs">{{ row.durationMs }}ms</span>
         </div>
 
-        <!-- Snapshots -->
-        <div *ngIf="row.beforeSnapshot || row.afterSnapshot" class="grid md:grid-cols-2 gap-2">
-          <div *ngIf="row.beforeSnapshot">
-            <div class="text-[11px] text-slate-400 mb-1">{{ lang.language() === 'ar' ? 'قبل' : 'Before' }}</div>
-            <pre class="snap">{{ pretty(row.beforeSnapshot) }}</pre>
-          </div>
-          <div *ngIf="row.afterSnapshot">
-            <div class="text-[11px] text-slate-400 mb-1">{{ lang.language() === 'ar' ? 'بعد' : 'After' }}</div>
-            <pre class="snap">{{ pretty(row.afterSnapshot) }}</pre>
-          </div>
-        </div>
+        <!-- Item-level before → after diff (replaces the raw JSON dump) -->
+        <app-order-snapshot-diff *ngIf="row.beforeSnapshot || row.afterSnapshot"
+                                 [beforeSnapshot]="row.beforeSnapshot"
+                                 [afterSnapshot]="row.afterSnapshot"></app-order-snapshot-diff>
       </div>
     </div>
   `,
@@ -157,8 +151,6 @@ import { actionLabel, txTypeLabel, orderActionDescription } from '../../core/i18
     .metric { @apply flex flex-col rounded-card-sm bg-slate-50 dark:bg-surface-dark-muted/40 px-2 py-1.5; }
     .metric-k { @apply text-[10px] uppercase tracking-wide text-slate-400; }
     .metric-v { @apply text-xs font-medium text-slate-700 dark:text-slate-200 tabular; }
-    .snap { @apply text-[10px] leading-snug overflow-auto max-h-48
-                   rounded-card-sm bg-slate-900/90 text-slate-100 p-2; }
   `],
 })
 export class OrderActionRowComponent {
@@ -215,10 +207,5 @@ export class OrderActionRowComponent {
 
   money(n: number | null | undefined): string {
     return (n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  pretty(json: string): string {
-    if (!json) return '';
-    try { return JSON.stringify(JSON.parse(json), null, 2); } catch { return json; }
   }
 }
