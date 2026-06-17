@@ -2,7 +2,21 @@
 
 > **Remote** (added 2026-05-25): `github.com/ahmedApexSys/PosReports.Web`
 > **Branches on origin**: `main` · `Production` · `FixReservationEdit-IsPaidOrder+09-06-2026`
-> **Current working branch**: `FixReservationEdit-IsPaidOrder+09-06-2026` — **FF-merged to `Production` 2026-06-11** (Monitoring module, global header date-range picker with presets+persistence, xlsx/pdf/csv exports on Insights/BI pages, export PDF header-legibility fix, diagnostic-log cleanup). Deploy via the app's own build+publish.
+> **Current working branch**: `SalesReports+15-06-2026` — **merged to `Production` 2026-06-17**.
+>
+> **Session 2026-06-15→17** — migrated all 22+ legacy "Sales reports" into a
+> generic config-driven engine (`core/reports/report-registry.ts` →
+> `ReportDef`/`ReportColumn`, `shared/tabular-report-page` host, `report/:id`
+> route). Per-user column customizer (show/hide + drag + localStorage). Filter
+> bar + lookups. Bilingual styled exports (Excel/PDF/CSV) + **thermal-receipt
+> Flash/POS 72/80** (`ExportService.buildReceipt`) — pure-black high-contrast
+> for real receipt printers, per-report curated short-named `receiptColumns`,
+> smart transaction abbreviations (TakeAway→T.Away). **NEW "Daily Transactions"**
+> bespoke multi-section report (`TotalsReport/TotalReport`) — `core/reports/
+> total-report.model.ts` + `features/reports/total-report.component.ts` +
+> `ExportService.totalReport()` sectioned receipt; route `/total-report`,
+> company-wide (ForAllBranches:true), date-only API format. Deployed live via
+> FTP to **posreporting.tryasp.net** (host site73506) throughout.
 >
 > **Session 2026-05-25** — repo pushed to GitHub for the first time. WIP audit /
 > owner-insights work captured in commit `cd1c346` (18 files: routes, audit

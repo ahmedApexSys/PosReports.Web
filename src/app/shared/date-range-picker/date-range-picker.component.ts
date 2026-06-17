@@ -127,14 +127,13 @@ export class DateRangePickerComponent {
 
   onFrom(value: string): void {
     if (!value) return;
-    const iso = new Date(`${value}T00:00:00`).toISOString();
-    this.filter.setDateRange(iso, this.filter.toDate());
+    // Keep the picked calendar day as-is (local-naive) — no UTC shift.
+    this.filter.setDateRange(`${value}T00:00:00`, this.filter.toDate());
   }
 
   onTo(value: string): void {
     if (!value) return;
-    const iso = new Date(`${value}T23:59:59`).toISOString();
-    this.filter.setDateRange(this.filter.fromDate(), iso);
+    this.filter.setDateRange(this.filter.fromDate(), `${value}T23:59:59`);
   }
 
   private shortDate(iso: string): string {

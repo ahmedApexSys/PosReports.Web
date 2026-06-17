@@ -107,6 +107,14 @@ const lazy = {
   salesPeriod: () =>
     import('./features/sales/sales-period.component').then(m => m.SalesPeriodComponent),
 
+  // ── Legacy report host (config-driven, one route for all 22) ───
+  reportHost: () =>
+    import('./features/reports/report-host.component').then(m => m.ReportHostComponent),
+
+  // ── Daily Transactions (multi-section TotalsReport summary) ─────
+  totalReport: () =>
+    import('./features/reports/total-report.component').then(m => m.TotalReportComponent),
+
   // ── Utility pages ──────────────────────────────────────────────
   profile: () =>
     import('./features/profile/profile.component').then(m => m.ProfileComponent),
@@ -189,6 +197,10 @@ export const routes: Routes = [
 
       // ── Sales reports ───────────────────────────────────────
       { path: 'sales/period',              loadComponent: lazy.salesPeriod,       title: 'Sales Period' },
+      { path: 'total-report',              loadComponent: lazy.totalReport,       title: 'Daily Transactions' },
+
+      // ── Migrated legacy reports (22, config-driven host) ────
+      { path: 'report/:id',                loadComponent: lazy.reportHost },
 
       // ── Utility ─────────────────────────────────────────────
       { path: 'profile',                   loadComponent: lazy.profile,           title: 'Profile' },

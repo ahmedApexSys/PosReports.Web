@@ -1,13 +1,15 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router } from '@angular/router';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, UserRound, Settings, CircleHelp, ReceiptText } from 'lucide-angular';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, ChevronRight, UserRound, Settings, CircleHelp, ReceiptText, Wallet, Tag, CalendarClock, Boxes, Sigma } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { NotificationCenterService } from '../../core/notifications/notification-center.service';
 import { BranchPickerComponent } from '../../shared/branch-picker/branch-picker.component';
 import { DateRangePickerComponent } from '../../shared/date-range-picker/date-range-picker.component';
+import { REPORT_NAV, REPORT_REGISTRY } from '../../core/reports/report-registry';
 
 type LucideIcon = typeof Sun;
 
@@ -21,13 +23,28 @@ interface NavItem {
 interface NavGroup {
   titleEn: string;
   titleAr: string;
+  icon: LucideIcon;
   items: NavItem[];
+  /** render as a single direct link (no accordion), e.g. Dashboard. */
+  standalone?: boolean;
 }
+
+/** Per-group icon for the migrated report categories (keyed by English title). */
+const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
+  'Sales': ReceiptText,
+  'Daily': CalendarClock,
+  'Totals': Sigma,
+  'Items': Boxes,
+  'Orders': ScrollText,
+  'Discounts & Vouchers': Tag,
+  'Expenses & Settlements': Wallet,
+  'Reservations & Deferred': CalendarClock,
+};
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, RouterOutlet, LucideAngularModule, BranchPickerComponent, DateRangePickerComponent],
+  imports: [CommonModule, RouterModule, RouterOutlet, DragDropModule, LucideAngularModule, BranchPickerComponent, DateRangePickerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- Layout: outer container uses row-flex so sidebar + main column
@@ -66,53 +83,93 @@ interface NavGroup {
           </div>
         </div>
 
-        <!-- Nav -->
-        <nav class="flex-1 overflow-y-auto px-2 py-4 space-y-6">
-          <div *ngFor="let g of groups" class="space-y-1">
-            <div *ngIf="!collapsed()"
-                 class="px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              {{ lang.language() === 'ar' ? g.titleAr : g.titleEn }}
-            </div>
-            <a *ngFor="let item of g.items"
-               [routerLink]="item.route"
-               routerLinkActive="bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300"
-               #rla="routerLinkActive"
-               class="flex items-center gap-3 px-3 py-2 rounded-card-sm text-sm font-medium
+        <!-- Nav — collapsible accordion; drag a category header to reorder (saved). -->
+        <nav cdkDropList (cdkDropListDropped)="dropGroup($event)"
+             class="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+          <div *ngFor="let g of orderedGroups()" cdkDrag class="nav-drag">
+
+            <!-- Standalone direct link (e.g. Dashboard) -->
+            <a *ngIf="g.standalone" cdkDragHandle
+               [routerLink]="g.items[0].route"
+               routerLinkActive="bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 font-semibold"
+               class="flex items-center gap-3 px-2.5 py-2 rounded-card-sm text-sm font-medium cursor-grab active:cursor-grabbing
                       text-slate-700 dark:text-slate-300
-                      hover:bg-slate-50 dark:hover:bg-surface-dark-muted
-                      transition-colors duration-180"
+                      hover:bg-slate-50 dark:hover:bg-surface-dark-muted hover:text-slate-900 dark:hover:text-slate-100
+                      transition-colors duration-150"
+               [title]="collapsed() ? (lang.language() === 'ar' ? g.titleAr : g.titleEn) : ''"
                (click)="mobileNavOpen.set(false)">
-              <lucide-icon [img]="item.icon" class="h-4 w-4 shrink-0"></lucide-icon>
-              <span *ngIf="!collapsed()" class="truncate">
-                {{ lang.language() === 'ar' ? item.labelAr : item.labelEn }}
-              </span>
+              <lucide-icon [img]="g.icon" class="h-[18px] w-[18px] shrink-0"></lucide-icon>
+              <span *ngIf="!collapsed()" class="truncate">{{ lang.language() === 'ar' ? g.titleAr : g.titleEn }}</span>
             </a>
+
+            <!-- Collapsible category -->
+            <div *ngIf="!g.standalone">
+              <button type="button" cdkDragHandle (click)="toggleGroup(g.titleEn)"
+                      class="nav-group cursor-grab active:cursor-grabbing" [class.active]="groupActive(g)"
+                      [title]="collapsed() ? (lang.language() === 'ar' ? g.titleAr : g.titleEn) : ''">
+                <lucide-icon [img]="g.icon" class="h-[18px] w-[18px] shrink-0"></lucide-icon>
+                <span *ngIf="!collapsed()" class="flex-1 text-start truncate">{{ lang.language() === 'ar' ? g.titleAr : g.titleEn }}</span>
+                <span *ngIf="!collapsed() && groupActive(g) && !isExpanded(g.titleEn)"
+                      class="h-1.5 w-1.5 rounded-full bg-brand-500 shrink-0"></span>
+                <lucide-icon *ngIf="!collapsed()" [img]="ChevronRightIcon"
+                             class="h-4 w-4 shrink-0 opacity-50 transition-transform duration-200"
+                             [class.rotate-90]="isExpanded(g.titleEn)"></lucide-icon>
+              </button>
+
+              <!-- Items -->
+              <div *ngIf="!collapsed() && isExpanded(g.titleEn)"
+                   class="mt-0.5 ms-[1.45rem] ps-3 border-s border-slate-200 dark:border-slate-700
+                          space-y-0.5 overflow-hidden animate-fade-in">
+                <a *ngFor="let item of g.items"
+                   [routerLink]="item.route"
+                   routerLinkActive="text-brand-700 dark:text-brand-300 font-semibold bg-brand-50/60 dark:bg-brand-900/20"
+                   class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-card-sm text-[13px] font-medium
+                          text-slate-600 dark:text-slate-400
+                          hover:bg-slate-50 dark:hover:bg-surface-dark-muted hover:text-slate-900 dark:hover:text-slate-100
+                          transition-colors duration-150"
+                   (click)="mobileNavOpen.set(false)">
+                  <lucide-icon [img]="item.icon" class="h-4 w-4 shrink-0 opacity-70"></lucide-icon>
+                  <span class="truncate">{{ lang.language() === 'ar' ? item.labelAr : item.labelEn }}</span>
+                </a>
+              </div>
+            </div>
           </div>
         </nav>
 
-        <!-- Footer of sidebar — toggles + profile -->
-        <div class="border-t border-slate-200 dark:border-slate-800 p-2 space-y-1">
-          <button (click)="theme.cycle()" class="btn-ghost w-full justify-start text-sm">
-            <lucide-icon [img]="themeIcon()" class="h-4 w-4"></lucide-icon>
-            <span *ngIf="!collapsed()">{{ themeLabel() }}</span>
-          </button>
-          <button (click)="lang.toggle()" class="btn-ghost w-full justify-start text-sm">
-            <lucide-icon [img]="GlobeIcon" class="h-4 w-4"></lucide-icon>
-            <span *ngIf="!collapsed()">{{ lang.language() === 'ar' ? 'English' : 'عربي' }}</span>
-          </button>
-          <button (click)="auth.logout()" class="btn-ghost w-full justify-start text-sm text-critical">
-            <lucide-icon [img]="LogoutIcon" class="h-4 w-4"></lucide-icon>
-            <span *ngIf="!collapsed()">{{ lang.language() === 'ar' ? 'تسجيل خروج' : 'Sign out' }}</span>
-          </button>
+        <!-- Footer of sidebar — prominent account button + compact toggles -->
+        <div class="border-t border-slate-200 dark:border-slate-800 p-2 space-y-2">
+          <a routerLink="/profile" (click)="mobileNavOpen.set(false)"
+             class="flex items-center gap-2.5 px-2.5 py-2.5 rounded-card
+                    bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm
+                    transition-colors duration-150"
+             [class.justify-center]="collapsed()"
+             [title]="collapsed() ? accountName() : ''">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 shrink-0">
+              <lucide-icon [img]="AccountIcon" class="h-4 w-4"></lucide-icon>
+            </span>
+            <span *ngIf="!collapsed()" class="block text-sm font-semibold truncate">{{ accountName() }}</span>
+          </a>
+          <div class="flex items-center gap-1" [class.flex-col]="collapsed()">
+            <button (click)="theme.cycle()" class="foot-btn" [title]="themeLabel()">
+              <lucide-icon [img]="themeIcon()" class="h-4 w-4"></lucide-icon>
+            </button>
+            <button (click)="lang.toggle()" class="foot-btn" [title]="lang.language() === 'ar' ? 'English' : 'عربي'">
+              <lucide-icon [img]="GlobeIcon" class="h-4 w-4"></lucide-icon>
+            </button>
+            <button (click)="auth.logout()" class="foot-btn text-critical hover:text-critical"
+                    [title]="lang.language() === 'ar' ? 'تسجيل خروج' : 'Sign out'">
+              <lucide-icon [img]="LogoutIcon" class="h-4 w-4"></lucide-icon>
+            </button>
+          </div>
         </div>
       </aside>
 
       <!-- ── Main content ──────────────────────────────────────── -->
-      <div class="flex-1 flex flex-col min-h-screen"
+      <div class="flex-1 flex flex-col min-h-screen min-w-0"
            [class]="mainOffsetClass()">
 
         <!-- Header -->
-        <header class="sticky top-0 z-20 h-16 bg-white dark:bg-surface-dark-subtle
+        <header class="sticky top-0 z-20 h-16 glass
                        border-b border-slate-200 dark:border-slate-800
                        flex items-center gap-3 px-4 md:px-6">
           <button (click)="mobileNavOpen.set(!mobileNavOpen())"
@@ -192,12 +249,25 @@ interface NavGroup {
         </header>
 
         <!-- Content -->
-        <main id="main" class="flex-1 p-4 md:p-6 max-w-screen-3xl mx-auto w-full animate-fade-in">
+        <main id="main" class="flex-1 p-4 md:p-6 max-w-screen-3xl mx-auto w-full min-w-0 animate-fade-in">
           <router-outlet></router-outlet>
         </main>
       </div>
     </div>
   `,
+  styles: [`
+    .foot-btn { @apply flex-1 inline-flex items-center justify-center h-9 rounded-card-sm
+                text-slate-500 dark:text-slate-400
+                hover:bg-surface-muted dark:hover:bg-surface-dark-muted transition-colors; }
+    .nav-group { @apply w-full flex items-center gap-3 px-2.5 py-2 rounded-card-sm text-sm font-medium
+                 text-slate-700 dark:text-slate-300
+                 hover:bg-slate-50 dark:hover:bg-surface-dark-muted transition-colors duration-150; }
+    .nav-group.active { @apply bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300; }
+    .cdk-drag-preview { @apply rounded-card-sm bg-white dark:bg-surface-dark-subtle shadow-popover ring-1 ring-slate-200 dark:ring-slate-700; }
+    .cdk-drag-placeholder { @apply opacity-40; }
+    .cdk-drag-animating { transition: transform 200ms cubic-bezier(0,0,0.2,1); }
+    .cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-dragging) { transition: transform 200ms cubic-bezier(0,0,0.2,1); }
+  `],
 })
 export class ShellComponent {
   readonly auth = inject(AuthService);
@@ -216,6 +286,82 @@ export class ShellComponent {
   readonly LogoutIcon = LogOut;
   readonly BellIcon = Bell;
   readonly ChevronDownIcon = ChevronDown;
+  readonly ChevronRightIcon = ChevronRight;
+  readonly AccountIcon = UserRound;
+
+  /** titleEn keys of the expanded accordion groups (key-based so it survives reordering). */
+  private readonly expandedKeys = signal<Set<string>>(new Set());
+
+  isExpanded(key: string): boolean { return this.expandedKeys().has(key); }
+
+  toggleGroup(key: string): void {
+    // From the collapsed icon-rail, first expand the sidebar, then open the group.
+    if (this.collapsed()) { this.collapsed.set(false); this.expandedKeys.set(new Set([key])); this.persistExpanded(); return; }
+    const s = new Set(this.expandedKeys());
+    if (s.has(key)) s.delete(key); else s.add(key);
+    this.expandedKeys.set(s);
+    this.persistExpanded();
+  }
+
+  // ── Main-group order (drag-to-reorder, persisted per-user) ──────────────
+  /** Saved order of group titleEn keys (empty → default order). */
+  private readonly navOrder = signal<string[]>([]);
+  /** Groups in the user's saved order; any groups not in the saved list keep their default position at the end. */
+  readonly orderedGroups = computed<NavGroup[]>(() => {
+    const order = this.navOrder();
+    if (!order.length) return this.groups;
+    const byKey = new Map(this.groups.map((g) => [g.titleEn, g] as const));
+    const out: NavGroup[] = [];
+    for (const k of order) { const g = byKey.get(k); if (g) out.push(g); }
+    for (const g of this.groups) if (!order.includes(g.titleEn)) out.push(g);
+    return out;
+  });
+
+  dropGroup(ev: CdkDragDrop<unknown>): void {
+    if (ev.previousIndex === ev.currentIndex) return;
+    const keys = this.orderedGroups().map((g) => g.titleEn);
+    moveItemInArray(keys, ev.previousIndex, ev.currentIndex);
+    this.navOrder.set(keys);
+    try { localStorage.setItem('pos-reports.nav.order', JSON.stringify(keys)); } catch { /* noop */ }
+  }
+
+  private restoreOrder(): void {
+    try {
+      const raw = localStorage.getItem('pos-reports.nav.order');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) this.navOrder.set(arr.filter((x): x is string => typeof x === 'string'));
+      }
+    } catch { /* noop */ }
+  }
+
+  /** True when one of the group's items matches the current route. */
+  groupActive(g: NavGroup): boolean {
+    const url = this.router.url.split('?')[0];
+    return g.items.some((it) => url === it.route || url.startsWith(it.route + '/'));
+  }
+
+  accountName(): string {
+    return this.auth.profile()?.name_En || this.auth.profile()?.userName || (this.lang.language() === 'ar' ? 'الحساب' : 'Account');
+  }
+
+  private persistExpanded(): void {
+    try { localStorage.setItem('pos-reports.nav.expanded', JSON.stringify([...this.expandedKeys()])); } catch { /* noop */ }
+  }
+  private restoreExpanded(): void {
+    let restored = false;
+    try {
+      const raw = localStorage.getItem('pos-reports.nav.expanded');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) { this.expandedKeys.set(new Set(arr.filter((x): x is string => typeof x === 'string'))); restored = true; }
+      }
+    } catch { /* noop */ }
+    // Always make sure the group holding the current route is open.
+    const active = this.groups.find((g) => !g.standalone && this.groupActive(g));
+    if (active) { const s = new Set(this.expandedKeys()); s.add(active.titleEn); this.expandedKeys.set(s); }
+    else if (!restored) { const first = this.groups.find((g) => !g.standalone); if (first) this.expandedKeys.set(new Set([first.titleEn])); }
+  }
 
   /** Items in the header user-avatar dropdown. */
   readonly userMenu: NavItem[] = [
@@ -227,23 +373,15 @@ export class ShellComponent {
 
   readonly groups: NavGroup[] = [
     {
-      titleEn: 'Overview', titleAr: 'لوحة العامة',
+      titleEn: 'Overview', titleAr: 'لوحة العامة', icon: LayoutDashboard, standalone: true,
       items: [
         { labelEn: 'Dashboard',   labelAr: 'الرئيسية',   route: '/dashboard', icon: LayoutDashboard },
       ],
     },
     {
-      // Sales reports migrated from the legacy reports app — config-driven
-      // tabular reports (SalePeriod/* + the other sales/discount/voucher endpoints).
-      titleEn: 'Sales', titleAr: 'المبيعات',
-      items: [
-        { labelEn: 'Sales Period', labelAr: 'مبيعات الفترة', route: '/sales/period', icon: ReceiptText },
-      ],
-    },
-    {
       // Raw action-log monitoring — who did what on every order/table,
       // with before/after. Surfaces /api/AuditReport/* + /api/OrderActionLog/*.
-      titleEn: 'Monitoring', titleAr: 'المراقبة',
+      titleEn: 'Monitoring', titleAr: 'المراقبة', icon: Activity,
       items: [
         { labelEn: 'Live Activity Feed', labelAr: 'النشاط المباشر',  route: '/monitoring/feed',    icon: Activity },
         { labelEn: 'Order Actions',      labelAr: 'حركات الأوردرات', route: '/monitoring/orders',  icon: ScrollText },
@@ -253,7 +391,7 @@ export class ShellComponent {
       ],
     },
     {
-      titleEn: 'Business Intelligence', titleAr: 'ذكاء الأعمال',
+      titleEn: 'Business Intelligence', titleAr: 'ذكاء الأعمال', icon: ChartBar,
       items: [
         { labelEn: 'KPI Summary',          labelAr: 'مؤشرات سريعة',     route: '/bi/kpi',              icon: ChartBar },
         { labelEn: 'Peak Hours',           labelAr: 'ساعات الذروة',     route: '/bi/peak-hours',       icon: ChartBar },
@@ -265,7 +403,7 @@ export class ShellComponent {
       ],
     },
     {
-      titleEn: 'Audit', titleAr: 'تدقيق',
+      titleEn: 'Audit', titleAr: 'تدقيق', icon: FileText,
       items: [
         { labelEn: 'Daily',                labelAr: 'يومي',             route: '/audit/daily',         icon: FileText },
         { labelEn: 'Totals',               labelAr: 'إجمالي',           route: '/audit/totals',        icon: FileText },
@@ -276,7 +414,7 @@ export class ShellComponent {
       ],
     },
     {
-      titleEn: 'Per Transaction', titleAr: 'حسب نوع الطلب',
+      titleEn: 'Per Transaction', titleAr: 'حسب نوع الطلب', icon: Soup,
       items: [
         { labelEn: 'Dine-in',   labelAr: 'صالة',     route: '/trx/dinein',   icon: Soup },
         { labelEn: 'Take-away', labelAr: 'تيك أواي', route: '/trx/takeaway', icon: Soup },
@@ -290,7 +428,7 @@ export class ShellComponent {
       // The pages either consume `/api/OwnerInsights/*` or wrap a matching
       // `/api/BusinessIntelligence/*` endpoint, and link out to the audit
       // narratives (Order Journey, User Session) for drill-down.
-      titleEn: 'Owner Insights', titleAr: 'رؤى للمالك',
+      titleEn: 'Owner Insights', titleAr: 'رؤى للمالك', icon: TrendingUp,
       items: [
         { labelEn: 'Growth Trends',                labelAr: 'اتجاهات النمو',          route: '/insights/growth',           icon: TrendingUp },
         { labelEn: 'Top Paying Customers',         labelAr: 'أفضل العملاء دفعاً',     route: '/insights/top-customers',    icon: ChartBar },
@@ -302,7 +440,7 @@ export class ShellComponent {
       ],
     },
     {
-      titleEn: 'Performance', titleAr: 'الأداء',
+      titleEn: 'Performance', titleAr: 'الأداء', icon: Gauge,
       items: [
         { labelEn: 'Item Insights',  labelAr: 'تحليل الأصناف',  route: '/perf/items',         icon: ChartBar },
         { labelEn: 'Highly Sales',   labelAr: 'الأعلى مبيعاً',   route: '/perf/highly',        icon: ChartBar },
@@ -311,7 +449,29 @@ export class ShellComponent {
         { labelEn: 'Speed by Pilot', labelAr: 'سرعة لكل سواق',  route: '/perf/speed-pilot',   icon: Truck },
       ],
     },
+    // ── Migrated legacy reports (config-driven, see report-registry) ──
+    //    The flagship "Daily Sales" page (/sales/period) leads the Sales group.
+    ...REPORT_NAV.map((g) => ({
+      titleEn: g.titleEn, titleAr: g.titleAr,
+      icon: REPORT_GROUP_ICONS[g.titleEn] ?? ReceiptText,
+      items: [
+        ...(g.titleEn === 'Daily'
+          ? [{ labelEn: 'Daily Sales', labelAr: 'المبيعات اليومية', route: '/sales/period', icon: ReceiptText }]
+          : []),
+        ...(g.titleEn === 'Sales'
+          ? [{ labelEn: 'Daily Transactions', labelAr: 'حركة المبيعات اليومية', route: '/total-report', icon: ReceiptText }]
+          : []),
+        ...g.ids.map((id) => ({
+          labelEn: REPORT_REGISTRY[id]?.titleEn ?? id,
+          labelAr: REPORT_REGISTRY[id]?.titleAr ?? id,
+          route: `/report/${id}`,
+          icon: REPORT_GROUP_ICONS[g.titleEn] ?? ReceiptText,
+        })),
+      ],
+    })),
   ];
+
+  constructor() { this.restoreOrder(); this.restoreExpanded(); }
 
   /**
    * One computed class string for the aside element. Combines:

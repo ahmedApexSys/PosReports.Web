@@ -59,7 +59,9 @@ module.exports = {
       boxShadow: {
         'card':    '0 1px 2px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.04)',
         'card-dk': '0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)',
+        'card-lg': '0 12px 32px -12px rgba(15,23,42,0.18), 0 0 0 1px rgba(15,23,42,0.04)',
         'popover': '0 8px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05)',
+        'glow-brand': '0 0 0 3px rgba(226,35,26,0.12)',
       },
       transitionDuration: {
         '180': '180ms',
