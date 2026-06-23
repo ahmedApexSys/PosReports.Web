@@ -150,10 +150,19 @@ export interface ReportDef {
    *   rows into one summary row per transaction type / payment method.
    * - groupByDayTransaction / groupByDayPayment: aggregate into one row per
    *   (day × transaction) / (day × payment).
+   * - discountDaily: explode TotalDiscount discounts[].days[] into one row per
+   *   (discount × day) with a Date column (grandTotals footer).
    */
   transform?: 'promoFlatten' | 'voucherFlatten' | 'groupByTransaction' | 'groupByPayment'
             | 'groupByDate' | 'groupByDayTransaction' | 'groupByDayPayment'
-            | 'orderByTransaction' | 'orderByPayment';
+            | 'orderByTransaction' | 'orderByPayment' | 'discountDaily'
+            | 'discountDailyTree' | 'promoDailyTree' | 'voucherDailyTree';
+  /**
+   * Expandable per-day tree: the transform emits one summary row per day
+   * (`__level: 0`) followed by its detail rows (`__level: 1`, `__parent: <dayKey>`).
+   * The table shows day rows collapsed; clicking a day row reveals its details.
+   */
+  expandable?: boolean;
   /** Optional bottom PayWay summary bar derived from the report's `totals`. */
   paymentSummary?: PaymentSummaryConfig;
   /**

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
-  LucideAngularModule, RefreshCw, Loader, Building2, Download, Printer, ChevronDown, Zap,
+  LucideAngularModule, RefreshCw, Loader, Building2, Download, Printer, ChevronDown, ChevronRight, Zap,
   FileSpreadsheet, FileText,
 } from 'lucide-angular';
 import { catchError, finalize, of } from 'rxjs';
@@ -67,6 +67,13 @@ interface AppliedFilter { label: string; value: string; }
               {{ ar() ? o.ar : o.en }}
             </button>
           </div>
+
+          <!-- Expand / collapse all (daily tree reports only) -->
+          <button *ngIf="isTree() && rows().length" (click)="allExpanded() ? collapseAll() : expandAll()"
+                  class="btn-ghost text-sm ring-1 ring-slate-200 dark:ring-slate-700">
+            <lucide-icon [img]="allExpanded() ? ChevronIcon : ChevronRightIcon" class="h-4 w-4"></lucide-icon>
+            {{ allExpanded() ? (ar() ? 'اقفل الكل' : 'Collapse all') : (ar() ? 'افتح الكل' : 'Expand all') }}
+          </button>
 
           <!-- Column customizer -->
           <app-column-customizer
@@ -156,6 +163,7 @@ interface AppliedFilter { label: string; value: string; }
                             bg-slate-50 dark:bg-surface-dark-muted/50
                             border-b border-slate-200 dark:border-slate-800">
                 <tr cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="dropHeader($event)">
+                  <th *ngIf="isTree()" class="px-2 py-2.5 w-9"></th>
                   <th *ngFor="let c of visibleColumns()" cdkDrag
                       class="px-3 py-2.5 font-semibold text-center cursor-move select-none
                              hover:bg-slate-100 dark:hover:bg-surface-dark-muted/70 transition-colors"
@@ -166,8 +174,15 @@ interface AppliedFilter { label: string; value: string; }
               </thead>
               <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                 <tr *ngFor="let r of pagedRows(); let ri = index"
+                    (click)="toggleRow(r)"
                     class="hover:bg-slate-50 dark:hover:bg-surface-dark-muted/50"
-                    [class.row-group]="hasMerge() && isMergeStart(ri)">
+                    [class.row-group]="hasMerge() && isMergeStart(ri)"
+                    [class.tree-parent]="isTree() && lvl(r) === 0"
+                    [class.tree-child]="isTree() && lvl(r) === 1">
+                  <td *ngIf="isTree()" class="px-2 py-2 text-center align-middle">
+                    <lucide-icon *ngIf="lvl(r) === 0" [img]="isExpanded(r) ? ChevronIcon : ChevronRightIcon"
+                                 class="h-4 w-4 inline-block text-slate-400"></lucide-icon>
+                  </td>
                   <ng-container *ngFor="let c of visibleColumns()">
                     <td *ngIf="c.key !== mergeColKey() || isMergeStart(ri)" class="px-3 py-2 text-center"
                         [attr.rowspan]="c.key === mergeColKey() ? mergeSpan(ri) : null"
@@ -181,6 +196,7 @@ interface AppliedFilter { label: string; value: string; }
               </tbody>
               <tfoot *ngIf="hasTotals()" class="border-t-2 border-slate-200 dark:border-slate-700 font-semibold bg-surface-muted/40 dark:bg-surface-dark-muted/30">
                 <tr>
+                  <td *ngIf="isTree()" class="px-2 py-2"></td>
                   <td *ngFor="let c of visibleColumns(); let i = index" class="px-3 py-2 text-center"
                       [class.tabular]="isNumeric(c)">
                     <span *ngIf="i === 0 && !c.totalKey" class="text-slate-500">{{ ar() ? 'الإجمالي' : 'Total' }}</span>
@@ -194,7 +210,7 @@ interface AppliedFilter { label: string; value: string; }
           <div class="flex items-center justify-between flex-wrap gap-3 px-3 py-2
                       border-t border-slate-100 dark:border-slate-800">
             <span class="text-[11px] text-slate-400">
-              {{ rows().length }} {{ ar() ? (def.rowUnitAr || 'صف') : (def.rowUnitEn || 'rows') }}
+              {{ displayRows().length }} {{ ar() ? (def.rowUnitAr || 'صف') : (def.rowUnitEn || 'rows') }}
             </span>
             <div class="flex items-center gap-3">
               <label class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
@@ -209,7 +225,7 @@ interface AppliedFilter { label: string; value: string; }
             </div>
           </div>
           <app-pager class="block px-3 pb-3"
-                     [page]="page()" [pageSize]="effectivePageSize()" [totalCount]="rows().length"
+                     [page]="page()" [pageSize]="effectivePageSize()" [totalCount]="displayRows().length"
                      (pageChange)="page.set($event)"></app-pager>
         </div>
 
@@ -238,6 +254,10 @@ interface AppliedFilter { label: string; value: string; }
     .menu-item:hover { background: rgba(168,24,19,.07); }
     .merge-cell { @apply align-middle font-semibold text-center bg-slate-50/60 dark:bg-surface-dark-muted/40; }
     .row-group > td { @apply border-t-2 border-slate-200 dark:border-slate-700; }
+    /* Expandable per-day tree: bold tinted day rows (clickable), muted detail rows. */
+    .tree-parent { cursor: pointer; }
+    .tree-parent > td { @apply bg-slate-50 dark:bg-surface-dark-muted/40 font-semibold border-t border-slate-200 dark:border-slate-700; }
+    .tree-child > td { @apply text-slate-500 dark:text-slate-400 bg-white dark:bg-transparent; }
   `],
 })
 export class TabularReportPageComponent implements OnInit {
@@ -257,6 +277,7 @@ export class TabularReportPageComponent implements OnInit {
   readonly DownloadIcon = Download;
   readonly PrinterIcon = Printer;
   readonly ChevronIcon = ChevronDown;
+  readonly ChevronRightIcon = ChevronRight;
   readonly ZapIcon = Zap;
   readonly ExcelIcon = FileSpreadsheet;
   readonly PdfIcon = FileText;
@@ -287,6 +308,23 @@ export class TabularReportPageComponent implements OnInit {
   readonly totals = computed(() => this.result().totals);
   readonly ar = computed(() => this.lang.language() === 'ar');
 
+  // ── Expandable per-day tree (Daily Discounts / Vouchers / Promo). The transform
+  //    emits day-summary rows (__level 0) + detail rows (__level 1, __parent=dayKey).
+  //    Days start collapsed; clicking a day row (or "Expand all") reveals its details. ──
+  readonly expanded = signal<Set<string>>(new Set());
+  readonly isTree = computed(() => !!this.def.expandable && this.rows().some((r) => (r as Row)['__level'] != null));
+  /** Rows actually shown: all day rows + the detail rows of expanded days. */
+  readonly displayRows = computed<Row[]>(() => {
+    const all = this.rows() as Row[];
+    if (!this.isTree()) return all;
+    const exp = this.expanded();
+    return all.filter((r) => Number(r['__level']) === 0 || exp.has(String(r['__parent'])));
+  });
+  readonly allExpanded = computed(() => {
+    const parents = (this.rows() as Row[]).filter((r) => Number(r['__level']) === 0);
+    return parents.length > 0 && parents.every((r) => this.expanded().has(String(r['__key'])));
+  });
+
   // ── Client-side pagination (zero backend impact — the report already
   //    returns the full row set; we just page the display). 0 = "All". ──
   readonly pageSizeOpts = [25, 50, 100, 200, 0];
@@ -295,11 +333,11 @@ export class TabularReportPageComponent implements OnInit {
   /** Page size actually used for slicing/pager — "All" collapses to the row count. */
   readonly effectivePageSize = computed(() => {
     const ps = this.pageSize();
-    return ps <= 0 ? Math.max(this.rows().length, 1) : ps;
+    return ps <= 0 ? Math.max(this.displayRows().length, 1) : ps;
   });
   readonly pagedRows = computed<Row[]>(() => {
     const ps = this.pageSize();
-    const all = this.rows() as Row[];
+    const all = this.displayRows();
     if (ps <= 0) return all;
     const start = (this.page() - 1) * ps;
     return all.slice(start, start + ps);
@@ -433,6 +471,22 @@ export class TabularReportPageComponent implements OnInit {
 
   // ── table helpers ────────────────────────────────────────────────────
   firstCol(): string { return this.visibleColumns()[0]?.key ?? ''; }
+
+  // ── expandable tree helpers ──────────────────────────────────────────
+  lvl(r: Row): number { return Number(r['__level']) || 0; }
+  isExpanded(r: Row): boolean { return this.expanded().has(String(r['__key'])); }
+  toggleRow(r: Row): void {
+    if (!this.isTree() || this.lvl(r) !== 0) return;
+    const key = String(r['__key']);
+    const next = new Set(this.expanded());
+    if (next.has(key)) next.delete(key); else next.add(key);
+    this.expanded.set(next);
+  }
+  expandAll(): void {
+    this.expanded.set(new Set((this.rows() as Row[])
+      .filter((r) => Number(r['__level']) === 0).map((r) => String(r['__key']))));
+  }
+  collapseAll(): void { this.expanded.set(new Set()); }
 
   // ── Merged (rowspan) column — e.g. the date on date×category totals so it
   //    isn't repeated. Only active when the merge column is visible. ──

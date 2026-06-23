@@ -538,6 +538,97 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "count", labelEn: "Count", labelAr: "العدد", type: "int", totalKey: "count" },
     ],
   },
+
+  // ── NEW daily (expandable) reports — one summary row per day; click a day to
+  //    reveal that day's discounts / codes / vouchers. Separate from the existing
+  //    Total Discounts / Promo Code Details / Vouchers Details reports. ──
+  "daily-discount": {
+    id: "daily-discount",
+    titleEn: "Daily Discounts", titleAr: "الخصومات اليومية",
+    subtitleEn: "Per day — expand a day to see each discount", subtitleAr: "لكل يوم — افتح اليوم لرؤية كل خصم",
+    endpoint: "TotalDiscount/TotalDiscountReport",
+    transform: "discountDailyTree", expandable: true,
+    rowUnitEn: "rows", rowUnitAr: "صف",
+    filters: ["payment", "transaction", "shift", "user", "waiter", "discount", "promo", "onlineApp"],
+    columns: [
+      { key: "day", labelEn: "Date", labelAr: "التاريخ", type: "date" },
+      { key: "discountName", labelEn: "Discount", labelAr: "الخصم", type: "text" },
+      { key: "totalCommercialItemDiscount", labelEn: "Commercial Discount", labelAr: "الخصم التجاري", type: "money", totalKey: "totalCommercialItemDiscount" },
+      { key: "totalItemDiscount", labelEn: "Item Discount", labelAr: "خصم الأصناف", type: "money", totalKey: "totalItemDiscount" },
+      { key: "service", labelEn: "Service", labelAr: "الخدمة", type: "money", totalKey: "service" },
+      { key: "tax", labelEn: "Tax", labelAr: "الضريبة", type: "money", totalKey: "tax" },
+      { key: "cash", labelEn: "Cash", labelAr: "نقدي", type: "money", totalKey: "cash" },
+      { key: "visa", labelEn: "Visa", labelAr: "فيزا", type: "money", totalKey: "visa" },
+      { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
+      { key: "total", labelEn: "Total Discount", labelAr: "إجمالي الخصم", type: "money", totalKey: "totalDiscount" },
+    ],
+    receiptColumns: [
+      { key: "day", en: "Date", ar: "التاريخ" },
+      { key: "discountName", en: "Discount", ar: "الخصم" },
+      { key: "total", en: "Total", ar: "الإجمالي" },
+      { key: "cash", en: "Cash", ar: "نقدي" },
+      { key: "visa", en: "Visa", ar: "فيزا" },
+      { key: "ledge", en: "Ledge", ar: "آجل" },
+    ],
+  },
+  "daily-promo": {
+    id: "daily-promo",
+    titleEn: "Daily Promo Codes", titleAr: "أكواد الخصم اليومية",
+    subtitleEn: "Per day — expand a day to see each code", subtitleAr: "لكل يوم — افتح اليوم لرؤية كل كود",
+    endpoint: "reports/promocodes/detail",
+    transform: "promoDailyTree", expandable: true,
+    rowUnitEn: "rows", rowUnitAr: "صف",
+    filters: ["payment", "transaction", "shift", "onlineApp", "user", "waiter"],
+    columns: [
+      { key: "day", labelEn: "Date", labelAr: "التاريخ", type: "date" },
+      { key: "promoCodeName", labelEn: "Promo Code", labelAr: "كود الخصم", type: "text" },
+      { key: "discountName", labelEn: "Discount", labelAr: "الخصم", type: "text", defaultHidden: true },
+      { key: "orderIds", labelEn: "Order #s", labelAr: "أرقام الطلبات", type: "text" },
+      { key: "ordersCount", labelEn: "Orders", labelAr: "عدد الطلبات", type: "int", totalKey: "ordersCount" },
+      { key: "cash", labelEn: "Cash", labelAr: "نقدي", type: "money", totalKey: "cash" },
+      { key: "visa", labelEn: "Visa", labelAr: "فيزا", type: "money", totalKey: "visa" },
+      { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
+      { key: "total", labelEn: "Promo Value", labelAr: "قيمة الخصم", type: "money", totalKey: "total" },
+    ],
+    receiptColumns: [
+      { key: "day", en: "Date", ar: "التاريخ" },
+      { key: "promoCodeName", en: "Code", ar: "الكود" },
+      { key: "total", en: "Value", ar: "القيمة" },
+      { key: "cash", en: "Cash", ar: "نقدي" },
+      { key: "visa", en: "Visa", ar: "فيزا" },
+      { key: "ledge", en: "Ledge", ar: "آجل" },
+      { key: "orderIds", en: "Order #", ar: "الأوردرات" },
+    ],
+  },
+  "daily-vouchers": {
+    id: "daily-vouchers",
+    titleEn: "Daily Vouchers", titleAr: "القسائم اليومية",
+    subtitleEn: "Per day — expand a day to see each voucher", subtitleAr: "لكل يوم — افتح اليوم لرؤية كل قسيمة",
+    endpoint: "VouchersReport/detail",
+    transform: "voucherDailyTree", expandable: true,
+    rowUnitEn: "rows", rowUnitAr: "صف",
+    filters: ["payment", "transaction", "shift", "onlineApp", "user", "waiter"],
+    columns: [
+      { key: "day", labelEn: "Date", labelAr: "التاريخ", type: "date" },
+      { key: "voucherCode", labelEn: "Voucher Code", labelAr: "كود القسيمة", type: "text" },
+      { key: "orderIds", labelEn: "Order #s", labelAr: "أرقام الطلبات", type: "text" },
+      { key: "vouchersCount", labelEn: "Vouchers", labelAr: "عدد القسائم", type: "int", totalKey: "vouchersCount" },
+      { key: "distinctOrders", labelEn: "Orders", labelAr: "عدد الطلبات", type: "int", totalKey: "distinctOrders" },
+      { key: "cash", labelEn: "Cash", labelAr: "نقدي", type: "money", totalKey: "cash" },
+      { key: "visa", labelEn: "Visa", labelAr: "فيزا", type: "money", totalKey: "visa" },
+      { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
+      { key: "totalVoucherAmount", labelEn: "Voucher Amount", labelAr: "قيمة القسائم", type: "money", totalKey: "totalVoucherAmount" },
+    ],
+    receiptColumns: [
+      { key: "day", en: "Date", ar: "التاريخ" },
+      { key: "voucherCode", en: "Code", ar: "الكود" },
+      { key: "totalVoucherAmount", en: "Value", ar: "القيمة" },
+      { key: "cash", en: "Cash", ar: "نقدي" },
+      { key: "visa", en: "Visa", ar: "فيزا" },
+      { key: "ledge", en: "Ledge", ar: "آجل" },
+      { key: "orderIds", en: "Order #", ar: "الأوردرات" },
+    ],
+  },
 };
 
 export interface ReportNavGroup { titleEn: string; titleAr: string; ids: string[]; }
@@ -586,11 +677,26 @@ export const REPORT_NAV: ReportNavGroup[] = [
     ]
   },
   {
-    "titleEn": "Discounts & Vouchers",
-    "titleAr": "الخصومات والقسائم",
+    "titleEn": "Discounts",
+    "titleAr": "الخصومات",
     "ids": [
-      "total-discount",
-      "promo-code-details",
+      "daily-discount",
+      "total-discount"
+    ]
+  },
+  {
+    "titleEn": "Promo Codes",
+    "titleAr": "أكواد الخصم",
+    "ids": [
+      "daily-promo",
+      "promo-code-details"
+    ]
+  },
+  {
+    "titleEn": "Vouchers",
+    "titleAr": "القسائم",
+    "ids": [
+      "daily-vouchers",
       "vouchers-details"
     ]
   },

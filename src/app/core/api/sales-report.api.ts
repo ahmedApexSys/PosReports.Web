@@ -217,6 +217,115 @@ const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResu
     const totals = pick(d, 'grandTotals', 'GrandTotals');
     return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
   },
+  // TotalDiscount returns discounts[] each with a nested days[] — explode into one
+  // row per (discount × day) so the report reads DAILY (Date column) instead of one
+  // aggregate row per discount. The discount-level dimension strings (branch /
+  // transaction / online-app / user / pay-way) are comma-joined aggregates, so we
+  // carry them onto each of that discount's day rows. Totals come from the server
+  // grandTotals (data.totals) verbatim — its keys already match the column totalKeys
+  // (note: the grand-total of "total" is keyed "totalDiscount"). Never re-sum the
+  // flattened rows: per-day cash/visa/ledge are de-duped per order server-side.
+  discountDaily: (d) => {
+    const groups = asArr(pick(d, 'discounts', 'Discounts'));
+    const rows: Obj[] = [];
+    for (const g of groups) {
+      const base = {
+        discountId: pick(g, 'discountId', 'DiscountId'),
+        discountName: pick(g, 'discountName', 'DiscountName'),
+        branchName: pick(g, 'branchName', 'BranchName'),
+        transactionName: pick(g, 'transactionName', 'TransactionName'),
+        onlineAppName: pick(g, 'onlineAppName', 'OnlineAppName'),
+        userName: pick(g, 'userName', 'UserName'),
+        payWay: pick(g, 'payWay', 'PayWay'),
+      };
+      for (const day of asArr(pick(g, 'days', 'Days'))) {
+        rows.push({
+          ...base,
+          day: pick(day, 'day', 'Day'),
+          totalCommercialItemDiscount: pick(day, 'totalCommercialItemDiscount', 'TotalCommercialItemDiscount'),
+          totalItemDiscount: pick(day, 'totalItemDiscount', 'TotalItemDiscount'),
+          service: pick(day, 'service', 'Service'),
+          tax: pick(day, 'tax', 'Tax'),
+          cash: pick(day, 'cash', 'Cash'),
+          visa: pick(day, 'visa', 'Visa'),
+          ledge: pick(day, 'ledge', 'Ledge'),
+          total: pick(day, 'total', 'Total'),
+        });
+      }
+    }
+    // Date-led ordering so the merged Date cell groups each day's discounts together.
+    rows.sort((a, b) =>
+      canonDate(a['day']).localeCompare(canonDate(b['day'])) ||
+      String(a['discountName'] ?? '').localeCompare(String(b['discountName'] ?? '')));
+    const totals = pick(d, 'totals', 'Totals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
+
+  // ── Expandable per-day TREE transforms (one summary row per day → its detail
+  //    rows). __level 0 = day summary, __level 1 = detail under __parent=dayKey.
+  //    The engine collapses children until the day row is clicked. ──
+  discountDailyTree: (d) => {
+    const groups = asArr(pick(d, 'discounts', 'Discounts'));
+    const F = ['totalCommercialItemDiscount', 'totalItemDiscount', 'service', 'tax', 'cash', 'visa', 'ledge', 'total'];
+    const dayMap = new Map<string, { dayVal: unknown; sums: Obj; children: Obj[] }>();
+    for (const g of groups) {
+      const dname = pick(g, 'discountName', 'DiscountName');
+      const did = pick(g, 'discountId', 'DiscountId');
+      for (const day of asArr(pick(g, 'days', 'Days'))) {
+        const dayVal = pick(day, 'day', 'Day');
+        const k = canonDate(dayVal);
+        let e = dayMap.get(k);
+        if (!e) { e = { dayVal, sums: Object.fromEntries(F.map((f) => [f, 0])) as Obj, children: [] }; dayMap.set(k, e); }
+        const child: Obj = { discountId: did, discountName: dname };
+        for (const f of F) { const v = Number(pick(day, f, cap(f))) || 0; child[f] = v; (e.sums[f] as number) += v; }
+        e.children.push(child);
+      }
+    }
+    const rows: Obj[] = [];
+    for (const k of [...dayMap.keys()].sort()) {
+      const e = dayMap.get(k)!;
+      rows.push({ __level: 0, __key: k, __expandable: true, day: e.dayVal, discountName: '', ...e.sums });
+      e.children.sort((a, b) => String(a['discountName'] ?? '').localeCompare(String(b['discountName'] ?? '')));
+      for (const c of e.children) rows.push({ __level: 1, __parent: k, day: '', ...c });
+    }
+    const totals = pick(d, 'totals', 'Totals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
+  promoDailyTree: (d) => {
+    const rows: Obj[] = [];
+    for (const day of asArr(pick(d, 'days', 'Days'))) {
+      const dayVal = pick(day, 'day', 'Day');
+      const k = canonDate(dayVal);
+      const t = (pick(day, 'totals', 'Totals') ?? {}) as Obj;
+      rows.push({
+        __level: 0, __key: k, __expandable: true, day: dayVal, promoCodeName: '',
+        ordersCount: Number(pick(t, 'ordersCount', 'OrdersCount')) || 0,
+        cash: Number(pick(t, 'cash', 'Cash')) || 0, visa: Number(pick(t, 'visa', 'Visa')) || 0,
+        ledge: Number(pick(t, 'ledge', 'Ledge')) || 0, total: Number(pick(t, 'total', 'Total')) || 0,
+      });
+      for (const code of asArr(pick(day, 'promoCodes', 'PromoCodes'))) rows.push({ __level: 1, __parent: k, day: '', ...code });
+    }
+    const totals = pick(d, 'grandTotals', 'GrandTotals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
+  voucherDailyTree: (d) => {
+    const rows: Obj[] = [];
+    for (const day of asArr(pick(d, 'days', 'Days'))) {
+      const dayVal = pick(day, 'day', 'Day');
+      const k = canonDate(dayVal);
+      const t = (pick(day, 'totals', 'Totals') ?? {}) as Obj;
+      rows.push({
+        __level: 0, __key: k, __expandable: true, day: dayVal, voucherCode: '',
+        vouchersCount: Number(pick(t, 'vouchersCount', 'VouchersCount')) || 0,
+        distinctOrders: Number(pick(t, 'distinctOrders', 'DistinctOrders')) || 0,
+        totalVoucherAmount: Number(pick(t, 'totalVoucherAmount', 'TotalVoucherAmount')) || 0,
+        cash: Number(pick(t, 'cash', 'Cash')) || 0, visa: Number(pick(t, 'visa', 'Visa')) || 0, ledge: Number(pick(t, 'ledge', 'Ledge')) || 0,
+      });
+      for (const code of asArr(pick(day, 'voucherCodes', 'VoucherCodes'))) rows.push({ __level: 1, __parent: k, day: '', ...code });
+    }
+    const totals = pick(d, 'grandTotals', 'GrandTotals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
   // getDailySalesReport (per-order) uses `transaction`; SalePeriod uses `transactionName`.
   groupByTransaction: (d, ctx) => groupSales(d, 'transaction', ctx),
   groupByPayment: (d, ctx) => groupSales(d, 'paymentStatus', ctx),
@@ -260,7 +369,8 @@ export class SalesReportApi {
       transform?: 'promoFlatten' | 'voucherFlatten' | 'groupByTransaction' | 'groupByPayment'
                 | 'groupByDate' | 'groupByDayTransaction' | 'groupByDayPayment'
                 | 'orderByTransaction' | 'orderByPayment'
-                | 'totalPosTree' | 'soldItemsTree';
+                | 'totalPosTree' | 'soldItemsTree' | 'discountDaily'
+                | 'discountDailyTree' | 'promoDailyTree' | 'voucherDailyTree';
       branchNames?: string[];
       branchId?: number | null;
       /** Fetch a second per-date endpoint and merge one numeric value onto each row by date. */
