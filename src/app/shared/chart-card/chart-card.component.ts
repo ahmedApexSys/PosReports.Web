@@ -1,13 +1,12 @@
 import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LucideAngularModule, EllipsisVertical, Download } from 'lucide-angular';
 import { BilingualPipe } from '../bilingual.pipe';
 import { BiText } from '../../core/models/bi.models';
 
 @Component({
   selector: 'app-chart-card',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, BilingualPipe],
+  imports: [CommonModule, BilingualPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="card-padded h-full flex flex-col">
@@ -20,10 +19,6 @@ import { BiText } from '../../core/models/bi.models';
             {{ st | bilingual }}
           </p>
         </div>
-        <button class="btn-ghost p-1.5"
-                aria-label="Chart options">
-          <lucide-icon [img]="MenuIcon" class="h-4 w-4"></lucide-icon>
-        </button>
       </header>
       <div class="flex-1 min-h-0">
         <ng-content></ng-content>
@@ -34,6 +29,4 @@ import { BiText } from '../../core/models/bi.models';
 export class ChartCardComponent {
   readonly title = input.required<BiText>();
   readonly subtitle = input<BiText | undefined>();
-  readonly MenuIcon = EllipsisVertical;
-  readonly Download = Download;
 }

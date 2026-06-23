@@ -3,15 +3,18 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  LucideAngularModule, Download, ChevronDown, Sheet, Printer,
+  LucideAngularModule, Download, ChevronDown, Sheet, Printer, FileText,
 } from 'lucide-angular';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ExportService, ExportColumn, ExportMeta } from '../../core/export/export.service';
 
 /**
- * Reusable Export dropdown (Excel / PDF) used across the monitoring screens.
- * Give it the rows, a bilingual column spec, and report metadata; it delegates
- * to ExportService. Language is taken live from LanguageService.
+ * Reusable Export dropdown (Excel / PDF / CSV) used across the monitoring
+ * screens. Give it the rows, a bilingual column spec, and report metadata; it
+ * delegates to ExportService. Language is taken live from LanguageService.
+ *
+ * Note: jsPDF can't shape Arabic, so in Arabic the "PDF" entry routes through
+ * the browser print dialog ("طباعة / حفظ PDF") — the label reflects that.
  */
 @Component({
   selector: 'app-export-menu',
@@ -37,7 +40,12 @@ import { ExportService, ExportColumn, ExportMeta } from '../../core/export/expor
         </button>
         <button type="button" (click)="run('pdf')" class="export-item">
           <lucide-icon [img]="PdfIcon" class="h-4 w-4 text-critical"></lucide-icon>
-          <span class="flex-1 text-start">{{ ar() ? 'PDF (طباعة)' : 'PDF (print)' }}</span>
+          <span class="flex-1 text-start">{{ ar() ? 'طباعة / حفظ PDF' : 'PDF' }}</span>
+        </button>
+        <button type="button" (click)="run('csv')" class="export-item">
+          <lucide-icon [img]="CsvIcon" class="h-4 w-4 text-slate-500"></lucide-icon>
+          <span class="flex-1 text-start">CSV</span>
+          <span class="text-[10px] text-slate-400">.csv</span>
         </button>
       </div>
     </div>
@@ -76,6 +84,7 @@ export class ExportMenuComponent {
   readonly ChevronIcon = ChevronDown;
   readonly ExcelIcon = Sheet;
   readonly PdfIcon = Printer;
+  readonly CsvIcon = FileText;
 
   ar(): boolean { return this.lang.language() === 'ar'; }
 
@@ -86,7 +95,7 @@ export class ExportMenuComponent {
     if (this.open() && !this.host.nativeElement.contains(ev.target as Node)) this.open.set(false);
   }
 
-  run(fmt: 'excel' | 'pdf'): void {
+  run(fmt: 'excel' | 'pdf' | 'csv'): void {
     this.open.set(false);
     if (!this.rows.length) return;
     const meta: ExportMeta = {
@@ -96,6 +105,7 @@ export class ExportMenuComponent {
       lang: this.lang.language(), fileBase: this.fileBase,
     };
     if (fmt === 'excel') this.exp.excel(this.rows, this.columns, meta);
+    else if (fmt === 'csv') this.exp.csv(this.rows, this.columns, meta);
     else this.exp.pdf(this.rows, this.columns, meta);
   }
 }

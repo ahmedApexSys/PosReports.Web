@@ -34,6 +34,14 @@ export interface ExportColumn<T> {
   numeric?: boolean;
   /** Optional per-cell tone for colouring (e.g. success/fail). */
   tone?: (row: T) => 'good' | 'bad' | 'muted' | null;
+  /**
+   * Optional source field key (e.g. 'transaction', 'paymentStatus', 'payWay').
+   * When this names a transaction/payment column, the narrow thermal receipt is
+   * allowed to abbreviate its cell values (TakeAway → T.Away …). Other columns
+   * are never abbreviated, so a real item/category named "Pickup"/"Delivery"
+   * stays intact. Absent ⇒ the column's header text is used to detect this.
+   */
+  key?: string;
 }
 
 export interface ExportMeta {
@@ -55,6 +63,11 @@ export interface ExportMeta {
   appliedFilters?: { label: string; value: string }[];
   /** Payment totals (Cash/Visa/Ledge/Other/Net …) for the receipt totals block. */
   paymentTotals?: { label: string; value: string; emphasize?: boolean }[];
+  /** Full bottom summary (financial figures strip + payment split) for A4 / Excel / PDF. */
+  summary?: {
+    figures: { label: string; value: string; emphasize?: boolean }[];
+    payways: { payway: string; total: string; net: string }[];
+  };
 }
 
 /** Header meta for the multi-section TotalsReport ("Daily Transactions") receipt. */
@@ -91,6 +104,9 @@ const BAD_TX = '#991b1b';
  * Keys are normalised (lower-cased, spaces/dots/dashes stripped). Anything not
  * in the map passes through untouched — numbers, item names, dates are never
  * mangled.
+ *
+ * Only applied to *transaction / payment* columns (see SHORTABLE_KEYS), so a
+ * real item/category literally named "Pickup"/"Delivery"/etc. is left intact.
  */
 const RECEIPT_SHORT: Record<string, string> = {
   takeaway: 'T.Away', takeaways: 'T.Away', takaway: 'T.Away', takeout: 'T.Out',
@@ -100,6 +116,23 @@ const RECEIPT_SHORT: Record<string, string> = {
   pickup: 'Pickup',
   hosbitality: 'Hosp.', hospitality: 'Hosp.',
 };
+
+/**
+ * Column keys whose cells are transaction/payment names safe to abbreviate.
+ * Any other column (item name, category, …) passes through verbatim, so a real
+ * value that happens to equal a short-code key is never rewritten.
+ */
+const SHORTABLE_KEYS = new Set<string>([
+  'transaction', 'transactionname', 'paymentstatus', 'payway',
+]);
+
+/** Does this column hold transaction/payment names that may be abbreviated? */
+function isShortableColumn<T>(c: ExportColumn<T>): boolean {
+  const norm = (s: string | undefined): string => (s ?? '').trim().toLowerCase().replace(/[\s._-]/g, '');
+  if (c.key && SHORTABLE_KEYS.has(norm(c.key))) return true;
+  // No explicit key supplied → fall back to the column's English/Arabic header.
+  return !c.key && (SHORTABLE_KEYS.has(norm(c.headerEn)) || SHORTABLE_KEYS.has(norm(c.headerAr)));
+}
 
 @Injectable({ providedIn: 'root' })
 export class ExportService {
@@ -325,6 +358,25 @@ export class ExportService {
         },
       });
 
+      // ── Bottom Summary (figures strip + payment split) ──
+      const sm = meta.summary;
+      const lastY = () => (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
+      if (sm && (sm.figures.length || sm.payways.length)) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(168, 24, 19);
+        doc.text('Summary', M, lastY() + 18);
+        const sStyles = {
+          styles: { font: 'helvetica', fontSize: 7, cellPadding: 3, halign: 'center' as const, lineColor: [230, 217, 216] as [number, number, number], lineWidth: 0.5, textColor: [31, 41, 55] as [number, number, number] },
+          headStyles: { fillColor: [252, 224, 222] as [number, number, number], textColor: [168, 24, 19] as [number, number, number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7 },
+          margin: { left: M, right: M, bottom: 26 }, tableWidth: 'auto' as const,
+        };
+        if (sm.figures.length) {
+          autoTable(doc, { head: [sm.figures.map((f) => f.label)], body: [sm.figures.map((f) => f.value)], startY: lastY() + 24, ...sStyles });
+        }
+        if (sm.payways.length) {
+          autoTable(doc, { head: [['PayWay', 'Total', 'Net']], body: sm.payways.map((p) => [p.payway, p.total, p.net]), startY: lastY() + 8, ...sStyles });
+        }
+      }
+
       doc.save(this.fileName(meta, 'pdf'));
     } catch (err) {
       // Graceful fallback: still give the user a PDF via the print path.
@@ -364,9 +416,18 @@ export class ExportService {
       ? `<div class="filters"><span class="filters-lead">${L('Filters', 'الفلاتر')}:</span>${filterChips}</div>`
       : '';
 
-    const fontPx = pos ? 9 : 12;
-    const pad = pos ? '3px 4px' : '6px 10px';
-    const wrap = pos ? 'normal' : 'nowrap';
+    const isA4 = mode === 'a4';
+    // Wide A4-landscape reports (15+ cols) clipped off-page with nowrap + fixed
+    // px colgroup. For A4: allow wrapping, drop the fixed widths, and step the
+    // font down as the column count climbs so everything fits the page width.
+    const a4Cols = cols.length;
+    const a4FontPx = a4Cols >= 18 ? 8 : a4Cols >= 14 ? 9 : a4Cols >= 11 ? 10 : 12;
+    const fontPx = pos ? 9 : isA4 ? a4FontPx : 12;
+    const pad = pos ? '3px 4px' : isA4 ? '4px 6px' : '6px 10px';
+    const wrap = (pos || isA4) ? 'normal' : 'nowrap';
+    // Excel honours the per-column px widths; A4 lets the table-layout decide so
+    // wide reports flow instead of overflowing the page.
+    const cellExtra = isA4 ? 'overflow-wrap:anywhere;word-break:break-word;' : '';
 
     // Excel honours a per-cell width hint and, crucially, an `mso-number-format`
     // text format that stops it re-parsing dates/codes (which showed as "####")
@@ -381,7 +442,7 @@ export class ExportService {
       const h2 = ar ? c.headerEn : c.headerAr;
       const sub = (!pos && h2 && h2 !== h1) ? `<div style="font-weight:400;font-size:10px;opacity:.75">${esc(h2)}</div>` : '';
       const w = forExcel ? `width:${colPx(c)}px;` : '';
-      return `<th style="background:${headBg};color:${headTx};border:1px solid ${forExcel ? BRAND : BORDER};border-bottom:2px solid ${BRAND};padding:${pad};text-align:center;font-weight:700;white-space:${wrap};${w}">${esc(h1)}${sub}</th>`;
+      return `<th style="background:${headBg};color:${headTx};border:1px solid ${forExcel ? BRAND : BORDER};border-bottom:2px solid ${BRAND};padding:${pad};text-align:center;font-weight:700;white-space:${wrap};${cellExtra}${w}">${esc(h1)}${sub}</th>`;
     }).join('');
 
     const body = rows.map((r, i) => {
@@ -394,7 +455,7 @@ export class ExportService {
         else if (t === 'bad') cell = `background:${BAD_BG};color:${BAD_TX};font-weight:600;`;
         else if (t === 'muted') cell = `color:${MUTE};`;
         const align = c.numeric ? 'right' : (ar ? 'right' : 'left');
-        return `<td style="border:1px solid ${BORDER};padding:${pad};text-align:${align};vertical-align:top;white-space:${wrap};${exTextFmt(c)}${zebra}${cell}">${esc(raw)}</td>`;
+        return `<td style="border:1px solid ${BORDER};padding:${pad};text-align:${align};vertical-align:top;white-space:${wrap};${cellExtra}${exTextFmt(c)}${zebra}${cell}">${esc(raw)}</td>`;
       }).join('');
       return `<tr>${tds}</tr>`;
     }).join('');
@@ -402,11 +463,14 @@ export class ExportService {
     const footer = (meta.footer && meta.footer.length === cols.length)
       ? `<tfoot><tr>${cols.map((c, i) => {
           const align = c.numeric ? 'right' : (ar ? 'right' : 'left');
-          return `<td style="border:1px solid ${BORDER};border-top:2px solid ${BRAND};background:${FOOT_TINT};padding:${pad};text-align:${align};font-weight:700;color:${BRAND};white-space:${wrap};${exTextFmt(c)}">${esc(meta.footer![i])}</td>`;
+          return `<td style="border:1px solid ${BORDER};border-top:2px solid ${BRAND};background:${FOOT_TINT};padding:${pad};text-align:${align};font-weight:700;color:${BRAND};white-space:${wrap};${cellExtra}${exTextFmt(c)}">${esc(meta.footer![i])}</td>`;
         }).join('')}</tr></tfoot>`
       : '';
 
-    const colgroup = cols.map(c => `<col style="width:${colPx(c)}px">`).join('');
+    // Excel honours fixed px column widths; A4 drops them so the print engine
+    // distributes the columns across the page (with wrapping) instead of letting
+    // a fixed-width colgroup push wide reports off the landscape sheet.
+    const colgroup = isA4 ? '' : cols.map(c => `<col style="width:${colPx(c)}px">`).join('');
 
     const pageSize = mode === 'pos72' ? '72mm auto' : mode === 'pos80' ? '80mm auto' : 'A4 landscape';
     const pageMargin = pos ? '3mm' : '12mm';
@@ -418,6 +482,32 @@ export class ExportService {
       .hint { margin: 8px 0 14px; color:${MUTE}; font-size:12px }
     `;
 
+    // Bottom Summary (financial figures strip + payment split) — appended after the
+    // main table on A4 / Excel (the receipt path renders its own totals block).
+    const sm = meta.summary;
+    const figTbl = sm && sm.figures.length
+      ? `<table style="margin-top:14px"><thead><tr>${sm.figures.map(f =>
+          `<th style="border:1px solid ${BORDER};background:${HEAD_TINT};color:${BRAND};padding:${pad};text-align:center;font-weight:700">${esc(f.label)}</th>`).join('')}</tr></thead>`
+        + `<tbody><tr>${sm.figures.map(f =>
+          `<td style="border:1px solid ${BORDER};padding:${pad};text-align:center;${f.emphasize ? `font-weight:800;color:${BRAND};` : ''}">${esc(f.value)}</td>`).join('')}</tr></tbody></table>`
+      : '';
+    const payTbl = sm && sm.payways.length
+      ? `<table style="margin-top:8px"><thead><tr>`
+        + `<th style="border:1px solid ${BORDER};background:${HEAD_TINT};color:${BRAND};padding:${pad};text-align:center;font-weight:700">${L('PayWay', 'طريقة الدفع')}</th>`
+        + `<th style="border:1px solid ${BORDER};background:${HEAD_TINT};color:${BRAND};padding:${pad};text-align:center;font-weight:700">${L('Total', 'الإجمالي')}</th>`
+        + `<th style="border:1px solid ${BORDER};background:${HEAD_TINT};color:${BRAND};padding:${pad};text-align:center;font-weight:700">${L('Net', 'الصافي')}</th></tr></thead>`
+        + `<tbody>${sm.payways.map(p =>
+          `<tr><td style="border:1px solid ${BORDER};padding:${pad};text-align:center;font-weight:600">${esc(p.payway)}</td>`
+          + `<td style="border:1px solid ${BORDER};padding:${pad};text-align:center">${esc(p.total)}</td>`
+          + `<td style="border:1px solid ${BORDER};padding:${pad};text-align:center;font-weight:700">${esc(p.net)}</td></tr>`).join('')}</tbody></table>`
+      : '';
+    const summaryHtml = (figTbl || payTbl)
+      ? `<div style="margin-top:16px;page-break-inside:avoid">
+           <div style="font-weight:800;color:${BRAND};font-size:${pos ? 11 : 13}px;margin-bottom:6px">${L('Summary', 'الملخص')}</div>
+           ${figTbl}${payTbl}
+         </div>`
+      : '';
+
     return `<!doctype html>
 <html dir="${dir}" lang="${meta.lang}">
 <head>
@@ -426,7 +516,7 @@ export class ExportService {
 <title>${esc(this.fileNameBase(meta))}</title>
 <style>
   body { font-family:'Tajawal','Segoe UI',Arial,sans-serif; margin:0; padding:${bodyPad}; color:${INK}; }
-  table { border-collapse:collapse; width:100%; font-size:${fontPx}px; }
+  table { border-collapse:collapse; width:100%; font-size:${fontPx}px; ${isA4 ? 'table-layout:fixed;' : ''} }
   th,td { mso-data-placement:same-cell; }
   .head-bar { padding-bottom:8px; margin-bottom:10px; border-bottom:3px solid ${BRAND}; ${pos ? 'text-align:center;' : ''} }
   .head-bar .brand { display:inline-flex; align-items:center; gap:8px; }
@@ -458,6 +548,7 @@ export class ExportService {
     <tbody>${body || `<tr><td style="padding:18px;text-align:center;color:${MUTE}" colspan="${cols.length}">${L('No data.', 'لا توجد بيانات.')}</td></tr>`}</tbody>
     ${footer}
   </table>
+  ${summaryHtml}
 </body>
 </html>`;
   }
@@ -490,8 +581,12 @@ export class ExportService {
     metaRows.push(`<div class="m-row"><span>${L('Records', 'عدد السجلات')}</span><b>${rows.length}</b></div>`);
 
     const head = cols.map((c) => `<th class="${c.numeric ? 'num' : ''}">${esc(ar ? c.headerAr : c.headerEn)}</th>`).join('');
+    // Only transaction/payment columns get the short-code; every other column
+    // (item / category names) renders its raw value so e.g. a product literally
+    // called "Pickup" or "Delivery" is never silently rewritten.
+    const shortable = cols.map((c) => isShortableColumn(c));
     const body = rows.length
-      ? rows.map((r) => `<tr>${cols.map((c) => `<td class="${c.numeric ? 'num' : ''}">${esc(this.receiptShort(c.value(r, meta.lang)))}</td>`).join('')}</tr>`).join('')
+      ? rows.map((r) => `<tr>${cols.map((c, ci) => `<td class="${c.numeric ? 'num' : ''}">${esc(shortable[ci] ? this.receiptShort(c.value(r, meta.lang)) : c.value(r, meta.lang))}</td>`).join('')}</tr>`).join('')
       : `<tr><td colspan="${cols.length}" style="text-align:center;color:#999;padding:14px 0">${L('No data.', 'لا توجد بيانات.')}</td></tr>`;
 
     // Totals block: the curated `paymentTotals` the caller built (e.g.

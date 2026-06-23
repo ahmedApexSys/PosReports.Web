@@ -23,6 +23,8 @@ export interface ReportColumn {
   width?: number;
   /** for text columns, render the sentinel value "0" as a dash (e.g. promo code / mobile). */
   dashIfZero?: boolean;
+  /** truncate the cell text to this many chars + "…" (used on the narrow receipt). */
+  maxLen?: number;
 }
 
 /**
@@ -101,6 +103,8 @@ export interface ReceiptColumn {
   key: string;
   en?: string;
   ar?: string;
+  /** Truncate the cell text to this many chars + "…" on the receipt (narrow roll). */
+  maxLen?: number;
 }
 
 /** One line in the receipt totals block (value pulled from the report's `totals`). */
@@ -174,6 +178,16 @@ export interface ReportDef {
    * so equal values are adjacent.
    */
   mergeColumn?: string;
+  /**
+   * Optionally fetch a second per-date endpoint and merge one numeric value onto
+   * each row of this report by matching date — lets the single-endpoint engine
+   * surface a cross-report column (e.g. Total Expenses on the daily Sales Period totals).
+   */
+  mergeByDate?: {
+    endpoint: string; rowsKey: string;
+    srcDateKey: string; srcValueKey: string;
+    dstDateKey: string; dstKey: string;
+  };
 }
 
 /** Saved per-user column layout for one report. */

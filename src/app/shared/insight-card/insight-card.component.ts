@@ -1,7 +1,8 @@
-import { Component, input, output, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, input, output, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule, CircleCheck, Info, TriangleAlert, CircleAlert, CircleX, X, Lightbulb } from 'lucide-angular';
 import { BilingualPipe } from '../bilingual.pipe';
+import { LanguageService } from '../../core/i18n/language.service';
 import { BiInsight, InsightSeverity, SEVERITY_TONE } from '../../core/models/bi.models';
 
 type LucideIcon = typeof Info;
@@ -57,6 +58,8 @@ export class InsightCardComponent {
   readonly data = input.required<BiInsight>();
   readonly dismissible = input<boolean>(true);
   readonly dismiss = output<string>();
+
+  private readonly lang = inject(LanguageService);
 
   readonly Lightbulb = Lightbulb;
   readonly X = X;
@@ -122,12 +125,13 @@ export class InsightCardComponent {
   });
 
   severityLabel = computed(() => {
+    const ar = this.lang.language() === 'ar';
     return ({
-      [InsightSeverity.Good]:     'Good',
-      [InsightSeverity.Info]:     'Info',
-      [InsightSeverity.Warning]:  'Warning',
-      [InsightSeverity.High]:     'High',
-      [InsightSeverity.Critical]: 'Critical',
+      [InsightSeverity.Good]:     ar ? 'جيد'    : 'Good',
+      [InsightSeverity.Info]:     ar ? 'معلومة' : 'Info',
+      [InsightSeverity.Warning]:  ar ? 'تحذير'  : 'Warning',
+      [InsightSeverity.High]:     ar ? 'مرتفع'  : 'High',
+      [InsightSeverity.Critical]: ar ? 'حرج'    : 'Critical',
     })[this.data().severity];
   });
 }

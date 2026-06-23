@@ -106,7 +106,11 @@ export class FilterService {
   }
 
   setDateRange(fromIso: string, toIso: string): void {
-    this._state.update((s) => ({ ...s, fromDate: fromIso, toDate: toIso }));
+    this._state.update((s) => ({
+      ...s,
+      fromDate: this.coerceLocalNaive(fromIso),
+      toDate: this.coerceLocalNaive(toIso),
+    }));
     this.persist();
   }
 
@@ -207,19 +211,44 @@ export class FilterService {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   }
 
+  /**
+   * Defensively coerce any stored/incoming date string back to LOCAL-NAIVE
+   * form. A value ending in `Z` (or carrying a numeric ±HH:mm offset) is a UTC
+   * string that a legacy code path persisted via `toISOString()`; re-formatting
+   * it through `localIso` re-anchors it to the local (Cairo) wall clock so a
+   * previously-poisoned value self-heals. Plain local-naive strings are
+   * returned untouched.
+   */
+  private coerceLocalNaive(value: string): string {
+    if (!value) return value;
+    const isUtcLike = /Z$/.test(value) || /[+-]\d{2}:\d{2}$/.test(value);
+    if (!isUtcLike) return value;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? value : this.localIso(d);
+  }
+
   private initial(): FilterState {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw) as FilterState;
+      if (raw) {
+        const parsed = JSON.parse(raw) as FilterState;
+        // Self-heal a previously-persisted UTC/`Z` value back to local-naive.
+        return {
+          ...parsed,
+          fromDate: this.coerceLocalNaive(parsed.fromDate),
+          toDate: this.coerceLocalNaive(parsed.toDate),
+        };
+      }
     } catch { /* noop */ }
 
-    // Default: TODAY (local calendar day, full 24h) pre-filled (convenience), but
-    // NO default branch — user MUST select one before any fetch.
+    // Default: MONTH-TO-DATE (1st of this month → today, full 24h) so reports land
+    // on a range that actually has data instead of an often-empty single "today".
+    // Still NO default branch — user MUST select one before any fetch.
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
     const todayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     return {
-      fromDate: this.localIso(todayStart),
+      fromDate: this.localIso(monthStart),
       toDate: this.localIso(todayEnd),
       branchId: null,                                              // ← forced selection
       compareWindowDays: environment.defaultCompareWindowDays,

@@ -37,16 +37,21 @@ import { DATE_PRESETS } from '../../core/models/audit.models';
         <!-- Quick presets -->
         <div class="grid grid-cols-2 gap-1.5">
           <button *ngFor="let p of presets" type="button" (click)="pick(p.key)"
+                  [disabled]="isPresetTooWide(p.key)"
+                  [attr.title]="isPresetTooWide(p.key) ? tooWideTooltip() : null"
+                  [attr.aria-disabled]="isPresetTooWide(p.key)"
                   class="px-2.5 py-1.5 rounded-card-sm text-[11px] font-medium ring-1 text-start transition-all"
-                  [class.bg-brand-600]="activePreset() === p.key"
-                  [class.text-white]="activePreset() === p.key"
-                  [class.ring-brand-600]="activePreset() === p.key"
-                  [class.bg-white]="activePreset() !== p.key"
-                  [class.dark:bg-surface-dark-muted]="activePreset() !== p.key"
-                  [class.text-slate-700]="activePreset() !== p.key"
-                  [class.dark:text-slate-200]="activePreset() !== p.key"
-                  [class.ring-slate-200]="activePreset() !== p.key"
-                  [class.dark:ring-slate-700]="activePreset() !== p.key">
+                  [class.opacity-40]="isPresetTooWide(p.key)"
+                  [class.cursor-not-allowed]="isPresetTooWide(p.key)"
+                  [class.bg-brand-600]="activePreset() === p.key && !isPresetTooWide(p.key)"
+                  [class.text-white]="activePreset() === p.key && !isPresetTooWide(p.key)"
+                  [class.ring-brand-600]="activePreset() === p.key && !isPresetTooWide(p.key)"
+                  [class.bg-white]="activePreset() !== p.key || isPresetTooWide(p.key)"
+                  [class.dark:bg-surface-dark-muted]="activePreset() !== p.key || isPresetTooWide(p.key)"
+                  [class.text-slate-700]="activePreset() !== p.key || isPresetTooWide(p.key)"
+                  [class.dark:text-slate-200]="activePreset() !== p.key || isPresetTooWide(p.key)"
+                  [class.ring-slate-200]="activePreset() !== p.key || isPresetTooWide(p.key)"
+                  [class.dark:ring-slate-700]="activePreset() !== p.key || isPresetTooWide(p.key)">
             {{ ar() ? p.labelAr : p.labelEn }}
           </button>
         </div>
@@ -112,6 +117,27 @@ export class DateRangePickerComponent {
 
   readonly validationMsg = computed(() => this.filter.validateBilingual(this.lang.language()));
 
+  /** Bilingual tooltip for presets whose window exceeds the 92-day fetch gate. */
+  readonly tooWideTooltip = computed(() =>
+    this.ar() ? 'النطاق محدود بـ 92 يومًا' : 'Window limited to 92 days');
+
+  /**
+   * True when a preset's computed range exceeds the 92-day window that
+   * `FilterService.hasValidDates()` enforces — picking it would silently flip
+   * reports to the empty "pick a date range" gate, so we disable it instead.
+   * Quarter/year presets are the ones that blow past 92 days.
+   */
+  isPresetTooWide(key: string): boolean {
+    if (key === 'custom') return false;
+    const range = this.filter.computePreset(key as DatePresetKey);
+    if (!range) return false;
+    const f = new Date(range.from).getTime();
+    const t = new Date(range.to).getTime();
+    if (isNaN(f) || isNaN(t)) return false;
+    const days = (t - f) / (1000 * 60 * 60 * 24);
+    return days > 92;
+  }
+
   toggle(ev: Event): void { ev.stopPropagation(); this.open.update((v) => !v); }
 
   @HostListener('document:click', ['$event'])
@@ -121,6 +147,8 @@ export class DateRangePickerComponent {
 
   pick(key: string): void {
     if (key === 'custom') return;
+    // Guard: never apply a preset wider than the 92-day fetch gate.
+    if (this.isPresetTooWide(key)) return;
     this.filter.applyPreset(key as DatePresetKey);
     this.open.set(false);
   }

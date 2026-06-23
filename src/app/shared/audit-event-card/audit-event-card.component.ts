@@ -67,8 +67,7 @@ type LucideIcon = typeof Activity;
   template: `
     <div class="card-padded transition-colors duration-180
                 hover:bg-slate-50/60 dark:hover:bg-surface-dark-muted/30"
-         [class.ring-1]="!row.success"
-         [class.ring-critical\\\\/40]="!row.success">
+         [ngClass]="!row.success ? 'ring-1 ring-critical/40' : ''">
       <!-- Header row -->
       <div class="flex items-start gap-3">
         <!-- Icon with category-coloured background -->
@@ -105,12 +104,9 @@ type LucideIcon = typeof Activity;
         <div *ngIf="row.netDiff" class="shrink-0 inline-flex items-center
                                         rounded-card-sm px-2 py-0.5
                                         text-xs font-semibold tabular ring-1"
-             [class.text-success]="row.netDiff > 0"
-             [class.bg-success-soft]="row.netDiff > 0"
-             [class.ring-success\\\\/30]="row.netDiff > 0"
-             [class.text-critical]="row.netDiff < 0"
-             [class.bg-critical-soft]="row.netDiff < 0"
-             [class.ring-critical\\\\/30]="row.netDiff < 0">
+             [ngClass]="row.netDiff > 0
+                          ? 'text-good bg-good-soft ring-good/30'
+                          : (row.netDiff < 0 ? 'text-critical bg-critical-soft ring-critical/30' : '')">
           {{ row.netDiff > 0 ? '+' : '' }}{{ row.netDiff | number:'1.0-2' }}
         </div>
 
@@ -433,7 +429,7 @@ export class AuditEventCardComponent {
       case 'OrderDelivered':
       case 'OrderPickedup':
       case 'CollectMoney':
-        return 'bg-success-soft text-success ring-success/30';
+        return 'bg-good-soft text-good ring-good/30';
       case 'VoidItem':
       case 'StopItem':
       case 'Cancel':

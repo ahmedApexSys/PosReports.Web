@@ -32,6 +32,21 @@ import { TotalReportData, TotalBlock, buildTotalBlocks } from '../../core/report
           <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{{ ar() ? 'الملخص اليومي الكامل' : 'Full daily summary' }}</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
+          <!-- Branch scope toggle: All Branches (default) vs This branch -->
+          <div class="inline-flex rounded-card-sm ring-1 ring-slate-200 dark:ring-slate-700 overflow-hidden text-sm">
+            <button (click)="setScope('all')"
+                    class="px-3 py-1.5 font-medium transition-colors duration-180"
+                    [class.bg-brand-600]="scope() === 'all'" [class.text-white]="scope() === 'all'"
+                    [class.text-slate-600]="scope() !== 'all'" [class.dark:text-slate-300]="scope() !== 'all'">
+              {{ ar() ? 'كل الفروع' : 'All Branches' }}
+            </button>
+            <button (click)="setScope('branch')" [disabled]="!filter.hasBranch()"
+                    class="px-3 py-1.5 font-medium transition-colors duration-180 disabled:opacity-40"
+                    [class.bg-brand-600]="scope() === 'branch'" [class.text-white]="scope() === 'branch'"
+                    [class.text-slate-600]="scope() !== 'branch'" [class.dark:text-slate-300]="scope() !== 'branch'">
+              {{ ar() ? 'هذا الفرع' : 'This branch' }}
+            </button>
+          </div>
           <div class="relative" (click)="$event.stopPropagation()">
             <button (click)="menu.set(!menu())" [disabled]="!data()"
                     class="btn-ghost text-sm ring-1 ring-slate-200 dark:ring-slate-700 disabled:opacity-40">
@@ -78,7 +93,7 @@ import { TotalReportData, TotalBlock, buildTotalBlocks } from '../../core/report
         <div class="card-padded flex flex-wrap items-center justify-between gap-3">
           <div>
             <div class="text-lg font-bold text-slate-900 dark:text-slate-50">{{ data()?.companyName }}</div>
-            <div class="text-sm text-slate-500 dark:text-slate-400">{{ data()?.branchName }}</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400">{{ scopeLabel() }}</div>
           </div>
           <div class="text-sm text-slate-600 dark:text-slate-300 font-medium">
             {{ (filter.fromDate() || '').slice(0,10) }} → {{ (filter.toDate() || '').slice(0,10) }}
@@ -161,6 +176,16 @@ export class TotalReportComponent {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly data = signal<TotalReportData | null>(null);
+  /** Branch scope: 'all' (company-wide, default) or 'branch' (selected branch only). */
+  readonly scope = signal<'all' | 'branch'>('all');
+
+  /** Scope label for the summary strip — never show the API branchName when
+   *  aggregating all branches, so the scope is never misrepresented. */
+  readonly scopeLabel = computed(() => {
+    if (this.scope() === 'all') return this.ar() ? 'كل الفروع' : 'All Branches';
+    const b = this.branches.findById(this.filter.branchId());
+    return (this.ar() ? b?.name_Ar : b?.name_En) ?? this.data()?.branchName ?? '';
+  });
   readonly blocks = computed<TotalBlock[]>(() => {
     const d = this.data();
     return d ? buildTotalBlocks(d, this.ar()) : [];
@@ -175,18 +200,28 @@ export class TotalReportComponent {
     });
   }
 
+  /** Switch branch scope and refetch. 'branch' needs a selected branch. */
+  setScope(scope: 'all' | 'branch'): void {
+    if (scope === 'branch' && !this.filter.hasBranch()) return;
+    if (this.scope() === scope) return;
+    this.scope.set(scope);
+    this.reload();
+  }
+
   reload(): void {
     if (!this.filter.canFetch()) return;
     const branchId = this.filter.branchId();
-    // The legacy "Daily Transactions" is a COMPANY-WIDE summary (header reads
-    // "Branch Name: All Branches") → ForAllBranches:true, so it aggregates every
-    // branch. TotalsReport also expects DATE-ONLY ("yyyy-MM-dd"); the app's
+    // "Daily Transactions" defaults to a COMPANY-WIDE summary (header reads
+    // "Branch Name: All Branches") → ForAllBranches:true aggregates every branch.
+    // The "This branch" toggle scopes it to the selected branch instead.
+    // TotalsReport also expects DATE-ONLY ("yyyy-MM-dd"); the app's
     // "…T23:59:59" local-naive datetime makes the API return an all-zero report.
+    const allBranches = this.scope() === 'all';
     const body = {
       fromDate: (this.filter.fromDate() || '').slice(0, 10),
       toDate: (this.filter.toDate() || '').slice(0, 10),
-      BranchId: branchId ?? 0,
-      ForAllBranches: true,
+      BranchId: allBranches ? 0 : (branchId ?? 0),
+      ForAllBranches: allBranches,
       ForAllShift: true,
       shiftId: 0,
     };
@@ -207,7 +242,7 @@ export class TotalReportComponent {
     if (!d) return;
     this.exp.totalReport(this.blocks(), {
       titleEn: 'Daily Transactions', titleAr: 'حركة المبيعات اليومية',
-      companyName: d.companyName, branchName: d.branchName,
+      companyName: d.companyName, branchName: this.scopeLabel(),
       fromDate: this.filter.fromDate(), toDate: this.filter.toDate(),
       lang: this.ar() ? 'ar' : 'en', fileBase: 'daily-transactions',
     }, paper);

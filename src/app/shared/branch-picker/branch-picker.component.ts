@@ -36,9 +36,7 @@ import { Branch } from '../../core/models/branch.models';
                      hover:bg-slate-50 dark:hover:bg-surface-dark-muted
                      transition-colors duration-180
                      min-w-[180px] justify-between"
-              [class.ring-2]="!selected()"
-              [class.ring-warning]="!selected()"
-              [class.ring-warning\\\\/40]="!selected()">
+              [ngClass]="!selected() ? 'ring-2 ring-warning ring-warning/40' : ''">
         <span class="flex items-center gap-2 truncate">
           <lucide-icon [img]="BuildingIcon" class="h-4 w-4 shrink-0"
                        [class.text-warning]="!selected()"

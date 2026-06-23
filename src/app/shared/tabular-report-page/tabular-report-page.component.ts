@@ -8,6 +8,7 @@ import {
 } from 'lucide-angular';
 import { catchError, finalize, of } from 'rxjs';
 import { LanguageService } from '../../core/i18n/language.service';
+import { dataValueLabel } from '../../core/i18n/monitoring-labels';
 import { FilterService } from '../../core/filters/filter.service';
 import { BranchService } from '../../core/branches/branch.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -24,6 +25,10 @@ import { PagerComponent } from '../pager/pager.component';
 import { PaymentSummaryBarComponent } from '../payment-summary-bar/payment-summary-bar.component';
 
 type Row = Record<string, unknown>;
+
+/** Text-column keys whose server values are category-like (English in AR mode)
+ *  and should be run through dataValueLabel() for Arabic display. */
+const I18N_TEXT_KEYS = new Set(['transaction', 'transactionName', 'paymentStatus', 'payWay', 'payway']);
 
 /** One applied filter chip — label + resolved display value, for the export header. */
 interface AppliedFilter { label: string; value: string; }
@@ -144,16 +149,16 @@ interface AppliedFilter { label: string; value: string; }
         <!-- Table -->
         <div *ngIf="!error() && rows().length" class="card overflow-hidden animate-fade-in">
           <div class="overflow-x-auto">
-            <!-- content-width table: columns auto-size to their content (no stretched gaps) -->
-            <table class="w-auto text-sm whitespace-nowrap">
+            <!-- full-width table: fills the container so there's no empty gap on the side;
+                 overflows to horizontal scroll only when the columns are genuinely too wide -->
+            <table class="w-full text-sm whitespace-nowrap">
               <thead class="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400
                             bg-slate-50 dark:bg-surface-dark-muted/50
                             border-b border-slate-200 dark:border-slate-800">
                 <tr cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="dropHeader($event)">
                   <th *ngFor="let c of visibleColumns()" cdkDrag
-                      class="px-3 py-2.5 font-semibold cursor-move select-none
+                      class="px-3 py-2.5 font-semibold text-center cursor-move select-none
                              hover:bg-slate-100 dark:hover:bg-surface-dark-muted/70 transition-colors"
-                      [class.text-end]="isNumeric(c)" [class.text-start]="!isNumeric(c)"
                       [title]="ar() ? 'اسحب لإعادة ترتيب الأعمدة' : 'Drag to reorder columns'">
                     {{ ar() ? c.labelAr : c.labelEn }}
                   </th>
@@ -164,9 +169,9 @@ interface AppliedFilter { label: string; value: string; }
                     class="hover:bg-slate-50 dark:hover:bg-surface-dark-muted/50"
                     [class.row-group]="hasMerge() && isMergeStart(ri)">
                   <ng-container *ngFor="let c of visibleColumns()">
-                    <td *ngIf="c.key !== mergeColKey() || isMergeStart(ri)" class="px-3 py-2"
+                    <td *ngIf="c.key !== mergeColKey() || isMergeStart(ri)" class="px-3 py-2 text-center"
                         [attr.rowspan]="c.key === mergeColKey() ? mergeSpan(ri) : null"
-                        [class.text-end]="isNumeric(c)" [class.tabular]="isNumeric(c)"
+                        [class.tabular]="isNumeric(c)"
                         [class.font-medium]="c.key === firstCol()"
                         [class.merge-cell]="c.key === mergeColKey()">
                       {{ fmt(r[c.key], c) }}
@@ -176,8 +181,8 @@ interface AppliedFilter { label: string; value: string; }
               </tbody>
               <tfoot *ngIf="hasTotals()" class="border-t-2 border-slate-200 dark:border-slate-700 font-semibold bg-surface-muted/40 dark:bg-surface-dark-muted/30">
                 <tr>
-                  <td *ngFor="let c of visibleColumns(); let i = index" class="px-3 py-2"
-                      [class.text-end]="isNumeric(c)" [class.tabular]="isNumeric(c)">
+                  <td *ngFor="let c of visibleColumns(); let i = index" class="px-3 py-2 text-center"
+                      [class.tabular]="isNumeric(c)">
                     <span *ngIf="i === 0 && !c.totalKey" class="text-slate-500">{{ ar() ? 'الإجمالي' : 'Total' }}</span>
                     <span *ngIf="c.totalKey">{{ fmt(totals()[c.totalKey!], c) }}</span>
                   </td>
@@ -208,9 +213,11 @@ interface AppliedFilter { label: string; value: string; }
                      (pageChange)="page.set($event)"></app-pager>
         </div>
 
-        <!-- Bottom PayWay summary bar (legacy Cashier-Orders footer) -->
-        <app-payment-summary-bar *ngIf="!error() && rows().length && def.paymentSummary"
-          [config]="def.paymentSummary" [totals]="totals()"></app-payment-summary-bar>
+        <!-- Bottom Summary bar — financial figures strip (derived from THIS report's
+             own total columns) + payment split (when the report has a paymentSummary
+             config). Shown on EVERY report that has totals, not just the sales family. -->
+        <app-payment-summary-bar *ngIf="!error() && rows().length && hasTotals()"
+          [config]="def.paymentSummary" [totals]="totals()" [columns]="def.columns"></app-payment-summary-bar>
       </ng-container>
     </div>
   `,
@@ -334,8 +341,13 @@ export class TabularReportPageComponent implements OnInit {
   readonly orderedColumns = computed<ReportColumn[]>(() =>
     this.order().map((k) => this.colByKey().get(k)).filter((c): c is ReportColumn => !!c));
   /** Visible columns in order — for the table + exports. */
-  readonly visibleColumns = computed<ReportColumn[]>(() =>
-    this.orderedColumns().filter((c) => !this.hidden().has(c.key)));
+  readonly visibleColumns = computed<ReportColumn[]>(() => {
+    const vis = this.orderedColumns().filter((c) => !this.hidden().has(c.key));
+    // Net is ALWAYS the last column (table + A4/Excel/PDF follow this order).
+    const isNet = (c: ReportColumn) => c.key === 'net' || c.key === 'netAmount';
+    const net = vis.filter(isNet);
+    return net.length ? [...vis.filter((c) => !isNet(c)), ...net] : vis;
+  });
 
   readonly showFilters = computed(() => this.def.filters == null || this.def.filters.length > 0);
 
@@ -470,7 +482,8 @@ export class TabularReportPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set('');
     this.api.run(this.def.endpoint, body, {
-      rowsKey: this.def.rowsKey, totalsKey: this.def.totalsKey, transform: this.def.transform, branchNames,
+      rowsKey: this.def.rowsKey, totalsKey: this.def.totalsKey, transform: this.def.transform,
+      branchNames, branchId: this.filter.branchId(), mergeByDate: this.def.mergeByDate,
     }).pipe(
       catchError((err) => {
         this.error.set(err?.error?.message || err?.message || 'Failed to load report.');
@@ -489,6 +502,12 @@ export class TabularReportPageComponent implements OnInit {
       const n = Number(v); return Number.isFinite(n) ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(v);
     }
     if (c.type === 'int') { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString() : String(v); }
+    // Category-like text columns hold server values that stay English in Arabic
+    // mode (e.g. transaction / payment-status / pay-way) → localise them.
+    if (c.type === 'text' && I18N_TEXT_KEYS.has(c.key)) {
+      const s = String(v);
+      return dataValueLabel(s, s, this.lang.language());
+    }
     return String(v);
   }
 
@@ -510,7 +529,9 @@ export class TabularReportPageComponent implements OnInit {
       return rc
         .map((r) => {
           const base = this.colByKey().get(r.key);
-          return base ? { ...base, labelEn: r.en ?? base.labelEn, labelAr: r.ar ?? base.labelAr } : null;
+          if (!base) return null;
+          const ml = r.maxLen ?? base.maxLen;
+          return { ...base, labelEn: r.en ?? base.labelEn, labelAr: r.ar ?? base.labelAr, ...(ml != null ? { maxLen: ml } : {}) };
         })
         .filter((c): c is ReportColumn => !!c);
     }
@@ -528,8 +549,15 @@ export class TabularReportPageComponent implements OnInit {
       headerAr: c.labelAr,
       numeric: this.isNumeric(c),
       width: c.width ?? (this.isNumeric(c) ? 12 : 16),
-      value: (r: Row) => this.fmt(r[c.key], c),
+      key: c.key,
+      value: (r: Row) => this.clampLen(this.fmt(r[c.key], c), c.maxLen),
     }));
+  }
+  /** Truncate long text to `n` chars + "…" (used on the narrow receipt columns). */
+  private clampLen(v: string | number | null | undefined, n?: number): string | number | null | undefined {
+    if (!n || typeof v !== 'string') return v;
+    const s = v.trim();
+    return s.length > n ? `${s.slice(0, n)}…` : s;
   }
   private exportFooterFrom(cols: ReportColumn[]): (string | number | null)[] | undefined {
     if (!this.hasTotals()) return undefined;
@@ -582,7 +610,36 @@ export class TabularReportPageComponent implements OnInit {
       footer: this.exportFooterFrom(cols),
       appliedFilters: this.appliedFilters(),
       paymentTotals: this.receiptTotalsFor(paper),
+      summary: this.buildSummary(),
     };
+  }
+
+  /** The bottom Summary (financial figures strip + payment split) for exports —
+   *  same content as the on-screen payment-summary-bar. Built for EVERY report
+   *  that has total columns: the figures strip is derived from the report's own
+   *  money totals; the payment split is added only when the report defines a
+   *  paymentSummary config (the per-payway rows). */
+  private buildSummary(): ExportMeta['summary'] {
+    if (!this.hasTotals()) return undefined;
+    const t = this.totals();
+    const ar = this.ar();
+    const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+    const m = (v: unknown) => num(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tenders = new Set(['cash', 'visa', 'otherPayment', 'paymentAmount']);
+    const figs = this.def.columns
+      .filter((c) => !!c.totalKey && (c.type ?? 'text') === 'money' && !tenders.has(c.totalKey!))
+      .map((c) => ({ key: c.key, label: ar ? c.labelAr : c.labelEn, value: num(t[c.totalKey!]), emphasize: c.key === 'net' || c.key === 'total' }));
+    const ordered = [...figs.filter((f) => f.key !== 'net'), ...figs.filter((f) => f.key === 'net')];
+    const figures = ordered.map((f) => ({ label: f.label, value: m(f.value), emphasize: f.emphasize }));
+    const cfg = this.def.paymentSummary;
+    const payways = cfg
+      ? cfg.rows
+          .map((r) => ({ payway: ar ? r.labelAr : r.labelEn, total: num(t[r.totalKey]), always: !!r.always }))
+          .filter((r) => r.total !== 0 || r.always)
+          .map((r) => ({ payway: r.payway, total: m(r.total), net: m(r.total) }))
+      : [];
+    if (!figures.length && !payways.length) return undefined;
+    return { figures, payways };
   }
 
   exportExcel(): void {

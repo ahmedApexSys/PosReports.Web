@@ -189,7 +189,7 @@ import { actionLabel, entityLabel, sourceLabel } from '../../core/i18n/monitorin
           <div class="flex flex-wrap items-center gap-2">
             <select [(ngModel)]="entityType"
                     class="bg-white dark:bg-surface-dark-subtle border border-slate-300 dark:border-slate-700 rounded-card-sm px-2 py-1.5 text-sm">
-              <option *ngFor="let t of entityTypes" [value]="t">{{ t }}</option>
+              <option *ngFor="let t of entityTypes" [value]="t">{{ entLabel(t) }}</option>
             </select>
             <input type="text" [(ngModel)]="entityId" (keyup.enter)="lookupEntity(entityType, entityId)"
                    class="w-40 px-3 py-1.5 text-sm rounded-card-sm bg-slate-50 dark:bg-surface-dark-muted border-0 focus:ring-2 focus:ring-brand-500/30"

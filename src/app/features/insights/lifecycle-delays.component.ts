@@ -155,7 +155,7 @@ import { LanguageService } from '../../core/i18n/language.service';
                         [class.bg-critical-soft]="severityHigh(s.severity)"
                         [class.text-critical]="severityHigh(s.severity)"
                         [class.ring-critical]="severityHigh(s.severity)">
-                    {{ s.severity }}
+                    {{ severityLabel(s.severity) }}
                   </span>
                 </td>
               </tr>
@@ -264,6 +264,15 @@ export class LifecycleDelaysComponent {
   severityLow(s: string): boolean  { return /low|info|good/i.test(s ?? ''); }
   severityMid(s: string): boolean  { return /warn|mid|medium/i.test(s ?? ''); }
   severityHigh(s: string): boolean { return /high|critical|severe/i.test(s ?? ''); }
+
+  /** Bilingual severity pill text — Low/Medium/High/Critical (EN) ↔ منخفض/متوسط/مرتفع/حرج (AR). */
+  severityLabel(s: string): string {
+    const ar = this.lang.language() === 'ar';
+    if (this.severityHigh(s)) return /critical|severe/i.test(s ?? '') ? (ar ? 'حرج' : 'Critical') : (ar ? 'مرتفع' : 'High');
+    if (this.severityMid(s))  return ar ? 'متوسط' : 'Medium';
+    if (this.severityLow(s))  return ar ? 'منخفض' : 'Low';
+    return s ?? '';
+  }
 
   constructor() {
     effect(() => {

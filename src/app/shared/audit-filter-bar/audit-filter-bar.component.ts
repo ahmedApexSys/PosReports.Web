@@ -639,11 +639,17 @@ export class AuditFilterBarComponent {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  /** Convert "YYYY-MM-DDTHH:mm" (local) back to ISO. */
+  /**
+   * Convert "YYYY-MM-DDTHH:mm" (datetime-local, already local-wall-clock)
+   * to a LOCAL-NAIVE string ("YYYY-MM-DDTHH:mm:ss", no `Z`). NEVER emit a
+   * UTC/`toISOString()` value — that trailing-Z poisons the shared
+   * FilterService state (read raw by many report components) and re-introduces
+   * the day-boundary off-by-one in Egypt (UTC+2/+3).
+   */
   private fromDatetimeLocal(value: string): string | null {
     if (!value) return null;
     const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d.toISOString();
+    return isNaN(d.getTime()) ? null : this.filter.localIso(d);
   }
 
   clearAll(): void {

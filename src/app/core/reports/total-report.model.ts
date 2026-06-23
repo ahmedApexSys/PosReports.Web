@@ -19,9 +19,10 @@ export interface TotalReportData {
     categoryName?: string; categoryTotalSales?: number; count?: number;
     subCategorySales?: { subCategoryName?: string; count?: number; subCategoryTotalSales?: number }[];
   }[];
-  voidItems?: { name?: string; id?: number; count?: number }[];
+  voidItems?: { itemName?: string; itemNo?: number; qty?: number }[];
   information?: { minOrderNo?: number; maxOrderNo?: number; guestNo?: number; avg?: number };
   payWay?: Record<string, number>;
+  cl?: number;
   salesGroup?: { cateagoryGroupList?: { categoryName?: string; totalSales?: number; percentage?: number }[] };
   saleTransaction?: { tables?: number; delivery?: number; takeAway?: number };
   itemsNo?: { itemNoList?: { categoryName?: string; itemNo?: number }[] };
@@ -52,10 +53,6 @@ const money = (v: unknown): string => {
 const intf = (v: unknown): string => {
   const n = Number(v); return (Number.isFinite(n) ? n : 0).toLocaleString();
 };
-const shortId = (s: unknown): string => {
-  const str = String(s ?? '');
-  return str.length > 8 ? str.slice(0, 6) + '…' : str;
-};
 
 /** Section/row label helper — picks Arabic or English. */
 function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
@@ -69,8 +66,8 @@ function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
   ] });
 
   out.push({ title: L('POS', 'نقاط البيع'), table: {
-    head: [L('ID', 'المعرّف'), L('Total Sales', 'إجمالي المبيعات')],
-    rows: (d.posSales ?? []).map((p) => [shortId(p.posDetailsId), money(p.totalSales)]),
+    head: [L('POS', 'نقطة البيع'), L('Total Sales', 'إجمالي المبيعات')],
+    rows: (d.posSales ?? []).map((p) => [String(p.posName ?? p.posDetailsId ?? '—'), money(p.totalSales)]),
   } });
 
   out.push({ title: L('Sales Group', 'مجموعات المبيعات'), table: {
@@ -107,7 +104,7 @@ function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
 
   out.push({ title: L('Void Items', 'الأصناف الملغاة'), table: {
     head: [L('Name', 'الاسم'), L('ID', 'المعرّف'), L('Count', 'العدد')],
-    rows: (d.voidItems ?? []).map((v) => [String(v.name ?? ''), intf(v.id), intf(v.count)]),
+    rows: (d.voidItems ?? []).map((v) => [String(v.itemName ?? ''), intf(v.itemNo), intf(v.qty)]),
   } });
 
   const del = d.deleted ?? {};
@@ -148,7 +145,9 @@ function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
   out.push({ title: L('PayWay', 'طرق الدفع'), rows: [
     { label: L('Cash', 'نقدي'), value: money(pw['cash']) },
     { label: L('Visa', 'فيزا'), value: money(pw['visa']) },
+    { label: L('Vodafone Cash', 'فودافون كاش'), value: money(pw['vodafoneCash']) },
     { label: L('Ledge', 'آجل'), value: money(pw['ledge']) },
+    { label: L('Credit (Ledge) Sales', 'مبيعات آجلة'), value: money(d.cl) },
     { label: L('Customer Payments', 'مدفوعات العملاء'), value: money(pw['customerPayments']) },
     { label: L('Difference', 'الفرق'), value: money(pw['difference']) },
     { label: L('Expenses', 'المصروفات'), value: money(pw['expenses']) },
@@ -156,7 +155,7 @@ function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
     { label: L('Officer', 'أوفيسر'), value: money(pw['officer']) },
     { label: L('Drawer', 'الدرج'), value: money(pw['drawer']) },
     { label: L('Net Cash', 'صافي النقدية'), value: money(pw['netCash']) },
-    { label: L('Net', 'الصافي'), value: money(pw['netCash']), strong: true },
+    { label: L('Total Payments', 'إجمالي المدفوعات'), value: money(pw['allPayment']), strong: true },
   ] });
 
   const on = d.orderNo ?? {};

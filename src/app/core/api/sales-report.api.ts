@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, forkJoin, of, catchError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api.models';
 import { SalesReportFilter, SalesReportResult } from '../models/sales-report.models';
@@ -11,24 +11,49 @@ const pick = (o: Obj, ...keys: string[]): unknown => {
   for (const k of keys) if (o && o[k] !== undefined) return o[k];
   return undefined;
 };
+const cap = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
+/** Normalise a date string ("dd/mm/yyyy" or "yyyy-mm-dd", any separators) to "yyyy-mm-dd"
+ *  so two reports' date columns can be joined regardless of their display format. */
+const canonDate = (v: unknown): string => {
+  const s = String(v ?? '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return s;
+};
 
-/** Optional context handed to transforms (e.g. the branch names to keep). */
-interface TransformCtx { branchNames?: string[]; }
+/** Optional context handed to transforms (e.g. the branch id / names to keep). */
+interface TransformCtx { branchNames?: string[]; branchId?: number | null; }
 
 /** Numeric fields summed when aggregating Sales-Period rows into group totals. */
 const SALES_SUM_FIELDS = [
   'guestNo', 'printNo', 'totalSales', 'totalCommercialDiscount', 'totalTax',
   'totalItemDiscount', 'extraDiscount', 'services', 'minimumChargeValue', 'additionValue',
-  'cash', 'visa', 'cl', 'voucherAmount', 'otherPayment', 'paymentAmount', 'promoCodeValue', 'net',
+  'cash', 'visa', 'cl', 'voucherAmount', 'otherPayment', 'paymentAmount', 'promoCodeValue', 'total', 'net',
 ];
 
 /** Keep only rows belonging to the selected branch (the API branch filter leaks
- *  "Call Center" rows into every branch — drop the mismatches client-side). */
+ *  "Call Center" rows into every branch — drop the mismatches client-side).
+ *  Prefer matching on branchId (robust against name drift / localisation); fall
+ *  back to name matching only for rows that carry no id. Never discard a row on
+ *  a pure name mismatch when an id-based decision was possible. */
 function filterByBranch(rows: Obj[], ctx?: TransformCtx): Obj[] {
   const names = ctx?.branchNames?.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
-  if (!names || !names.length) return rows;
-  const set = new Set(names);
-  return rows.filter((r) => r['branchName'] == null || set.has(String(r['branchName']).trim().toLowerCase()));
+  const id = ctx?.branchId;
+  const hasId = id != null && Number.isFinite(Number(id));
+  if ((!names || !names.length) && !hasId) return rows;
+  const set = new Set(names ?? []);
+  return rows.filter((r) => {
+    const rowId = r['branchId'];
+    // Row exposes an id → decide on the id alone (id mismatch ⇒ drop; match ⇒ keep).
+    if (hasId && rowId != null && String(rowId).trim() !== '') {
+      return Number(rowId) === Number(id);
+    }
+    // No id available on this row → fall back to the (fragile) name match.
+    if (!set.size) return true;
+    return r['branchName'] == null || set.has(String(r['branchName']).trim().toLowerCase());
+  });
 }
 
 /** dd/MM/yyyy → epoch ms for chronological sorting (0 if unparseable). */
@@ -97,11 +122,79 @@ function sortOrders(d: Obj, keyField: string, ctx?: TransformCtx): SalesReportRe
   return { rows: sorted, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
 }
 
+/** Indent prefix for a flattened tree level (depth 0 = no indent). A leading
+ *  glyph (no leading whitespace) keeps the depth marker intact through any
+ *  downstream label trimming / i18n. */
+const indent = (depth: number, name: unknown): string =>
+  (depth > 0 ? '└' + '─'.repeat(depth - 1) + ' ' : '') + String(name ?? '');
+
+/**
+ * Flatten TotalPOS/GetTotalPosSales into indented rows. The flat engine already
+ * shows the top-level posSales[]; we ALSO explode the nested categorySales[]
+ * (Category → SubCategory) the engine otherwise discards, mapping each node onto
+ * the report's existing text/qty/sales columns (transactionName / totalOrderNum
+ * / totalSales) with a depth prefix so the on-screen table + receipt both render
+ * the breakdown. Totals come back at the response root → keep them.
+ */
+function totalPosTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
+  const posRows = filterByBranch(asArr(pick(d, 'posSales', 'PosSales')), ctx);
+  const rows: Obj[] = [...posRows];
+  for (const c of asArr(pick(d, 'categorySales', 'CategorySales'))) {
+    rows.push({
+      transactionName: indent(0, pick(c, 'categoryName', 'CategoryName')),
+      totalOrderNum: Number(pick(c, 'count', 'Count')) || 0,
+      totalSales: Number(pick(c, 'categoryTotalSales', 'CategoryTotalSales')) || 0,
+      net: Number(pick(c, 'categoryTotalSales', 'CategoryTotalSales')) || 0,
+    });
+    for (const s of asArr(pick(c, 'subCategorySales', 'SubCategorySales'))) {
+      rows.push({
+        transactionName: indent(1, pick(s, 'subCategoryName', 'SubCategoryName')),
+        totalOrderNum: Number(pick(s, 'count', 'Count')) || 0,
+        totalSales: Number(pick(s, 'subCategoryTotalSales', 'SubCategoryTotalSales')) || 0,
+        net: Number(pick(s, 'subCategoryTotalSales', 'SubCategoryTotalSales')) || 0,
+      });
+    }
+  }
+  const totals = pick(d, 'totals', 'Totals');
+  return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+}
+
+/**
+ * Flatten SoldItem/GetSoldItemsSummary's category → subCategory → item → variant
+ * tree into indented rows mapped onto the report's existing columns
+ * (categoryName / totalQuantity / totalSales). Each level carries its own
+ * qty + sales; deeper levels are prefixed so the hierarchy reads top-down. If a
+ * level's array is absent it's simply skipped (graceful for partial responses).
+ */
+function soldItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
+  const cats = filterByBranch(asArr(pick(d, 'categories', 'Categories')), ctx);
+  const rows: Obj[] = [];
+  const qty = (o: Obj) => Number(pick(o, 'totalQuantity', 'TotalQuantity', 'quantity', 'Quantity', 'qty', 'Qty')) || 0;
+  const sales = (o: Obj) => Number(pick(o, 'totalSales', 'TotalSales', 'total', 'Total')) || 0;
+  const push = (depth: number, name: unknown, o: Obj) =>
+    rows.push({ categoryName: indent(depth, name), totalQuantity: qty(o), totalSales: sales(o) });
+  for (const c of cats) {
+    push(0, pick(c, 'categoryName', 'CategoryName'), c);
+    for (const sc of asArr(pick(c, 'subCategories', 'SubCategories'))) {
+      push(1, pick(sc, 'subCategoryName', 'SubCategoryName'), sc);
+      for (const it of asArr(pick(sc, 'items', 'Items'))) {
+        push(2, pick(it, 'itemName', 'ItemName'), it);
+        for (const v of asArr(pick(it, 'variants', 'Variants'))) {
+          push(3, pick(v, 'variantName', 'VariantName', 'name', 'Name'), v);
+        }
+      }
+    }
+  }
+  const totals = pick(d, 'totals', 'Totals');
+  return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+}
+
 /**
  * Named client-side transforms for report responses the flat rowsKey/totalsKey
  * can't express. promo / vouchers come back as days[] each holding a per-code
  * array (exploded to one row per code); the groupBy* variants aggregate the
- * Sales-Period per-order rows into per-transaction / per-payment summaries.
+ * Sales-Period per-order rows into per-transaction / per-payment summaries;
+ * the *Tree variants explode nested category/item hierarchies into indented rows.
  */
 const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResult> = {
   promoFlatten: (d) => {
@@ -132,6 +225,20 @@ const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResu
   groupByDayPayment: (d, ctx) => groupSales(d, 'paymentStatus', ctx, true),
   orderByTransaction: (d, ctx) => sortOrders(d, 'transaction', ctx),
   orderByPayment: (d, ctx) => sortOrders(d, 'paymentStatus', ctx),
+  totalPosTree,
+  soldItemsTree,
+};
+
+/**
+ * Endpoint-driven nested-tree transforms. The flat rowsKey engine discards the
+ * category/sub-category/item/variant levels these two reports nest under their
+ * top-level rows, so we detect them by endpoint here (the report id/registry is
+ * owned elsewhere) and explode the tree into indented flat rows.
+ */
+const TREE_BY_ENDPOINT: Record<string, 'totalPosTree' | 'soldItemsTree'> = {
+  // total-pos shows per-POS rows only — its category breakdown does NOT belong in
+  // the Transaction column, so it's not tree-expanded here. (soldItemsTree stays.)
+  'solditem/getsolditemssummary': 'soldItemsTree',
 };
 
 /**
@@ -152,11 +259,19 @@ export class SalesReportApi {
       rowsKey?: string; totalsKey?: string | null;
       transform?: 'promoFlatten' | 'voucherFlatten' | 'groupByTransaction' | 'groupByPayment'
                 | 'groupByDate' | 'groupByDayTransaction' | 'groupByDayPayment'
-                | 'orderByTransaction' | 'orderByPayment';
+                | 'orderByTransaction' | 'orderByPayment'
+                | 'totalPosTree' | 'soldItemsTree';
       branchNames?: string[];
+      branchId?: number | null;
+      /** Fetch a second per-date endpoint and merge one numeric value onto each row by date. */
+      mergeByDate?: {
+        endpoint: string; rowsKey: string;
+        srcDateKey: string; srcValueKey: string;
+        dstDateKey: string; dstKey: string;
+      };
     },
   ): Observable<SalesReportResult> {
-    return this.http
+    const primary$ = this.http
       .post<ApiResponse<Record<string, unknown>>>(`${this.base}/${path}`, body)
       .pipe(map((res) => {
         // Only a populated `errors` array is a real failure. A 200 with
@@ -169,14 +284,19 @@ export class SalesReportApi {
         // Most reports wrap rows under `data`; a few (TotalPOS) return the dto
         // at the response root with no `data` envelope → fall back to `res`.
         const d = ((data != null && typeof data === 'object' ? data : res) ?? {}) as Record<string, unknown>;
-        const cap = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
         const at = (obj: Record<string, unknown>, key: string) => obj[key] ?? obj[cap(key)];
+
+        const ctx: TransformCtx = { branchNames: opts?.branchNames, branchId: opts?.branchId };
 
         // Nested responses (promo / vouchers group days[] → codes[]) or
         // aggregations (groupBy*) that the flat rowsKey/totalsKey can't express
-        // get a named client-side transform.
-        if (opts?.transform && TRANSFORMS[opts.transform]) {
-          return TRANSFORMS[opts.transform](d, { branchNames: opts.branchNames });
+        // get a named client-side transform. A couple of reports nest a
+        // category/item tree under their flat rows → detect them by endpoint
+        // (registry-owned id lives elsewhere) and flatten that too.
+        const treeName = TREE_BY_ENDPOINT[path.trim().toLowerCase()];
+        const transformName = opts?.transform ?? treeName;
+        if (transformName && TRANSFORMS[transformName]) {
+          return TRANSFORMS[transformName](d, ctx);
         }
 
         // ── rows ──
@@ -197,10 +317,43 @@ export class SalesReportApi {
         }
 
         return {
-          rows: filterByBranch(Array.isArray(rows) ? rows as Record<string, unknown>[] : [], { branchNames: opts?.branchNames }),
+          rows: filterByBranch(Array.isArray(rows) ? rows as Record<string, unknown>[] : [], ctx),
           totals: (totals && typeof totals === 'object' ? totals : {}) as Record<string, unknown>,
         };
       }));
+
+    // Optional secondary per-date merge (e.g. expenses totals-by-date → a Total
+    // Expenses column on the daily Sales Period totals). The expenses endpoint may
+    // legitimately have no data → swallow and treat as zeros, never fail the report.
+    const mb = opts?.mergeByDate;
+    if (!mb) return primary$;
+
+    const merge$ = this.http
+      .post<ApiResponse<Record<string, unknown>>>(`${this.base}/${mb.endpoint}`, body)
+      .pipe(
+        map((res) => {
+          const data = res?.data as unknown;
+          const d = ((data != null && typeof data === 'object' ? data : res) ?? {}) as Obj;
+          return asArr(pick(d, mb.rowsKey, cap(mb.rowsKey)));
+        }),
+        catchError(() => of([] as Obj[])),
+      );
+
+    return forkJoin([primary$, merge$]).pipe(map(([result, mrows]) => {
+      const byDate = new Map<string, number>();
+      for (const r of mrows) {
+        const k = canonDate(pick(r, mb.srcDateKey, cap(mb.srcDateKey)));
+        byDate.set(k, (byDate.get(k) ?? 0) + (Number(pick(r, mb.srcValueKey, cap(mb.srcValueKey))) || 0));
+      }
+      let sum = 0;
+      for (const row of result.rows) {
+        const v = byDate.get(canonDate(row[mb.dstDateKey])) ?? 0;
+        row[mb.dstKey] = v;
+        sum += v;
+      }
+      (result.totals as Obj)[mb.dstKey] = sum;
+      return result;
+    }));
   }
 
   /**
@@ -216,6 +369,11 @@ export class SalesReportApi {
           throw new Error(res.message || res.errors.join('; '));
         }
         const data = res?.data as unknown;
+        // A 200 envelope that explicitly failed (succeeded/success === false) and
+        // carries no data is a real error here (raw reports have no empty-state).
+        if (res && (res.succeeded === false || res.success === false) && data == null) {
+          throw new Error(res.message || 'Request failed');
+        }
         return (data != null && typeof data === 'object' ? data : res) as T;
       }));
   }
