@@ -25,6 +25,10 @@ const lazy = {
   dashboard: () =>
     import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
 
+  // ── Order Journey (itemized single-order lifecycle) ────────────
+  journey: () =>
+    import('./features/monitoring/journey.component').then(m => m.JourneyComponent),
+
   // ── Monitoring (4 — raw action-log feeds) ──────────────────────
   monFeed: () =>
     import('./features/monitoring/live-feed.component').then(m => m.LiveFeedComponent),
@@ -149,6 +153,9 @@ export const routes: Routes = [
 
       // ── Dashboard (1) ───────────────────────────────────────
       { path: 'dashboard',                 loadComponent: lazy.dashboard,         title: 'Dashboard' },
+
+      // ── Order Journey (itemized single-order lifecycle) ─────
+      { path: 'journey',                   loadComponent: lazy.journey,           title: 'Order Journey' },
 
       // ── Monitoring (4 — order/table/system action logs) ─────
       { path: 'monitoring/feed',           loadComponent: lazy.monFeed,           title: 'Live Activity Feed' },

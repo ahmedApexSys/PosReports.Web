@@ -382,6 +382,15 @@ export class ShellComponent {
       ],
     },
     {
+      // Itemized single-order lifecycle — the money story of one order from
+      // open to pay. Promoted to a standalone top item so an owner can jump
+      // straight to "what happened on this order" without hunting a module.
+      titleEn: 'Order Journey', titleAr: 'رحلة الأوردر', icon: ScrollText, standalone: true,
+      items: [
+        { labelEn: 'Order Journey', labelAr: 'رحلة الأوردر', route: '/journey', icon: ScrollText },
+      ],
+    },
+    {
       // Raw action-log monitoring — who did what on every order/table,
       // with before/after. Surfaces /api/AuditReport/* + /api/OrderActionLog/*.
       titleEn: 'Monitoring', titleAr: 'المراقبة', icon: Activity,

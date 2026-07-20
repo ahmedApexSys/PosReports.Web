@@ -13,6 +13,7 @@ import {
   UnifiedAuditLog,
   UserActivitySummary,
 } from '../models/monitoring.models';
+import { OrderJourney, OrderJourneyRequest } from '../models/journey.models';
 
 type ParamValue = string | number | boolean | null | undefined;
 
@@ -85,6 +86,11 @@ export class MonitoringApi {
     return this.get<PaginatedAudit<OrderActionLogRow>>('/api/OrderActionLog/ByTableName', {
       branchId, tableName, fromDate, toDate, page, pageSize,
     });
+  }
+
+  // ── Itemized order journey (full lifecycle of one order) ─────────
+  orderJourney(req: OrderJourneyRequest): Observable<OrderJourney> {
+    return this.post<OrderJourney>('/api/activity-log/order-timeline', req);
   }
 
   // ── helpers ──────────────────────────────────────────────────────
