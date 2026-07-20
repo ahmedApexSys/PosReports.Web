@@ -391,74 +391,63 @@ export class ShellComponent {
       ],
     },
     {
-      // Raw action-log monitoring — who did what on every order/table,
-      // with before/after. Surfaces /api/AuditReport/* + /api/OrderActionLog/*.
-      titleEn: 'Monitoring', titleAr: 'المراقبة', icon: Activity,
+      // ── 1. Daily activity — who did what, and what's happening now.
+      //    The live/operational feeds plus the per-user and session views.
+      //    Sources /api/OrderActionLog/* + /api/AuditReport/*.
+      titleEn: 'Daily Activity', titleAr: 'الحركة اليومية', icon: Activity,
       items: [
         { labelEn: 'Live Activity Feed', labelAr: 'النشاط المباشر',  route: '/monitoring/feed',    icon: Activity },
         { labelEn: 'Order Actions',      labelAr: 'حركات الأوردرات', route: '/monitoring/orders',  icon: ScrollText },
         { labelEn: 'Table Actions',      labelAr: 'حركات الطاولات',  route: '/monitoring/tables',  icon: Armchair },
-        { labelEn: 'Activity Summary',   labelAr: 'ملخص النشاط',     route: '/monitoring/summary', icon: Gauge },
         { labelEn: 'By User',            labelAr: 'حسب المستخدم',    route: '/monitoring/by-user', icon: UserCog },
+        { labelEn: 'User Session',       labelAr: 'جلسة مستخدم',      route: '/audit/user-session', icon: UserRound },
+        { labelEn: 'Activity Summary',   labelAr: 'ملخص النشاط',     route: '/monitoring/summary', icon: Gauge },
+        { labelEn: 'Daily Digest',       labelAr: 'الملخص اليومي',    route: '/audit/digest',       icon: FileText },
       ],
     },
     {
-      titleEn: 'Business Intelligence', titleAr: 'ذكاء الأعمال', icon: ChartBar,
+      // ── 2. Money — the cash story: how it's paid, where it leaks, and by
+      //    channel. The most-watched area for an owner ("اللعب في الفلوس").
+      titleEn: 'Money', titleAr: 'الفلوس', icon: Banknote,
       items: [
-        { labelEn: 'KPI Summary',          labelAr: 'مؤشرات سريعة',     route: '/bi/kpi',              icon: ChartBar },
-        { labelEn: 'Peak Hours',           labelAr: 'ساعات الذروة',     route: '/bi/peak-hours',       icon: ChartBar },
-        { labelEn: 'Average Order Value',  labelAr: 'متوسط قيمة الطلب', route: '/bi/aov',              icon: ChartBar },
-        { labelEn: 'Payment Mix',          labelAr: 'توزيع طرق الدفع',  route: '/bi/payment-mix',      icon: ChartBar },
-        { labelEn: 'Staff Productivity',   labelAr: 'إنتاجية الكاشير',  route: '/bi/staff',            icon: ChartBar },
-        { labelEn: 'Customer Retention',   labelAr: 'احتفاظ بالعملاء',  route: '/bi/retention',        icon: ChartBar },
-        { labelEn: 'Modifier Popularity',  labelAr: 'شعبية الإضافات',   route: '/bi/modifiers',        icon: ChartBar },
+        { labelEn: 'Payment Mix',                 labelAr: 'توزيع طرق الدفع',  route: '/bi/payment-mix',           icon: Wallet },
+        { labelEn: 'Revenue Leakage',             labelAr: 'تسرّب الإيرادات',   route: '/insights/revenue-leakage', icon: Banknote },
+        { labelEn: 'Items Not Paid',              labelAr: 'أصناف غير مدفوعة', route: '/insights/items-not-paid',  icon: TriangleAlert },
+        { labelEn: 'Post-Checkout Changes',       labelAr: 'تعديلات بعد الدفع', route: '/insights/post-checkout',   icon: FileText },
+        { labelEn: 'Suspicious Activity',         labelAr: 'أنشطة مريبة',       route: '/audit/suspicious',         icon: TriangleAlert },
+        { labelEn: 'Daily Audit',                 labelAr: 'التدقيق اليومي',    route: '/audit/daily',              icon: FileText },
+        { labelEn: 'Audit Totals',                labelAr: 'إجماليات التدقيق',  route: '/audit/totals',             icon: Sigma },
+        { labelEn: 'Dine-in',                     labelAr: 'صالة',              route: '/trx/dinein',               icon: Soup },
+        { labelEn: 'Take-away',                   labelAr: 'تيك أواي',          route: '/trx/takeaway',             icon: ReceiptText },
+        { labelEn: 'Delivery',                    labelAr: 'ديليفري',           route: '/trx/delivery',             icon: Truck },
       ],
     },
     {
-      titleEn: 'Audit', titleAr: 'تدقيق', icon: FileText,
-      items: [
-        { labelEn: 'Daily',                labelAr: 'يومي',             route: '/audit/daily',         icon: FileText },
-        { labelEn: 'Totals',               labelAr: 'إجمالي',           route: '/audit/totals',        icon: FileText },
-        { labelEn: 'Order Journey',        labelAr: 'رحلة الأوردر',     route: '/audit/order-journey', icon: FileText },
-        { labelEn: 'User Session',         labelAr: 'جلسة مستخدم',      route: '/audit/user-session',  icon: FileText },
-        { labelEn: 'Suspicious Activity',  labelAr: 'أنشطة مريبة',       route: '/audit/suspicious',    icon: FileText },
-        { labelEn: 'Daily Digest',         labelAr: 'ملخص يومي',         route: '/audit/digest',        icon: FileText },
-      ],
-    },
-    {
-      titleEn: 'Per Transaction', titleAr: 'حسب نوع الطلب', icon: Soup,
-      items: [
-        { labelEn: 'Dine-in',   labelAr: 'صالة',     route: '/trx/dinein',   icon: Soup },
-        { labelEn: 'Take-away', labelAr: 'تيك أواي', route: '/trx/takeaway', icon: Soup },
-        { labelEn: 'Delivery',  labelAr: 'ديليفري',  route: '/trx/delivery', icon: Truck },
-      ],
-    },
-    {
-      // Owner-decision insights — every page answers a specific manager
-      // question (grow / who-steals / who's-lazy / why-slow / what-not-paid)
-      // and surfaces a bilingual conclusion naming the action to take.
-      // The pages either consume `/api/OwnerInsights/*` or wrap a matching
-      // `/api/BusinessIntelligence/*` endpoint, and link out to the audit
-      // narratives (Order Journey, User Session) for drill-down.
-      titleEn: 'Owner Insights', titleAr: 'رؤى للمالك', icon: TrendingUp,
-      items: [
-        { labelEn: 'Growth Trends',                labelAr: 'اتجاهات النمو',          route: '/insights/growth',           icon: TrendingUp },
-        { labelEn: 'Top Paying Customers',         labelAr: 'أفضل العملاء دفعاً',     route: '/insights/top-customers',    icon: ChartBar },
-        { labelEn: 'Post-Checkout Modifications',  labelAr: 'تعديلات بعد الدفع',      route: '/insights/post-checkout',    icon: FileText },
-        { labelEn: 'Items Not Paid',               labelAr: 'أصناف غير مدفوعة',      route: '/insights/items-not-paid',   icon: TriangleAlert },
-        { labelEn: 'Staff Productivity Gaps',      labelAr: 'فجوات أداء الموظفين',   route: '/insights/staff-gaps',       icon: UserCog },
-        { labelEn: 'Operational Time Gaps',        labelAr: 'فجوات وقت العمليات',    route: '/insights/lifecycle-delays', icon: Timer },
-        { labelEn: 'Revenue Leakage Detail',       labelAr: 'تسرّب الإيرادات',        route: '/insights/revenue-leakage',  icon: Banknote },
-      ],
-    },
-    {
+      // ── 3. Performance — items, service speed, and staff productivity.
       titleEn: 'Performance', titleAr: 'الأداء', icon: Gauge,
       items: [
-        { labelEn: 'Item Insights',  labelAr: 'تحليل الأصناف',  route: '/perf/items',         icon: ChartBar },
-        { labelEn: 'Highly Sales',   labelAr: 'الأعلى مبيعاً',   route: '/perf/highly',        icon: ChartBar },
-        { labelEn: 'Low Sales',      labelAr: 'الأقل مبيعاً',    route: '/perf/low',           icon: ChartBar },
-        { labelEn: 'Service Speed',  labelAr: 'سرعة الخدمة',    route: '/perf/speed',         icon: Truck },
-        { labelEn: 'Speed by Pilot', labelAr: 'سرعة لكل سواق',  route: '/perf/speed-pilot',   icon: Truck },
+        { labelEn: 'Item Insights',           labelAr: 'تحليل الأصناف',       route: '/perf/items',                icon: Boxes },
+        { labelEn: 'Highly Sales',            labelAr: 'الأعلى مبيعاً',        route: '/perf/highly',               icon: ChartBar },
+        { labelEn: 'Low Sales',               labelAr: 'الأقل مبيعاً',         route: '/perf/low',                  icon: ChartBar },
+        { labelEn: 'Modifier Popularity',     labelAr: 'شعبية الإضافات',      route: '/bi/modifiers',              icon: Tag },
+        { labelEn: 'Service Speed',           labelAr: 'سرعة الخدمة',         route: '/perf/speed',                icon: Timer },
+        { labelEn: 'Speed by Pilot',          labelAr: 'سرعة لكل سواق',       route: '/perf/speed-pilot',          icon: Truck },
+        { labelEn: 'Staff Productivity',      labelAr: 'إنتاجية الموظفين',     route: '/bi/staff',                  icon: UserCog },
+        { labelEn: 'Staff Productivity Gaps', labelAr: 'فجوات أداء الموظفين',  route: '/insights/staff-gaps',       icon: UserCog },
+        { labelEn: 'Operational Time Gaps',   labelAr: 'فجوات وقت العمليات',   route: '/insights/lifecycle-delays', icon: Timer },
+      ],
+    },
+    {
+      // ── 4. Insights & analytics — the high-level owner view: KPIs, growth,
+      //    customers, and demand patterns.
+      titleEn: 'Insights & Analytics', titleAr: 'رؤى وتحليلات', icon: TrendingUp,
+      items: [
+        { labelEn: 'KPI Summary',          labelAr: 'مؤشرات سريعة',      route: '/bi/kpi',                icon: Gauge },
+        { labelEn: 'Average Order Value',  labelAr: 'متوسط قيمة الطلب',  route: '/bi/aov',                icon: ChartBar },
+        { labelEn: 'Peak Hours',           labelAr: 'ساعات الذروة',      route: '/bi/peak-hours',         icon: CalendarClock },
+        { labelEn: 'Growth Trends',        labelAr: 'اتجاهات النمو',      route: '/insights/growth',       icon: TrendingUp },
+        { labelEn: 'Top Paying Customers', labelAr: 'أفضل العملاء دفعاً', route: '/insights/top-customers', icon: UserRound },
+        { labelEn: 'Customer Retention',   labelAr: 'الاحتفاظ بالعملاء',  route: '/bi/retention',          icon: TrendingUp },
       ],
     },
     // ── Migrated legacy reports (config-driven, see report-registry) ──
