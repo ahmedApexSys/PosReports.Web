@@ -118,6 +118,22 @@ export interface ReceiptTotal {
 }
 
 /** A full report definition consumed by the generic tabular shell. */
+/**
+ * Row-level drill-down: clicking a row opens `route` with `{ [param]: row[rowKey] }`
+ * as a query param. Kept declarative so a report only has to name the id column.
+ */
+export interface RowDrilldown {
+  /** absolute route path, e.g. '/journey'. */
+  route: string;
+  /** query-param name the target page reads, e.g. 'orderId'. */
+  param: string;
+  /** row property carrying the id, e.g. 'orderId'. */
+  rowKey: string;
+  /** tooltip shown on hoverable rows. */
+  titleEn?: string;
+  titleAr?: string;
+}
+
 export interface ReportDef {
   /** stable id — keys the per-user saved column layout in localStorage. */
   id: string;
@@ -163,6 +179,12 @@ export interface ReportDef {
    * The table shows day rows collapsed; clicking a day row reveals its details.
    */
   expandable?: boolean;
+  /**
+   * Makes each row clickable, opening a detail page for that row. Used to go
+   * from a per-order report straight into that order's journey.
+   * Rows whose `rowKey` value is missing/0 stay inert (no cursor, no navigation).
+   */
+  drilldown?: RowDrilldown;
   /** Optional bottom PayWay summary bar derived from the report's `totals`. */
   paymentSummary?: PaymentSummaryConfig;
   /**

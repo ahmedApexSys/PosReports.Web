@@ -2,6 +2,7 @@ import { Component, Input, OnInit, inject, signal, computed, effect, ChangeDetec
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { Router } from '@angular/router';
 import {
   LucideAngularModule, RefreshCw, Loader, Building2, Download, Printer, ChevronDown, ChevronRight, Zap,
   FileSpreadsheet, FileText,
@@ -174,7 +175,9 @@ interface AppliedFilter { label: string; value: string; }
               </thead>
               <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                 <tr *ngFor="let r of pagedRows(); let ri = index"
-                    (click)="toggleRow(r)"
+                    (click)="onRowClick(r)"
+                    [attr.title]="canDrill(r) ? drillTitle() : null"
+                    [class.cursor-pointer]="canDrill(r)"
                     class="hover:bg-slate-50 dark:hover:bg-surface-dark-muted/50"
                     [class.row-group]="hasMerge() && isMergeStart(ri)"
                     [class.tree-parent]="isTree() && lvl(r) === 0"
@@ -265,6 +268,7 @@ export class TabularReportPageComponent implements OnInit {
 
   readonly lang = inject(LanguageService);
   readonly filter = inject(FilterService);
+  private readonly router = inject(Router);
   private readonly api = inject(SalesReportApi);
   private readonly branches = inject(BranchService);
   private readonly auth = inject(AuthService);
@@ -487,6 +491,29 @@ export class TabularReportPageComponent implements OnInit {
       .filter((r) => Number(r['__level']) === 0).map((r) => String(r['__key']))));
   }
   collapseAll(): void { this.expanded.set(new Set()); }
+
+  // ── row drill-down — per-order reports open that order's detail page ──
+  /** A row is drillable only when the report declares it and the id is real. */
+  canDrill(r: Row): boolean {
+    const d = this.def.drilldown;
+    if (!d) return false;
+    return Number(r[d.rowKey]) > 0;
+  }
+  drillTitle(): string {
+    const d = this.def.drilldown;
+    if (!d) return '';
+    return (this.ar() ? d.titleAr : d.titleEn) ?? (this.ar() ? 'عرض تفاصيل الأوردر' : 'Open order details');
+  }
+  /**
+   * One handler for both behaviours: a day/parent row in a tree expands,
+   * anything else drills through when the report opted in.
+   */
+  onRowClick(r: Row): void {
+    if (this.isTree() && this.lvl(r) === 0) { this.toggleRow(r); return; }
+    const d = this.def.drilldown;
+    if (!d || !this.canDrill(r)) return;
+    void this.router.navigate([d.route], { queryParams: { [d.param]: r[d.rowKey] } });
+  }
 
   // ── Merged (rowspan) column — e.g. the date on date×category totals so it
   //    isn't repeated. Only active when the merge column is visible. ──

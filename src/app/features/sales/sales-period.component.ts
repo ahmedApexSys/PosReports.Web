@@ -31,6 +31,12 @@ export class SalesPeriodComponent {
     subtitleAr: 'صف لكل أوردر — تفصيل كامل للمبالغ والأوقات مع الإجماليات',
     endpoint: 'DailySalesController/getDailySalesReport',
     defaultOrdersFilter: 'Paid',
+    // Each row IS one order, so clicking it opens that order's full journey.
+    drilldown: {
+      route: '/journey', param: 'orderId', rowKey: 'orderId',
+      titleEn: 'Open this order — items, money and full timeline',
+      titleAr: 'افتح تفاصيل الأوردر — الأصناف والمبالغ والرحلة كاملة',
+    },
     filters: ['payment', 'transaction', 'shift', 'discount', 'promo', 'voucher', 'onlineApp', 'user', 'waiter', 'pilot'],
     columns: [
       { key: 'orderId',                 labelEn: 'Order #',         labelAr: 'رقم الأوردر',    type: 'int',   width: 9 },

@@ -53,9 +53,33 @@ export interface JourneyMoney {
   taxRatio: number;
   minimumChargePerGuest: number;
   minimumChargeDifference: number;
+  /**
+   * The branch's dine-in IncludeTaxAndService option — WHAT the minimum was compared
+   * against. The same spend can clear the minimum in one branch and fall short in
+   * another, so the figures are only readable alongside this. Null when no minimum applies.
+   */
+  minimumChargeIncludesTaxAndService?: boolean | null;
   addition: number;
   net: number;
   total: number;
+}
+
+/**
+ * The delivery leg — present only on delivery orders, which is exactly how the
+ * page decides to draw the courier layout instead of the table or counter one.
+ * Every stamp is optional: an order voided before dispatch never gets one.
+ */
+export interface JourneyDelivery {
+  customerName?: string | null;
+  mobilePhone?: string | null;
+  address?: string | null;
+  pilotName?: string | null;
+  prepareTime?: string | null;
+  assignTime?: string | null;
+  pickUpTime?: string | null;
+  returnTime?: string | null;
+  roundTripMinutes?: number | null;
+  onlineAppName?: string | null;
 }
 
 export interface JourneyVoidedItem {
@@ -113,6 +137,8 @@ export interface OrderJourney {
   cashierName?: string | null;
   waiterName?: string | null;
   pilotName?: string | null;
+  /** Courier detail — null on dine-in and take-away. */
+  delivery?: JourneyDelivery | null;
   timeline: JourneyStep[];
   voidedItems: JourneyVoidedItem[];
   items: JourneyLineItem[];

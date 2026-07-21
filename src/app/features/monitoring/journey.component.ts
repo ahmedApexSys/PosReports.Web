@@ -9,7 +9,7 @@ import { catchError, finalize, of } from 'rxjs';
 import { LanguageService } from '../../core/i18n/language.service';
 import { FilterService } from '../../core/filters/filter.service';
 import { MonitoringApi } from '../../core/api/monitoring.api';
-import { OrderJourney, JourneyStep } from '../../core/models/journey.models';
+import { OrderJourney, JourneyStep, JourneyDelivery } from '../../core/models/journey.models';
 
 type SearchBy = 'receipt' | 'order';
 
@@ -140,7 +140,12 @@ type SearchBy = 'receipt' | 'order';
         <div class="text-sm">
           <div class="flex justify-between py-1"><span class="text-slate-500 dark:text-slate-400">{{ ar() ? 'قيمة الأصناف' : 'Items' }}</span><span class="tabular-nums"><bdi>{{ money(d.money.itemsTotal) }}</bdi></span></div>
           <div class="flex justify-between py-1" *ngIf="d.money.discount"><span class="text-slate-500 dark:text-slate-400">{{ ar() ? 'الخصم' : 'Discount' }}</span><span class="tabular-nums text-red-600"><bdi>− {{ money(d.money.discount) }}</bdi></span></div>
-          <div class="flex justify-between py-1"><span class="text-slate-500 dark:text-slate-400">{{ ar() ? 'الخدمة' : 'Service' }}</span><span class="tabular-nums"><bdi>{{ money(d.money.service) }}</bdi></span></div>
+          <!-- Service is a dine-in concept. Printing it as 0.00 on a counter or courier
+               receipt is noise, so it only appears where it can be non-zero. -->
+          <div class="flex justify-between py-1" *ngIf="isDineIn() || d.money.service">
+            <span class="text-slate-500 dark:text-slate-400">{{ ar() ? 'الخدمة' : 'Service' }}</span>
+            <span class="tabular-nums"><bdi>{{ money(d.money.service) }}</bdi></span>
+          </div>
           <div class="flex justify-between py-1">
             <span class="text-slate-500 dark:text-slate-400">
               {{ ar() ? 'الضريبة' : 'Tax' }}<span *ngIf="d.money.taxRatio"> {{ num(d.money.taxRatio) }}%</span>
@@ -148,16 +153,74 @@ type SearchBy = 'receipt' | 'order';
             </span>
             <span class="tabular-nums"><bdi>{{ money(d.money.totalTax) }}</bdi></span>
           </div>
-          <div class="flex justify-between py-1" *ngIf="d.money.minimumChargeDifference">
-            <span class="text-slate-500 dark:text-slate-400">
-              {{ ar() ? 'فرق الحد الأدنى' : 'Minimum charge top-up' }}
-              <span class="text-xs text-slate-400" *ngIf="d.money.minimumChargePerGuest"> ({{ money(d.money.minimumChargePerGuest) }} {{ ar() ? 'للضيف' : '/guest' }})</span>
-            </span>
-            <span class="tabular-nums"><bdi>{{ money(d.money.minimumChargeDifference) }}</bdi></span>
-          </div>
+          <!-- Minimum charge, shown as the comparison it actually is: the rate, what that
+               came to for this many guests, and the top-up that reached the bill. A top-up
+               of zero is a real answer ("the table spent enough"), so it is shown too. -->
+          <ng-container *ngIf="d.money.minimumChargePerGuest">
+            <div class="flex justify-between py-1">
+              <span class="text-slate-500 dark:text-slate-400">{{ ar() ? 'الحد الأدنى للضيف' : 'Minimum charge / guest' }}</span>
+              <span class="tabular-nums text-slate-500 dark:text-slate-400"><bdi>{{ money(d.money.minimumChargePerGuest) }}</bdi></span>
+            </div>
+            <div class="flex justify-between py-1" *ngIf="d.guestCount">
+              <span class="text-slate-500 dark:text-slate-400">
+                {{ ar() ? 'المطلوب' : 'Required' }}
+                <span class="text-xs text-slate-400">({{ d.guestCount }} {{ ar() ? 'ضيف' : 'guests' }})</span>
+              </span>
+              <span class="tabular-nums text-slate-500 dark:text-slate-400"><bdi>{{ money(minimumRequired()) }}</bdi></span>
+            </div>
+            <div class="flex justify-between py-1">
+              <span class="text-slate-500 dark:text-slate-400">{{ ar() ? 'الفرق المضاف' : 'Top-up added' }}</span>
+              <span class="tabular-nums" [class.text-slate-400]="!d.money.minimumChargeDifference">
+                <bdi>{{ money(d.money.minimumChargeDifference) }}</bdi>
+              </span>
+            </div>
+            <!-- Which rule the comparison used. Without it the three numbers above are
+                 unreadable: the same spend clears the minimum under one setting and
+                 falls short under the other. -->
+            <p *ngIf="d.money.minimumChargeIncludesTaxAndService !== null && d.money.minimumChargeIncludesTaxAndService !== undefined"
+              class="text-xs text-slate-500 dark:text-slate-400 pb-1">
+              {{ d.money.minimumChargeIncludesTaxAndService
+                  ? (ar() ? 'الحد الأدنى يشمل الضريبة والخدمة — المقارنة تمت على الإجمالي شامل الضريبة والخدمة.'
+                          : 'The minimum includes tax and service — compared against the all-in total.')
+                  : (ar() ? 'الحد الأدنى لا يشمل الضريبة والخدمة — المقارنة تمت على قيمة الأصناف بعد الخصم.'
+                          : 'The minimum excludes tax and service — compared against items after discount.') }}
+            </p>
+            <p *ngIf="!d.money.minimumChargeDifference" class="text-xs text-slate-400 dark:text-slate-500 pb-1">
+              {{ ar() ? 'الطاولة صرفت أكتر من الحد الأدنى، فمفيش فرق اتضاف.'
+                      : 'The table spent above the minimum, so nothing was added.' }}
+            </p>
+          </ng-container>
           <div class="flex justify-between py-1" *ngIf="d.money.addition"><span class="text-slate-500 dark:text-slate-400">{{ ar() ? 'إضافات' : 'Addition' }}</span><span class="tabular-nums"><bdi>{{ money(d.money.addition) }}</bdi></span></div>
           <div class="flex justify-between pt-2.5 mt-2 border-t border-slate-300 dark:border-slate-600 font-semibold text-base">
             <span>{{ ar() ? 'الصافي' : 'Net' }}</span><span class="tabular-nums"><bdi>{{ money(d.money.net) }}</bdi></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── The delivery leg — courier orders only ──────────── -->
+      <div *ngIf="d.delivery as dv"
+        class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 md:p-5">
+        <div class="font-medium text-slate-900 dark:text-slate-100 mb-3">{{ ar() ? 'التوصيل' : 'Delivery' }}</div>
+
+        <div class="text-sm text-slate-600 dark:text-slate-300 leading-7">
+          <span *ngIf="dv.customerName">{{ ar() ? 'العميل' : 'Customer' }}: <b class="text-slate-800 dark:text-slate-100">{{ dv.customerName }}</b></span>
+          <span *ngIf="dv.mobilePhone"> · <bdi>{{ dv.mobilePhone }}</bdi></span>
+          <span *ngIf="dv.address"> · {{ dv.address }}</span>
+          <span *ngIf="dv.onlineAppName"> · {{ ar() ? 'تطبيق' : 'App' }}: {{ dv.onlineAppName }}</span>
+        </div>
+        <div class="text-sm text-slate-600 dark:text-slate-300 mt-1" *ngIf="dv.pilotName">
+          {{ ar() ? 'الطيّار' : 'Pilot' }}: <b class="text-slate-800 dark:text-slate-100">{{ dv.pilotName }}</b>
+          <span *ngIf="dv.roundTripMinutes" class="text-slate-400"> · {{ ar() ? 'الرحلة' : 'round trip' }} <bdi>{{ num(dv.roundTripMinutes) }}</bdi> {{ ar() ? 'دقيقة' : 'min' }}</span>
+        </div>
+
+        <!-- The four stamps the courier flow writes. A missing one is stated, not hidden:
+             "no pick-up time" is exactly what an owner chasing a late order needs to see. -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div *ngFor="let st of deliveryStamps(dv)">
+            <div class="text-xs text-slate-400 dark:text-slate-500">{{ ar() ? st.labelAr : st.labelEn }}</div>
+            <div class="text-sm mt-0.5" [class.text-slate-400]="!st.value" [class.dark:text-slate-600]="!st.value">
+              <bdi>{{ st.value || (ar() ? 'لم يحدث' : 'not recorded') }}</bdi>
+            </div>
           </div>
         </div>
       </div>
@@ -256,6 +319,33 @@ export class JourneyComponent {
   }
 
   protected ar(): boolean { return this.lang.language() === 'ar'; }
+
+  /**
+   * Which of the three layouts to draw. The server now derives the type from the
+   * order header rather than the action log, so this is reliable even for an order
+   * whose log rows were pruned.
+   */
+  protected readonly isDineIn = computed(() => {
+    const t = (this.data()?.transactionType ?? '').replace(/\s/g, '').toLowerCase();
+    return t === 'dinein' || t === 'reservation' || t === 'hospitality';
+  });
+
+  /** The minimum the table had to reach: the per-guest rate × the guests on the bill. */
+  protected minimumRequired(): number {
+    const d = this.data();
+    if (!d) { return 0; }
+    return this.num(d.money.minimumChargePerGuest * d.guestCount);
+  }
+
+  /** The four courier stamps in the order they happen, missing ones included. */
+  protected deliveryStamps(dv: JourneyDelivery): ReadonlyArray<{ labelAr: string; labelEn: string; value?: string | null }> {
+    return [
+      { labelAr: 'التحضير', labelEn: 'Prepared', value: dv.prepareTime },
+      { labelAr: 'إسناد الطيّار', labelEn: 'Assigned', value: dv.assignTime },
+      { labelAr: 'الاستلام', labelEn: 'Picked up', value: dv.pickUpTime },
+      { labelAr: 'العودة', labelEn: 'Returned', value: dv.returnTime },
+    ];
+  }
 
   protected load(): void {
     const t = (this.term || '').trim();
