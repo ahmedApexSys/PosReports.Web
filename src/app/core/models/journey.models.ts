@@ -23,13 +23,39 @@ export interface JourneyStep {
   step: number;
   action: string;
   actionAr: string;
+  /** Raw developer log line — for the technical expander only, never the headline. */
   description: string;
+  /** Owner-facing sentence assembled server-side from structured columns. */
+  summaryAr?: string | null;
+  summaryEn?: string | null;
   userName?: string | null;
   date: string;
   time: string;
   severity?: string | null;
   success: boolean;
+  /** 'Order' = keyed to the paid order; 'Table' = matched from the dine-in table session. */
+  stage: string;
+  /** Internal repricing/technical event — hidden unless the user opts in. */
+  isNoise: boolean;
+  /** Only true when the before/after money on this row is trustworthy. */
+  hasMoneyDelta: boolean;
   details?: JourneyStepDetails | null;
+}
+
+/** The receipt: what the order actually cost, broken down. */
+export interface JourneyMoney {
+  itemsTotal: number;
+  discount: number;
+  service: number;
+  itemTax: number;
+  serviceTax: number;
+  totalTax: number;
+  taxRatio: number;
+  minimumChargePerGuest: number;
+  minimumChargeDifference: number;
+  addition: number;
+  net: number;
+  total: number;
 }
 
 export interface JourneyVoidedItem {
@@ -73,7 +99,14 @@ export interface OrderJourney {
   totalSales: number;
   net: number;
   total: number;
+  /** The receipt breakdown (items / discount / service / tax / min charge / addition / net). */
+  money: JourneyMoney;
+  /** Stored settlement method: Cash / Visa / Ledge / Officer / Hospitality / PayTabs. */
   paymentMethod?: string | null;
+  /** The method it was changed FROM, when a pay-way change happened (e.g. Cash -> Visa). */
+  previousPaymentMethod?: string | null;
+  /** True for genuinely-paid methods; false for Officer / Hospitality / PayTabs. */
+  isPaidOrder: boolean;
   createdAt?: string | null;
   completedAt?: string | null;
   duration?: string | null;
@@ -93,4 +126,6 @@ export interface OrderJourneyRequest {
   orderId?: number | null;
   receiptNumber?: string | null;
   userId?: string | null;
+  /** Receipt numbers are a per-branch sequence — scope the lookup or you can match another branch. */
+  branchId?: number | null;
 }
