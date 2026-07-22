@@ -236,6 +236,11 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     titleEn: "Cancelled Orders", titleAr: "الطلبات الملغاة",
     endpoint: "CancelledOrdersReports/CancelledOrderReport",
     rowsKey: "reportData", totalsKey: "totals",
+    drilldown: {
+      route: "/journey", param: "orderId", rowKey: "orderId",
+      titleEn: "Open this order — items, money and full timeline",
+      titleAr: "افتح تفاصيل الأوردر — الأصناف والمبالغ والرحلة كاملة",
+    },
     filters: ["payment", "transaction", "shift", "user", "waiter", "pilot", "discount", "onlineApp"],
     columns: [
       { key: "orderId", labelEn: "Order ID", labelAr: "رقم الطلب", type: "int", defaultHidden: true },
@@ -285,6 +290,11 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     titleEn: "Void Items", titleAr: "الأصناف الملغاة",
     endpoint: "VoidItemsReport/VoidItemsReport",
     rowsKey: "reportData", totalsKey: "totals",
+    drilldown: {
+      route: "/journey", param: "orderId", rowKey: "orderId",
+      titleEn: "Open this order — items, money and full timeline",
+      titleAr: "افتح تفاصيل الأوردر — الأصناف والمبالغ والرحلة كاملة",
+    },
     defaultOrdersFilter: "Paid",
     filters: ["payment", "transaction", "shift", "user", "waiter"],
     columns: [
