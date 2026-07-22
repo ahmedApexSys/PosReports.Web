@@ -14,6 +14,7 @@ import {
   UserActivitySummary,
 } from '../models/monitoring.models';
 import { OrderJourney, OrderJourneyRequest } from '../models/journey.models';
+import { ApiTraffic, ApiTrafficRequest } from '../models/api-traffic.models';
 
 type ParamValue = string | number | boolean | null | undefined;
 
@@ -91,6 +92,16 @@ export class MonitoringApi {
   // ── Itemized order journey (full lifecycle of one order) ─────────
   orderJourney(req: OrderJourneyRequest): Observable<OrderJourney> {
     return this.post<OrderJourney>('/api/activity-log/order-timeline', req);
+  }
+
+  /**
+   * API traffic — call volume, durations, the endpoints that eat the server's
+   * day, and the individual calls that took too long. Always resolves: when the
+   * log table has nothing on this database the server returns a filled-in
+   * `unavailableReason*` instead of an error.
+   */
+  apiTraffic(req: ApiTrafficRequest): Observable<ApiTraffic> {
+    return this.post<ApiTraffic>('/api/activity-log/api-traffic', req);
   }
 
   // ── helpers ──────────────────────────────────────────────────────

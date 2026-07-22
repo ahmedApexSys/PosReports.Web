@@ -40,6 +40,8 @@ const lazy = {
     import('./features/monitoring/monitoring-summary.component').then(m => m.MonitoringSummaryComponent),
   monByUser: () =>
     import('./features/monitoring/user-activity-monitor.component').then(m => m.UserActivityMonitorComponent),
+  monApiTraffic: () =>
+    import('./features/monitoring/api-traffic.component').then(m => m.ApiTrafficComponent),
 
   // ── Business Intelligence (7 sub-pages, dashboard is the 8th) ──
   biKpi: () =>
@@ -163,6 +165,7 @@ export const routes: Routes = [
       { path: 'monitoring/tables',         loadComponent: lazy.monTables,         title: 'Table Actions' },
       { path: 'monitoring/summary',        loadComponent: lazy.monSummary,        title: 'Activity Summary' },
       { path: 'monitoring/by-user',        loadComponent: lazy.monByUser,         title: 'By User' },
+      { path: 'monitoring/api-traffic',    loadComponent: lazy.monApiTraffic,     title: 'API Traffic' },
 
       // ── Business Intelligence (7 sub-pages) ─────────────────
       { path: 'bi/kpi',                    loadComponent: lazy.biKpi,             title: 'KPI Summary' },

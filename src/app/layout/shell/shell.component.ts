@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListe
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, ChevronRight, UserRound, Settings, CircleHelp, ReceiptText, Wallet, Tag, CalendarClock, Boxes, Sigma } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, ChevronRight, UserRound, Settings, CircleHelp, ReceiptText, Wallet, Tag, CalendarClock, Boxes, Sigma, Server } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -403,6 +403,7 @@ export class ShellComponent {
         { labelEn: 'User Session',       labelAr: 'جلسة مستخدم',      route: '/audit/user-session', icon: UserRound },
         { labelEn: 'Activity Summary',   labelAr: 'ملخص النشاط',     route: '/monitoring/summary', icon: Gauge },
         { labelEn: 'Daily Digest',       labelAr: 'الملخص اليومي',    route: '/audit/digest',       icon: FileText },
+        { labelEn: 'API Traffic',        labelAr: 'حركة الـ API',     route: '/monitoring/api-traffic', icon: Server },
       ],
     },
     {
