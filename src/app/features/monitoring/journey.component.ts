@@ -306,36 +306,54 @@ type SearchBy = 'receipt' | 'order';
         </div>
       </div>
 
-      <!-- ── Timeline ────────────────────────────────────────── -->
-      <div class="flex items-center justify-between flex-wrap gap-2">
-        <div class="font-medium text-slate-900 dark:text-slate-100">{{ ar() ? 'رحلة الأوردر' : 'Timeline' }}</div>
-        <label *ngIf="noiseCount() > 0" class="text-xs text-slate-500 dark:text-slate-400 inline-flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" [ngModel]="showNoise()" (ngModelChange)="showNoise.set($event)" class="rounded" />
-          {{ ar() ? 'إظهار عمليات إعادة الحساب' : 'Show recalculations' }} ({{ noiseCount() }})
-        </label>
-      </div>
+      <!-- ── Every movement on the order ──────────────────────
+           A row per action, each carrying its own effect on the money. The badge is
+           the point: an owner scans the column of badges and the expensive moments
+           announce themselves without any row being opened. -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 md:p-5">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div class="font-medium text-slate-900 dark:text-slate-100">
+            {{ ar() ? 'كل حركات الأوردر' : 'Every movement on the order' }}
+          </div>
+          <button *ngIf="noiseCount() > 0" type="button" (click)="showNoise.set(!showNoise())"
+            class="text-xs inline-flex items-center gap-2 rounded-full px-3 py-1.5 border transition-colors"
+            [ngClass]="showNoise()
+              ? 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400'">
+            <span class="w-1.5 h-1.5 rounded-full"
+              [ngClass]="showNoise() ? 'bg-slate-400' : 'bg-emerald-500'"></span>
+            {{ showNoise() ? (ar() ? 'كل الأحداث' : 'All events')
+                           : (ar() ? 'أحداث المال فقط' : 'Money events only') }}
+            <span class="opacity-60">({{ showNoise() ? visibleSteps().length : moneyStepCount() }})</span>
+          </button>
+        </div>
 
-      <div class="relative pe-6">
-        <div class="absolute end-2 top-1 bottom-1 w-0.5 bg-slate-200 dark:bg-slate-700"></div>
-        <div *ngFor="let s of visibleSteps()" class="relative mb-4">
-          <span class="absolute -end-[26px] top-1 w-4 h-4 rounded-full bg-white dark:bg-slate-950 border-2"
-            [style.borderColor]="stepColor(s.action)"></span>
+        <div *ngFor="let s of visibleSteps()"
+          class="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3 mb-2.5 last:mb-0">
 
-          <div class="flex justify-between gap-2 flex-wrap">
-            <span class="font-medium text-slate-900 dark:text-slate-100">
-              {{ ar() ? s.actionAr : s.action }}
-              <span *ngIf="s.stage === 'Table'" class="ms-1 text-[11px] font-normal px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+          <!-- The mark. Colour carries the kind of movement, so the eye groups sends,
+               removals and settlements without reading a word. -->
+          <span class="shrink-0 w-8 h-8 rounded-lg grid place-items-center text-sm font-medium"
+            [style.color]="stepColor(s.action)"
+            [style.backgroundColor]="stepTint(s.action)">{{ stepGlyph(s.action) }}</span>
+
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline gap-2 flex-wrap">
+              <span class="font-medium text-slate-900 dark:text-slate-100">{{ ar() ? s.actionAr : s.action }}</span>
+              <bdi class="text-xs text-slate-400 dark:text-slate-500">{{ s.time || s.date }}</bdi>
+              <span *ngIf="s.stage === 'Table'"
+                class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
                 {{ ar() ? 'على الترابيزة' : 'table session' }}
               </span>
-            </span>
-            <span class="text-xs text-slate-400 dark:text-slate-500">
-              <span *ngIf="s.userName">{{ s.userName }} · </span><bdi>{{ s.time || s.date }}</bdi>
-            </span>
+            </div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{{ detail(s) }}</div>
           </div>
 
-          <!-- One sentence: who, what, when, and what it did to the money. Reads
-               faster than a label plus a before/after pair the eye has to join up. -->
-          <div class="text-sm text-slate-600 dark:text-slate-300 mt-0.5">{{ sentence(s) }}</div>
+          <!-- What it did to the bill. "No change" is stated rather than left blank,
+               because a blank reads as missing data instead of as a real answer. -->
+          <span class="shrink-0 text-xs rounded-full px-2.5 py-1 tabular-nums" [ngClass]="deltaClass(s)">
+            <bdi>{{ deltaLabel(s) }}</bdi>
+          </span>
         </div>
       </div>
     </ng-container>
@@ -445,6 +463,64 @@ export class JourneyComponent {
     if (!d?.voidedItems.length) { return ''; }
     const names = d.voidedItems.map(v => `«${v.itemName} ×${this.num(v.quantity)}»`).join('، ');
     return this.ar() ? `بعد حذف ${names}` : `after voiding ${names}`;
+  }
+
+  /** How many steps actually moved money — the count on the filter pill. */
+  protected moneyStepCount(): number {
+    return (this.data()?.timeline ?? []).filter(s => !s.isNoise && this.deltaOf(s) !== 0).length;
+  }
+
+  /** The signed change this step made to the net, or 0 when it moved nothing. */
+  protected deltaOf(s: JourneyStep): number {
+    if (!s.hasMoneyDelta) { return 0; }
+    return this.delta(s)?.diff ?? 0;
+  }
+
+  /** The badge's colours. Green up, red down, grey for a step that moved nothing. */
+  protected deltaClass(s: JourneyStep): string {
+    const d = this.deltaOf(s);
+    if (d > 0) { return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'; }
+    if (d < 0) { return 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'; }
+    return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
+  }
+
+  /** The badge's text. "No change" is a real answer and is said, not left blank. */
+  protected deltaLabel(s: JourneyStep): string {
+    const d = this.deltaOf(s);
+    if (!d) { return this.ar() ? 'من غير تغيير' : 'no change'; }
+    const sign = d > 0 ? '+' : '−';
+    return this.ar() ? `${sign}${this.money(this.abs(d))} ج.م` : `${sign}${this.money(this.abs(d))}`;
+  }
+
+  /** The row's second line: who did it and what it touched, without repeating the title. */
+  protected detail(s: JourneyStep): string {
+    const what = this.summary(s);
+    const who = s.userName;
+    if (what && who) { return `${what} · ${who}`; }
+    return what || who || '';
+  }
+
+  /**
+   * A single character standing in for the kind of movement. Deliberately not an icon
+   * font: these render identically in a printed receipt and an exported PDF, which the
+   * report pages are routinely turned into.
+   */
+  protected stepGlyph(action: string): string {
+    const a = (action || '').toLowerCase();
+    if (a.includes('open')) { return '+'; }
+    if (a.includes('send') || a.includes('sent')) { return '↑'; }
+    if (a.includes('transfer')) { return '⇄'; }
+    if (a.includes('split')) { return '⑂'; }
+    if (a.includes('void') || a.includes('cancel')) { return '✕'; }
+    if (a.includes('discount') || a.includes('promo')) { return '%'; }
+    if (a.includes('paid') || a.includes('pay')) { return '✓'; }
+    if (a.includes('end') || a.includes('closed table')) { return '■'; }
+    return '≡';
+  }
+
+  /** A wash of the step's own colour, so the mark reads as a chip rather than a dot. */
+  protected stepTint(action: string): string {
+    return `color-mix(in srgb, ${this.stepColor(action)} 12%, transparent)`;
   }
 
   /** Who did what, when, and what it did to the money — as one sentence. */
