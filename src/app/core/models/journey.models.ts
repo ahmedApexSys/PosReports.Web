@@ -19,6 +19,46 @@ export interface JourneyStepDetails {
   durationMs?: number;
 }
 
+/** One item line inside a movement clip — the same shape on all three panels. */
+export interface JourneyClipItem {
+  itemName: string;
+  variantName?: string | null;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+/** A single labelled fact about a movement (guests, reason, destination, …). */
+export interface JourneyChip {
+  labelAr: string;
+  labelEn: string;
+  value: string;
+}
+
+/**
+ * The item-level clip of ONE movement: what was on the table, what this event
+ * moved, and what was left. Headings come from the server because only it knows
+ * whether the middle list is "اتبعت", "اتشال" or "اتحوّل".
+ */
+export interface JourneyMovement {
+  /** 'Send' | 'VoidItem' | 'Transfer' | 'Split' | 'CheckOut' | 'Pay' */
+  kind: string;
+  movedHeadingAr: string;
+  movedHeadingEn: string;
+  before: JourneyClipItem[];
+  moved: JourneyClipItem[];
+  after: JourneyClipItem[];
+  beforeTotal: number;
+  movedTotal: number;
+  afterTotal: number;
+  /** before/after were folded from earlier events, not read from a stored snapshot. */
+  beforeAfterDerived: boolean;
+  /** Set when the item lists are empty because the data was never logged. */
+  unavailableReasonAr?: string | null;
+  unavailableReasonEn?: string | null;
+  chips: JourneyChip[];
+}
+
 export interface JourneyStep {
   step: number;
   action: string;
@@ -40,6 +80,12 @@ export interface JourneyStep {
   /** Only true when the before/after money on this row is trustworthy. */
   hasMoneyDelta: boolean;
   details?: JourneyStepDetails | null;
+  /** Where the movement landed: the table a transfer went to, or the check a split opened. */
+  destinationName?: string | null;
+  /** The waiter the movement belongs to — not always the user who pressed the button. */
+  waiterName?: string | null;
+  /** The item-level clip. Absent on events that move no items (open, change waiter, …). */
+  movement?: JourneyMovement | null;
 }
 
 /** The receipt: what the order actually cost, broken down. */

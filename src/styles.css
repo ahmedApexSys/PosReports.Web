@@ -131,3 +131,56 @@
   .card { box-shadow: none !important; border: 1px solid #e5e7eb; }
   body { background: white !important; color: black !important; }
 }
+
+/* ── Order Journey palette ───────────────────────────────────────
+   Scoped to the one page that uses it. Global rather than in the component because a
+   two-mode token set is page theming, and Angular budgets component styles per
+   component — 1.9 kB of colour declarations there crowded out the styling that
+   actually belongs to the component. */
+    /* ── The journey page's palette ──────────────────────────────────
+       Warm editorial cream. Held on the host so the page is recoloured in one
+       place and no other feature is touched. Indigo is the only cool hue. */
+    app-journey{
+      --bg-2:#eae6de; --card:#fff; --card-2:#faf8f4;
+      --border:#e9e4db; --border-strong:#d7d0c4;
+      --ink:#221f1b; --muted:#6f695f; --faint:#a49d90;
+      --brand:#4f46e5; --brand-soft:#eeeefe; --brand-ring:rgba(79,70,229,.16);
+      --good:#0f9d6b; --good-soft:#d5f3e6; --good-ring:rgba(15,157,107,.22);
+      --warn:#c07a12; --warn-soft:#faedd4; --warn-ring:rgba(192,122,18,.22);
+      --high:#dd6a1a; --high-soft:#fbe3cf; --high-ring:rgba(221,106,26,.24);
+      --bad:#e11d48; --bad-soft:#ffe1e8; --bad-ring:rgba(225,29,72,.22);
+      --shadow:0 1px 2px rgba(30,27,20,.05),0 12px 30px -14px rgba(30,27,20,.14);
+      /* Not in the palette proper: "opened the table" carries no colour of its
+         own and would otherwise borrow a loud one it does not mean. */
+      --neutral:#6f695f; --neutral-soft:#eae6de; --neutral-ring:rgba(111,105,95,.18) }
+
+    /* The switch the rest of the app already uses — ThemeService toggles .dark on
+       <html>. A second mechanism here would drift from the theme button. */
+    .dark app-journey{
+      --bg-2:#211d17; --card:#201c15; --card-2:#26221a;
+      --border:#322c22; --border-strong:#443c2f;
+      --ink:#efeae1; --muted:#a79f90; --faint:#6f6759;
+      --brand:#8f88ff; --brand-soft:rgba(143,136,255,.14); --brand-ring:rgba(143,136,255,.3);
+      --good:#34d39e; --good-soft:rgba(16,185,129,.15); --good-ring:rgba(52,211,158,.3);
+      --warn:#e0a53a; --warn-soft:rgba(224,165,58,.15); --warn-ring:rgba(224,165,58,.3);
+      --high:#f08a4b; --high-soft:rgba(240,138,75,.15); --high-ring:rgba(240,138,75,.3);
+      --bad:#fb7185; --bad-soft:rgba(251,113,133,.15); --bad-ring:rgba(251,113,133,.3);
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 32px -18px rgba(0,0,0,.6);
+      --neutral:#a79f90; --neutral-soft:rgba(167,159,144,.13); --neutral-ring:rgba(167,159,144,.26) }
+
+/* Set once per event card so the glyph, the moved panel and the focus ring all agree,
+   instead of three bindings repeating the same decision. */
+app-journey .tone-neutral{--tone:var(--neutral);--tone-soft:var(--neutral-soft);--tone-ring:var(--neutral-ring)}
+app-journey .tone-brand{--tone:var(--brand);--tone-soft:var(--brand-soft);--tone-ring:var(--brand-ring)}
+app-journey .tone-good{--tone:var(--good);--tone-soft:var(--good-soft);--tone-ring:var(--good-ring)}
+app-journey .tone-warn{--tone:var(--warn);--tone-soft:var(--warn-soft);--tone-ring:var(--warn-ring)}
+app-journey .tone-high{--tone:var(--high);--tone-soft:var(--high-soft);--tone-ring:var(--high-ring)}
+app-journey .tone-bad{--tone:var(--bad);--tone-soft:var(--bad-soft);--tone-ring:var(--bad-ring)}
+
+/* Colour aliases — the same token set under shorter names, so they live beside it. */
+app-journey .jr-ink{color:var(--ink)}
+app-journey .jr-muted{color:var(--muted)}
+app-journey .jr-faint{color:var(--faint)}
+app-journey .jr-neg{color:var(--bad)}
+app-journey .jr-pos{color:var(--good)}
+app-journey .jr-warn-text{color:var(--warn)}
