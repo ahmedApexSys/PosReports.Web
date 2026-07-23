@@ -16,8 +16,8 @@ import { BiPanelPageComponent } from '../../shared/bi-panel-page/bi-panel-page.c
   template: `
     <app-bi-panel-page
       titleEn="KPI Summary" titleAr="ملخص المؤشرات"
-      subtitleEn="Headline KPIs — revenue, orders, AOV, paid share"
-      subtitleAr="المؤشرات الأساسية — الإيراد، الأوردرات، متوسط القيمة، نسبة المدفوع"
+      subtitleEn="Headline KPIs — revenue, orders, AOV, collected-orders share"
+      subtitleAr="المؤشرات الأساسية — الإيراد، الأوردرات، متوسط القيمة، نسبة الطلبات المحصّلة"
       [fetchFn]="fetch"></app-bi-panel-page>
   `,
 })
