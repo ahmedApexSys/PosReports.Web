@@ -154,6 +154,14 @@ export interface JourneyAccountability {
   changedAt?: string | null;
   /** How many times the bill was printed — a repeat is worth flagging. */
   checkoutCount: number;
+  /** Every logged pay-way change, earliest first — so a repeated cash→visa reads as its sequence. */
+  payWayChanges?: PayWayChange[];
+}
+
+/** One logged pay-way change: when it happened and the method it changed TO (null if unparsed). */
+export interface PayWayChange {
+  at: string;
+  to?: string | null;
 }
 
 export interface JourneyVoidedItem {

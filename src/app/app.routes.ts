@@ -29,6 +29,14 @@ const lazy = {
   journey: () =>
     import('./features/monitoring/journey.component').then(m => m.JourneyComponent),
 
+  // ── Day journeys (a table / deliveries / take-aways across a day) ──
+  tableDay: () =>
+    import('./features/monitoring/table-day.component').then(m => m.TableDayComponent),
+  deliveryDay: () =>
+    import('./features/monitoring/delivery-day.component').then(m => m.DeliveryDayComponent),
+  takeawayDay: () =>
+    import('./features/monitoring/takeaway-day.component').then(m => m.TakeawayDayComponent),
+
   // ── Monitoring (4 — raw action-log feeds) ──────────────────────
   monFeed: () =>
     import('./features/monitoring/live-feed.component').then(m => m.LiveFeedComponent),
@@ -158,6 +166,9 @@ export const routes: Routes = [
 
       // ── Order Journey (itemized single-order lifecycle) ─────
       { path: 'journey',                   loadComponent: lazy.journey,           title: 'Order Journey' },
+      { path: 'table-day',                 loadComponent: lazy.tableDay,          title: 'Table Day' },
+      { path: 'delivery-day',              loadComponent: lazy.deliveryDay,       title: 'Delivery Day' },
+      { path: 'takeaway-day',              loadComponent: lazy.takeawayDay,       title: 'Take-away Day' },
 
       // ── Monitoring (4 — order/table/system action logs) ─────
       { path: 'monitoring/feed',           loadComponent: lazy.monFeed,           title: 'Live Activity Feed' },

@@ -15,6 +15,11 @@ import {
 } from '../models/monitoring.models';
 import { OrderJourney, OrderJourneyRequest } from '../models/journey.models';
 import { ApiTraffic, ApiTrafficRequest } from '../models/api-traffic.models';
+import {
+  TableDay, TableDayRequest,
+  DeliveryDay, DeliveryDayRequest,
+  TakeAwayDay, TakeAwayDayRequest,
+} from '../models/day-journeys.models';
 
 type ParamValue = string | number | boolean | null | undefined;
 
@@ -92,6 +97,19 @@ export class MonitoringApi {
   // ── Itemized order journey (full lifecycle of one order) ─────────
   orderJourney(req: OrderJourneyRequest): Observable<OrderJourney> {
     return this.post<OrderJourney>('/api/activity-log/order-timeline', req);
+  }
+
+  // ── Day journeys — one table / a day of deliveries / a day of take-aways ──
+  tableDay(req: TableDayRequest): Observable<TableDay> {
+    return this.post<TableDay>('/api/activity-log/table-day', req);
+  }
+
+  deliveryDay(req: DeliveryDayRequest): Observable<DeliveryDay> {
+    return this.post<DeliveryDay>('/api/activity-log/delivery-day', req);
+  }
+
+  takeawayDay(req: TakeAwayDayRequest): Observable<TakeAwayDay> {
+    return this.post<TakeAwayDay>('/api/activity-log/takeaway-day', req);
   }
 
   /**

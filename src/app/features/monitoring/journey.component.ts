@@ -187,6 +187,21 @@ interface ClipView {
               <bdi>{{ acc.checkoutCount }} {{ ar() ? 'مرّات' : 'times' }}</bdi>
             </div>
           </div>
+
+          <!-- The full pay-way change SEQUENCE, when it changed more than once. Only the time and
+               destination are shown — the per-change actor is not stored, so it is not claimed. -->
+          <div *ngIf="acc.payWayChanges && acc.payWayChanges.length > 1" class="jr-inset w-full px-[11px] py-[9px]">
+            <div class="text-[11px] jr-muted">
+              {{ ar() ? 'طريقة الدفع اتغيرت' : 'Payment way changed' }} {{ acc.payWayChanges.length }} {{ ar() ? 'مرّات' : 'times' }}
+            </div>
+            <ol class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <li *ngFor="let c of acc.payWayChanges; let i = index" class="flex items-center gap-1">
+                <span *ngIf="i > 0" class="jr-faint">→</span>
+                <span class="jr-ink"><bdi>{{ c.to ? payAr(c.to) : (ar() ? 'تغيير' : 'change') }}</bdi></span>
+                <span class="jr-faint"><bdi>{{ c.at }}</bdi></span>
+              </li>
+            </ol>
+          </div>
         </div>
       </div>
 

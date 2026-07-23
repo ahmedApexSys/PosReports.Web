@@ -382,12 +382,14 @@ export class ShellComponent {
       ],
     },
     {
-      // Itemized single-order lifecycle — the money story of one order from
-      // open to pay. Promoted to a standalone top item so an owner can jump
-      // straight to "what happened on this order" without hunting a module.
-      titleEn: 'Order Journey', titleAr: 'رحلة الأوردر', icon: ScrollText, standalone: true,
+      // The four journeys, each its own shape: one order in depth, one table across a day, a day of
+      // deliveries, a day of take-aways. Every day-journey drills back into the order journey.
+      titleEn: 'Journeys', titleAr: 'الرحلات', icon: ScrollText,
       items: [
-        { labelEn: 'Order Journey', labelAr: 'رحلة الأوردر', route: '/journey', icon: ScrollText },
+        { labelEn: 'Order Journey', labelAr: 'رحلة الأوردر',   route: '/journey',      icon: ScrollText },
+        { labelEn: 'Table Day',     labelAr: 'يوم الترابيزة',  route: '/table-day',    icon: Armchair },
+        { labelEn: 'Delivery Day',  labelAr: 'يوم الدليفري',   route: '/delivery-day', icon: Truck },
+        { labelEn: 'Take-away Day', labelAr: 'يوم التيك أواي', route: '/takeaway-day', icon: ReceiptText },
       ],
     },
     {
