@@ -160,14 +160,21 @@ interface AppliedFilter { label: string; value: string; }
             <!-- full-width table: fills the container so there's no empty gap on the side;
                  overflows to horizontal scroll only when the columns are genuinely too wide -->
             <table class="w-full text-sm whitespace-nowrap">
-              <thead class="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400
+              <!-- uppercase/tracking are EN-only: letter-spacing pulls apart Arabic cursive joins,
+                   so the primary (RTL) language keeps its natural header. Sticky so labels survive a
+                   200-row page. Numbers align to the line end, text to the start — logical
+                   properties, correct in both RTL and LTR (the model's declared alignEnd, finally
+                   honoured). -->
+              <thead class="sticky top-0 z-10 text-[11px] text-slate-500 dark:text-slate-400
                             bg-slate-50 dark:bg-surface-dark-muted/50
-                            border-b border-slate-200 dark:border-slate-800">
+                            border-b border-slate-200 dark:border-slate-800"
+                     [class.uppercase]="!ar()" [class.tracking-wide]="!ar()">
                 <tr cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="dropHeader($event)">
                   <th *ngIf="isTree()" class="px-2 py-2.5 w-9"></th>
-                  <th *ngFor="let c of visibleColumns()" cdkDrag
-                      class="px-3 py-2.5 font-semibold text-center cursor-move select-none
+                  <th *ngFor="let c of visibleColumns()" cdkDrag scope="col"
+                      class="px-3 py-2.5 font-semibold cursor-move select-none
                              hover:bg-slate-100 dark:hover:bg-surface-dark-muted/70 transition-colors"
+                      [class.text-end]="isNumeric(c)" [class.text-start]="!isNumeric(c)"
                       [title]="ar() ? 'اسحب لإعادة ترتيب الأعمدة' : 'Drag to reorder columns'">
                     {{ ar() ? c.labelAr : c.labelEn }}
                   </th>
@@ -187,12 +194,13 @@ interface AppliedFilter { label: string; value: string; }
                                  class="h-4 w-4 inline-block text-slate-400"></lucide-icon>
                   </td>
                   <ng-container *ngFor="let c of visibleColumns()">
-                    <td *ngIf="c.key !== mergeColKey() || isMergeStart(ri)" class="px-3 py-2 text-center"
+                    <td *ngIf="c.key !== mergeColKey() || isMergeStart(ri)" class="px-3 py-2"
                         [attr.rowspan]="c.key === mergeColKey() ? mergeSpan(ri) : null"
+                        [class.text-end]="isNumeric(c)" [class.text-start]="!isNumeric(c)"
                         [class.tabular]="isNumeric(c)"
                         [class.font-medium]="c.key === firstCol()"
                         [class.merge-cell]="c.key === mergeColKey()">
-                      {{ fmt(r[c.key], c) }}
+                      <bdi>{{ fmt(r[c.key], c) }}</bdi>
                     </td>
                   </ng-container>
                 </tr>
@@ -200,10 +208,11 @@ interface AppliedFilter { label: string; value: string; }
               <tfoot *ngIf="hasTotals()" class="border-t-2 border-slate-200 dark:border-slate-700 font-semibold bg-surface-muted/40 dark:bg-surface-dark-muted/30">
                 <tr>
                   <td *ngIf="isTree()" class="px-2 py-2"></td>
-                  <td *ngFor="let c of visibleColumns(); let i = index" class="px-3 py-2 text-center"
+                  <td *ngFor="let c of visibleColumns(); let i = index" class="px-3 py-2"
+                      [class.text-end]="isNumeric(c)" [class.text-start]="!isNumeric(c)"
                       [class.tabular]="isNumeric(c)">
                     <span *ngIf="i === 0 && !c.totalKey" class="text-slate-500">{{ ar() ? 'الإجمالي' : 'Total' }}</span>
-                    <span *ngIf="c.totalKey">{{ fmt(totals()[c.totalKey!], c) }}</span>
+                    <span *ngIf="c.totalKey"><bdi>{{ fmt(totals()[c.totalKey!], c) }}</bdi></span>
                   </td>
                 </tr>
               </tfoot>
