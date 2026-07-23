@@ -97,7 +97,9 @@ export class AuditApi {
         summary: {
           uniqueOrders: orders.length,
           paidOrders: orders.filter(o => o.wasPaid).length,
-          totalNet: round2(orders.reduce((s, o) => s + (o.finalNet || 0), 0)),
+          // Net excludes cancelled orders so this reconciles with the POS Totals report (which
+          // drops cancelled). A cancelled reservation otherwise keeps its net on its final row.
+          totalNet: round2(orders.filter(o => !o.wasCancelled).reduce((s, o) => s + (o.finalNet || 0), 0)),
           totalDiscount: round2(orders.reduce((s, o) => s + (o.discount || 0), 0)),
           voidedOrders: orders.filter(o => o.wasVoided).length,
           cancelledOrders: orders.filter(o => o.wasCancelled).length,
