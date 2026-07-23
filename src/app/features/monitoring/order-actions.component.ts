@@ -1,5 +1,5 @@
 import {
-  Component, inject, signal, computed, effect, ChangeDetectionStrategy,
+  Component, inject, signal, effect, ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -43,7 +43,7 @@ type Mode = 'browse' | 'order' | 'receipt';
         </div>
         <div class="flex items-center gap-2">
           <app-export-menu
-            [rows]="visibleRows()" [columns]="exportCols"
+            [rows]="rows()" [columns]="exportCols"
             titleEn="Order Actions" titleAr="حركات الأوردرات"
             subtitleEn="Every order mutation with before/after"
             subtitleAr="كل تعديل على الأوردر مع الحالة قبل وبعد"
@@ -143,13 +143,7 @@ type Mode = 'browse' | 'order' | 'receipt';
           {{ lang.language() === 'ar' ? 'مفيش حركات مطابقة.' : 'No matching actions.' }}
         </div>
         <div class="space-y-1.5">
-          <app-order-action-row *ngFor="let r of visibleRows()" [row]="r"></app-order-action-row>
-        </div>
-        <div *ngIf="rows().length && !visibleRows().length"
-             class="card-padded text-center py-8 text-sm text-slate-500 dark:text-slate-400">
-          {{ lang.language() === 'ar'
-              ? 'كل الحركات في الصفحة دي كانت إعادة حساب (متخفية).'
-              : 'All actions on this page were recalculations (hidden).' }}
+          <app-order-action-row *ngFor="let r of rows()" [row]="r"></app-order-action-row>
         </div>
         <app-pager *ngIf="mode() !== 'receipt'"
                    [page]="page()" [pageSize]="pageSize()" [totalCount]="totalCount()"
@@ -163,9 +157,10 @@ export class OrderActionsComponent {
   readonly filter = inject(FilterService);
   private readonly api = inject(MonitoringApi);
 
+  // Calculate (recalc) rows are excluded server-side now (OrderActionLog endpoints hide
+  // ActionType=Calculate by default), so rows() is already recalc-free and the pager's
+  // totalCount lines up with what's rendered — the old client-side filter double-counted.
   readonly rows = signal<OrderActionLogRow[]>([]);
-  /** Calculate (recalc) actions are routine cart traffic — hidden from the view. */
-  readonly visibleRows = computed(() => this.rows().filter((r) => !OrderActionsComponent.isCalculate(r)));
   readonly exportCols = orderActionExportColumns();
   readonly totalCount = signal(0);
   readonly loading = signal(false);
@@ -275,9 +270,4 @@ export class OrderActionsComponent {
   }
 
   private begin(): void { this.loading.set(true); this.error.set(''); this.started.set(true); }
-
-  /** Calculate = OrderActionType 1; match by id or name to stay robust to either field. */
-  private static isCalculate(r: OrderActionLogRow): boolean {
-    return r.actionType === 1 || (r.actionTypeName ?? '').toLowerCase() === 'calculate';
-  }
 }
