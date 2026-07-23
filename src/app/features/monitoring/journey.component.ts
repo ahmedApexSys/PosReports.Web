@@ -293,7 +293,19 @@ interface ClipView {
         </div>
         <div class="text-sm jr-muted mt-1" *ngIf="dv.pilotName">
           {{ ar() ? 'الطيّار' : 'Pilot' }}: <b class="jr-ink">{{ dv.pilotName }}</b>
-          <span *ngIf="dv.roundTripMinutes" class="jr-faint"> · {{ ar() ? 'الرحلة' : 'round trip' }} <bdi>{{ num(dv.roundTripMinutes) }}</bdi> {{ ar() ? 'دقيقة' : 'min' }}</span>
+        </div>
+
+        <!-- Derived durations, only the ones the data can actually answer. Time on the road is
+             absent by design: the pick-up stamp is never written, so it cannot be computed. -->
+        <div class="flex flex-wrap gap-2 mt-3" *ngIf="dv.kitchenMinutes != null || dv.roundTripMinutes != null">
+          <div *ngIf="dv.kitchenMinutes != null" class="jr-inset px-[11px] py-[9px] min-w-[120px]">
+            <div class="text-[11px] jr-muted">{{ ar() ? 'في المطبخ' : 'In kitchen' }}</div>
+            <div class="text-sm jr-ink mt-0.5 tabular-nums"><bdi>{{ num(dv.kitchenMinutes) }} {{ ar() ? 'دقيقة' : 'min' }}</bdi></div>
+          </div>
+          <div *ngIf="dv.roundTripMinutes != null" class="jr-inset px-[11px] py-[9px] min-w-[120px]">
+            <div class="text-[11px] jr-muted">{{ ar() ? 'الرحلة كاملة' : 'Round trip' }}</div>
+            <div class="text-sm jr-ink mt-0.5 tabular-nums"><bdi>{{ num(dv.roundTripMinutes) }} {{ ar() ? 'دقيقة' : 'min' }}</bdi></div>
+          </div>
         </div>
 
         <!-- The four stamps the courier flow writes. A missing one is stated, not hidden:

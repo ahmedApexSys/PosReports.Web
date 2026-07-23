@@ -125,6 +125,8 @@ export interface JourneyDelivery {
   pickUpTime?: string | null;
   returnTime?: string | null;
   roundTripMinutes?: number | null;
+  /** Minutes in the kitchen — placement to ready. Null when never stamped. */
+  kitchenMinutes?: number | null;
   onlineAppName?: string | null;
 }
 
