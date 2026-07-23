@@ -128,6 +128,32 @@ export interface JourneyDelivery {
   onlineAppName?: string | null;
 }
 
+/**
+ * Who carries the cost when an order is not a plain paid sale — and who moved it there.
+ * Present only when there is something to answer for; null on an ordinary untouched cash order.
+ * The two names are deliberately separate: the officer who BENEFITS is almost never the cashier
+ * who made the change, and an owner needs both.
+ */
+export interface JourneyAccountability {
+  /** The officer the order is charged to — the one who benefits. */
+  officerName?: string | null;
+  /** Why it is not a normal paid sale (Officer / Hospitality / ...). */
+  paymentStatusExplanation?: string | null;
+  /** Hospitality only: made and charged but never served. */
+  isOfficerWasted: boolean;
+  /** Who bears that waste. */
+  wastedOfficerName?: string | null;
+  /** Settled AS now (e.g. Officer), when different from before. */
+  payWayTo?: string | null;
+  /** What it was BEFORE the change (e.g. Cash). */
+  payWayFrom?: string | null;
+  /** The user who performed the change / comp. */
+  changedBy?: string | null;
+  changedAt?: string | null;
+  /** How many times the bill was printed — a repeat is worth flagging. */
+  checkoutCount: number;
+}
+
 export interface JourneyVoidedItem {
   itemName: string;
   quantity: number;
@@ -177,6 +203,8 @@ export interface OrderJourney {
   previousPaymentMethod?: string | null;
   /** True for genuinely-paid methods; false for Officer / Hospitality / PayTabs. */
   isPaidOrder: boolean;
+  /** Who carries the cost — present only when the order is a comp, a pay-way change, or a waste. */
+  accountability?: JourneyAccountability | null;
   createdAt?: string | null;
   completedAt?: string | null;
   duration?: string | null;

@@ -141,6 +141,56 @@ interface ClipView {
         </div>
       </div>
 
+      <!-- ── Who carries this ──────────────────────────────────────────
+           Only drawn when the order is not a plain paid sale. It keeps the two people apart
+           an owner needs to tell apart: the officer who benefits, and the cashier who moved
+           it there. -->
+      <div *ngIf="d.accountability as acc" class="jr-card p-4 md:p-5"
+           style="border-color:var(--warn-ring);background:var(--warn-soft)">
+        <div class="font-medium jr-ink mb-3">{{ ar() ? 'مين يتحمّلها' : 'Who carries this' }}</div>
+        <div class="flex flex-wrap gap-2">
+
+          <!-- The pay-way move: from → to, and by whom. -->
+          <div *ngIf="acc.payWayFrom" class="jr-inset flex-1 min-w-[180px] px-[11px] py-[9px]">
+            <div class="text-[11px] jr-muted">{{ ar() ? 'اتغيرت طريقة الدفع' : 'Payment method changed' }}</div>
+            <div class="text-sm jr-ink mt-0.5">
+              <bdi>{{ payAr(acc.payWayFrom) }} → {{ payAr(acc.payWayTo) }}</bdi>
+            </div>
+            <div *ngIf="acc.changedBy" class="text-[11px] jr-faint mt-1">
+              {{ ar() ? 'بواسطة' : 'by' }} <bdi class="jr-ink">{{ acc.changedBy }}</bdi>
+              <bdi *ngIf="acc.changedAt"> · {{ acc.changedAt }}</bdi>
+            </div>
+          </div>
+
+          <!-- The officer who benefits. -->
+          <div *ngIf="acc.officerName" class="jr-inset flex-1 min-w-[160px] px-[11px] py-[9px]">
+            <div class="text-[11px] jr-muted">{{ ar() ? 'على حساب الضابط' : 'On officer account' }}</div>
+            <div class="text-sm jr-ink mt-0.5"><bdi>{{ acc.officerName }}</bdi></div>
+            <div *ngIf="acc.paymentStatusExplanation" class="text-[11px] jr-faint mt-1">
+              <bdi>{{ acc.paymentStatusExplanation }}</bdi>
+            </div>
+          </div>
+
+          <!-- Booked as waste — made and charged but never served. -->
+          <div *ngIf="acc.isOfficerWasted" class="jr-inset flex-1 min-w-[160px] px-[11px] py-[9px]"
+               style="border-color:var(--bad-ring)">
+            <div class="text-[11px] jr-warn-text">{{ ar() ? 'اتسجّل كهدر' : 'Booked as waste' }}</div>
+            <div class="text-sm jr-ink mt-0.5">
+              <bdi>{{ acc.wastedOfficerName || (ar() ? 'ضابط غير مسمّى' : 'unnamed officer') }}</bdi>
+            </div>
+            <div class="text-[11px] jr-faint mt-1">{{ ar() ? 'اتعمل واتحاسب من غير ما يتقدّم' : 'made and charged, never served' }}</div>
+          </div>
+
+          <!-- The bill requested more than once. -->
+          <div *ngIf="acc.checkoutCount > 1" class="jr-inset flex-1 min-w-[140px] px-[11px] py-[9px]">
+            <div class="text-[11px] jr-muted">{{ ar() ? 'طلب الحساب' : 'Bill requested' }}</div>
+            <div class="text-sm jr-ink mt-0.5 tabular-nums">
+              <bdi>{{ acc.checkoutCount }} {{ ar() ? 'مرّات' : 'times' }}</bdi>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Money path — how the bill got from the items to the net ──
            A running total per step, so the owner reads a chain rather than a
            column of numbers they have to add up themselves. -->

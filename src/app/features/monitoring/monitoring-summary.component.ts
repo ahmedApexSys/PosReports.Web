@@ -300,16 +300,19 @@ export class MonitoringSummaryComponent {
     // not empty, and the banner says so.
     let failures = 0;
     let lastError = '';
-    const guard = <T>(msg: string) => catchError((e: { error?: { message?: string }; message?: string }) => {
+    const note = (e: { error?: { message?: string }; message?: string }, msg: string): string => {
       failures++;
       lastError = e?.error?.message || e?.message || msg;
-      return of([] as T[]);
-    });
+      return lastError;
+    };
 
     forkJoin({
-      summary: this.api.summary(b, from, to).pipe(guard<AuditSummary>('تعذّر تحميل الملخص')),
-      users: this.api.userActivity(b, from, to).pipe(guard<UserActivitySummary>('تعذّر تحميل نشاط المستخدمين')),
-      entities: this.api.entityChangeSummary(b, from, to).pipe(guard<EntityChangeSummary>('تعذّر تحميل تغييرات الكيانات')),
+      summary: this.api.summary(b, from, to).pipe(
+        catchError((e) => { note(e, 'تعذّر تحميل الملخص'); return of([] as AuditSummary[]); })),
+      users: this.api.userActivity(b, from, to).pipe(
+        catchError((e) => { note(e, 'تعذّر تحميل نشاط المستخدمين'); return of([] as UserActivitySummary[]); })),
+      entities: this.api.entityChangeSummary(b, from, to).pipe(
+        catchError((e) => { note(e, 'تعذّر تحميل تغييرات الكيانات'); return of([] as EntityChangeSummary[]); })),
     }).pipe(
       finalize(() => this.loading.set(false)),
     ).subscribe((res) => {
