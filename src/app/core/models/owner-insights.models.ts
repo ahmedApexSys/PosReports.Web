@@ -149,6 +149,10 @@ export interface RevenueLeakageSummaryDto {
   trendByDay: LeakageTrendDto[];
   topLeakingUsers: LeakingUserDto[];
   alerts: BIAlertDto[];
+  /** True when the report could not be fully computed — the zeros are "not measured", not "no leakage". */
+  partial?: boolean;
+  partialReason?: string | null;
+  partialReasonAr?: string | null;
 }
 
 export interface LeakageChannelDto {

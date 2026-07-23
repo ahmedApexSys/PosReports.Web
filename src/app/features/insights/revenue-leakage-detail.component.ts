@@ -57,8 +57,20 @@ import { LanguageService } from '../../core/i18n/language.service';
       </div>
 
       <ng-container *ngIf="data() as d; else needsContext">
-        <!-- Insight banner -->
-        <div class="card-padded"
+        <!-- The report could not be fully computed (window too wide, or the query threw). Its zeros
+             are "not measured", not "no leakage" — a neutral note, never the green all-clear. -->
+        <div *ngIf="d.partial" class="card-padded ring-1 ring-slate-200 dark:ring-slate-700 bg-slate-50 dark:bg-slate-800/40">
+          <h3 class="text-sm font-semibold mb-1 text-slate-700 dark:text-slate-200">
+            {{ lang.language() === 'ar' ? 'تعذّر حساب التقرير' : 'Report could not be computed' }}
+          </h3>
+          <p class="text-sm text-slate-600 dark:text-slate-300">
+            {{ (lang.language() === 'ar' ? d.partialReasonAr : d.partialReason)
+               || (lang.language() === 'ar' ? 'جرّب فترة أضيق.' : 'Try a narrower window.') }}
+          </p>
+        </div>
+
+        <!-- Insight banner — hidden when partial so a failed report never shows a green 0%. -->
+        <div *ngIf="!d.partial" class="card-padded"
              [class]="d.leakagePercent < 3
                        ? 'ring-1 ring-success/30 bg-success-soft'
                        : d.leakagePercent < 8
