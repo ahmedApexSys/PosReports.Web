@@ -30,7 +30,7 @@ import { KpiCardComponent } from '../kpi-card/kpi-card.component';
 import { InsightCardComponent } from '../insight-card/insight-card.component';
 import { ChartCardComponent } from '../chart-card/chart-card.component';
 import { ConclusionBannerComponent } from '../conclusion-banner/conclusion-banner.component';
-import { BiPanel, BiReportRequest, BiText, CategorySlice } from '../../core/models/bi.models';
+import { BiPanel, BiReportRequest, BiText, CategorySlice, HeatmapChart } from '../../core/models/bi.models';
 import { dataValueLabel } from '../../core/i18n/monitoring-labels';
 
 /**
@@ -210,6 +210,32 @@ interface TimeSeriesChartOptions {
             </app-chart-card>
           </section>
 
+          <!-- Heatmaps: day × hour grid. Built server-side (Peak Hours) but never rendered until
+               now, so that page showed only insights and a conclusion with no chart at all. -->
+          <section *ngIf="p.heatmaps.length" class="space-y-4 md:space-y-6">
+            <app-chart-card *ngFor="let hm of p.heatmaps" [title]="hm.title">
+              <div class="overflow-x-auto">
+                <table class="border-separate" style="border-spacing:3px">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th *ngFor="let x of hm.xKeys" class="text-[10px] text-slate-400 font-normal px-0.5">{{ x }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let y of hm.yKeys">
+                      <td class="text-[11px] text-slate-500 pe-2 whitespace-nowrap">{{ y }}</td>
+                      <td *ngFor="let x of hm.xKeys"
+                          class="w-5 h-5 md:w-6 md:h-6 rounded"
+                          [style.background-color]="heatColor(cellValue(hm, x, y), hm.max)"
+                          [title]="x + ' · ' + y + ' — ' + cellValue(hm, x, y)"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </app-chart-card>
+          </section>
+
           <!-- Insights -->
           <section *ngIf="p.insights.length" class="space-y-3">
             <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -226,7 +252,7 @@ interface TimeSeriesChartOptions {
 
           <!-- Empty body fallback — endpoint returned a panel but nothing to render -->
           <div *ngIf="!p.kpis.length && !p.categories.length && !p.timeSeries.length
-                       && !p.paretos.length && !p.insights.length"
+                       && !p.paretos.length && !p.insights.length && !p.heatmaps.length"
                class="card-padded text-center py-10">
             <p class="text-sm text-slate-500 dark:text-slate-400">
               {{ lang.language() === 'ar'
@@ -386,6 +412,19 @@ export class BiPanelPageComponent implements OnInit {
   barWidth(v: number, max: number): number {
     if (!max) return 0;
     return Math.max(2, Math.min(100, (v / max) * 100));
+  }
+
+  /** The value in a heatmap cell (x,y), or 0 when that slot had no orders. */
+  cellValue(hm: HeatmapChart, x: string, y: string): number {
+    return hm.cells.find(c => c.xKey === x && c.yKey === y)?.value ?? 0;
+  }
+
+  /** Cell shade — the brand hue, opacity scaled by intensity. Empty cells stay a faint tint. */
+  heatColor(value: number, max: number): string {
+    const t = max > 0 ? Math.min(1, value / max) : 0;
+    // A floor so a zero cell is visible as an empty slot, not a hole in the grid.
+    const alpha = value > 0 ? 0.12 + 0.8 * t : 0.04;
+    return `rgba(79, 70, 229, ${alpha.toFixed(3)})`;
   }
 
   paletteFor(i: number): string {
