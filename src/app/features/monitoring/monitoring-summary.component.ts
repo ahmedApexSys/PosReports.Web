@@ -292,16 +292,32 @@ export class MonitoringSummaryComponent {
     const to = this.filter.toDate();
     this.loading.set(true);
     this.error.set('');
+
+    // Each sub-report degrades on its own so one failure does not blank the other two — but a
+    // failure has to be VISIBLE. Previously all three swallowed their error into an empty array
+    // and nothing wrote the error signal, so a 500 rendered a page of zero-count tiles that read
+    // exactly like a quiet branch. Track which failed; if EVERY call failed the window is broken,
+    // not empty, and the banner says so.
+    let failures = 0;
+    let lastError = '';
+    const guard = <T>(msg: string) => catchError((e: { error?: { message?: string }; message?: string }) => {
+      failures++;
+      lastError = e?.error?.message || e?.message || msg;
+      return of([] as T[]);
+    });
+
     forkJoin({
-      summary: this.api.summary(b, from, to).pipe(catchError(() => of([] as AuditSummary[]))),
-      users: this.api.userActivity(b, from, to).pipe(catchError(() => of([] as UserActivitySummary[]))),
-      entities: this.api.entityChangeSummary(b, from, to).pipe(catchError(() => of([] as EntityChangeSummary[]))),
+      summary: this.api.summary(b, from, to).pipe(guard<AuditSummary>('تعذّر تحميل الملخص')),
+      users: this.api.userActivity(b, from, to).pipe(guard<UserActivitySummary>('تعذّر تحميل نشاط المستخدمين')),
+      entities: this.api.entityChangeSummary(b, from, to).pipe(guard<EntityChangeSummary>('تعذّر تحميل تغييرات الكيانات')),
     }).pipe(
       finalize(() => this.loading.set(false)),
     ).subscribe((res) => {
       this.summary.set(res.summary);
       this.users.set(res.users);
       this.entities.set(res.entities);
+      // All three down = the endpoint is unreachable, not a slow day. Say so rather than show zeros.
+      if (failures >= 3) { this.error.set(lastError || 'تعذّر تحميل ملخص النشاط.'); }
     });
   }
 

@@ -121,6 +121,8 @@ export interface AuditReportPagedResult<T> {
   hasPreviousPage: boolean;
   conclusion: BilingualText;
   buckets: AuditReportBucket[];
+  /** True when the client-side page walk hit its safety cap, so these figures are a partial view. */
+  truncated?: boolean;
 }
 
 export interface AuditTotalsSummary {

@@ -78,6 +78,10 @@ export class AuditApi {
           hasPreviousPage: false,
           conclusion: acc.conclusion ?? { description: '', descriptionEn: '', descriptionAr: '' },
           buckets: [],
+          // Carry the cap flag through. It was computed in the reduce above and then dropped here,
+          // so the "totals may be partial" warning on the page could never fire — a capped total
+          // read as the authoritative one.
+          truncated: acc.truncated,
         } as AuditReportPagedResult<OrderSummaryRow>;
       }),
     );
@@ -99,6 +103,7 @@ export class AuditApi {
           cancelledOrders: orders.filter(o => o.wasCancelled).length,
         },
         conclusion: paged.conclusion,
+        truncated: paged.truncated,
       } as OrderTotalsByDayResult;
     }));
   }

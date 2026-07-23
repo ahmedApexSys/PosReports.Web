@@ -64,7 +64,10 @@ export class SalesPeriodComponent {
       { key: 'net',                     labelEn: 'Net',             labelAr: 'صافي',           type: 'money', totalKey: 'net', width: 12 },
       { key: 'cash',                    labelEn: 'Cash',            labelAr: 'كاش',            type: 'money', totalKey: 'cash', width: 11 },
       { key: 'visa',                    labelEn: 'Visa',            labelAr: 'فيزا',           type: 'money', totalKey: 'visa', width: 11 },
-      { key: 'cL',                      labelEn: 'Ledge',           labelAr: 'آجل',            type: 'money', totalKey: 'cL', width: 11 },
+      // The server DTO property is CL, which the camelCase resolver puts on the wire as "cl" — the
+      // same key the payload actually carries (verified: no [JsonProperty] override). This column
+      // read "cL", which matches nothing, so آجل and its footer total were blank on every order.
+      { key: 'cl',                      labelEn: 'Ledge',           labelAr: 'آجل',            type: 'money', totalKey: 'cl', width: 11 },
       { key: 'otherPayment',            labelEn: 'Other Pay',       labelAr: 'دفع آخر',        type: 'money', totalKey: 'otherPayment', width: 11 },
       { key: 'paymentStatus',           labelEn: 'Pay Way',         labelAr: 'طريقة الدفع',    type: 'text',  width: 11 },
       { key: 'promoCode',               labelEn: 'Promo Code',      labelAr: 'كود البرومو',    type: 'text',  defaultHidden: true, width: 11 },
