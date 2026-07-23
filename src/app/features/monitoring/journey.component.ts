@@ -150,12 +150,11 @@ interface ClipView {
         <div class="font-medium jr-ink mb-3">{{ ar() ? 'مين يتحمّلها' : 'Who carries this' }}</div>
         <div class="flex flex-wrap gap-2">
 
-          <!-- The pay-way move: from → to, and by whom. -->
-          <div *ngIf="acc.payWayFrom" class="jr-inset flex-1 min-w-[180px] px-[11px] py-[9px]">
-            <div class="text-[11px] jr-muted">{{ ar() ? 'اتغيرت طريقة الدفع' : 'Payment method changed' }}</div>
-            <div class="text-sm jr-ink mt-0.5">
-              <bdi>{{ payAr(acc.payWayFrom) }} → {{ payAr(acc.payWayTo) }}</bdi>
-            </div>
+          <!-- The pay-way move — to, and by whom. The FROM method is not stored reliably, so it is
+               never shown: "changed to Officer", not a fabricated "Cash → Officer". -->
+          <div *ngIf="acc.payWayTo" class="jr-inset flex-1 min-w-[180px] px-[11px] py-[9px]">
+            <div class="text-[11px] jr-muted">{{ ar() ? 'اتغيرت طريقة الدفع لـ' : 'Payment changed to' }}</div>
+            <div class="text-sm jr-ink mt-0.5"><bdi>{{ payAr(acc.payWayTo) }}</bdi></div>
             <div *ngIf="acc.changedBy" class="text-[11px] jr-faint mt-1">
               {{ ar() ? 'بواسطة' : 'by' }} <bdi class="jr-ink">{{ acc.changedBy }}</bdi>
               <bdi *ngIf="acc.changedAt"> · {{ acc.changedAt }}</bdi>
