@@ -60,7 +60,10 @@ import { TakeAwayDay, TakeAwayOrderRow } from '../../core/models/day-journeys.mo
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
             <div class="text-2xl font-bold">{{ d.avgWaitMinutes != null ? (d.avgWaitMinutes | number:'1.0-0') : '—' }}</div>
-            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'متوسط الانتظار (د)' : 'avg wait min' }}</div>
+            <div class="text-xs text-slate-500">
+              {{ lang.language() === 'ar' ? 'متوسط الانتظار (د)' : 'avg wait min' }}
+              <span *ngIf="d.waitSampleSize" class="text-slate-400">· {{ lang.language() === 'ar' ? 'من' : 'of' }} {{ d.waitSampleSize }}</span>
+            </div>
           </div>
         </div>
 

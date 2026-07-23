@@ -94,9 +94,15 @@ export interface DeliveryDay {
   orderCount: number;
   delivered: number;
   notReturned: number;
+  /** Orders from an aggregator (no action log) — the volume the milestone counts/averages can't see. */
+  aggregatorCount: number;
   totalNet: number;
   avgKitchenMinutes?: number | null;
+  /** How many orders the kitchen average was measured over. */
+  kitchenSampleSize: number;
   avgDispatchToDoorMinutes?: number | null;
+  /** How many orders the to-door average was measured over. */
+  dispatchToDoorSampleSize: number;
   emptyReasonAr?: string | null;
   emptyReasonEn?: string | null;
 }
@@ -131,6 +137,8 @@ export interface TakeAwayDay {
   uncollected: number;
   totalNet: number;
   avgWaitMinutes?: number | null;
+  /** How many orders the wait average was measured over — only collected orders have both stamps. */
+  waitSampleSize: number;
   emptyReasonAr?: string | null;
   emptyReasonEn?: string | null;
 }

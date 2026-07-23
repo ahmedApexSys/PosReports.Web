@@ -60,12 +60,24 @@ import { DeliveryDay, DeliveryOrderRow } from '../../core/models/day-journeys.mo
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
             <div class="text-2xl font-bold">{{ d.avgKitchenMinutes != null ? (d.avgKitchenMinutes | number:'1.0-0') : '—' }}</div>
-            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'متوسط المطبخ (د)' : 'avg kitchen min' }}</div>
+            <div class="text-xs text-slate-500">
+              {{ lang.language() === 'ar' ? 'متوسط المطبخ (د)' : 'avg kitchen min' }}
+              <span *ngIf="d.kitchenSampleSize" class="text-slate-400">· {{ lang.language() === 'ar' ? 'من' : 'of' }} {{ d.kitchenSampleSize }}</span>
+            </div>
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
             <div class="text-2xl font-bold">{{ d.avgDispatchToDoorMinutes != null ? (d.avgDispatchToDoorMinutes | number:'1.0-0') : '—' }}</div>
-            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'متوسط للباب (د)' : 'avg to-door min' }}</div>
+            <div class="text-xs text-slate-500">
+              {{ lang.language() === 'ar' ? 'متوسط للباب (د)' : 'avg to-door min' }}
+              <span *ngIf="d.dispatchToDoorSampleSize" class="text-slate-400">· {{ lang.language() === 'ar' ? 'من' : 'of' }} {{ d.dispatchToDoorSampleSize }}</span>
+            </div>
           </div>
+        </div>
+
+        <div *ngIf="d.aggregatorCount" class="text-xs text-slate-500 dark:text-slate-400 -mt-1">
+          {{ lang.language() === 'ar'
+              ? 'منهم ' + d.aggregatorCount + ' أوردر من تطبيق خارجي — بيوصلوا بدون سجل محطات، فمش داخلين في المتوسطات.'
+              : d.aggregatorCount + ' order(s) came from an aggregator — they arrive with no milestone log, so they are excluded from the averages.' }}
         </div>
 
         <div *ngIf="d.emptyReasonEn" class="rounded-xl bg-slate-50 dark:bg-slate-900/40 px-4 py-8 text-center text-sm text-slate-500">
