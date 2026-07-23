@@ -309,7 +309,10 @@ export class RevenueLeakageDetailComponent {
       language: this.lang.language(),
     }).subscribe({
       next: (res) => { this.data.set(res); this.loading.set(false); },
-      error: (e)  => { this.error.set(e?.message || 'Failed to load'); this.loading.set(false); },
+      // Clear the data on failure. Otherwise a previous window's panel — often a green
+      // "Low leakage 0%" — stayed on screen beside the error banner, reading as reassurance
+      // when the real answer is "we could not measure it".
+      error: (e)  => { this.error.set(e?.message || 'Failed to load'); this.data.set(null); this.loading.set(false); },
     });
   }
 }
