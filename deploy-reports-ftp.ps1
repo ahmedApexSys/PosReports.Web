@@ -13,9 +13,17 @@
 
 $ErrorActionPreference = 'Stop'
 
-$localRoot = Join-Path $PSScriptRoot 'dist\pos-reports-web'
-if (-not (Test-Path $localRoot)) {
-    Write-Host "dist not found. Build first:  npm run build" -ForegroundColor Yellow
+# Angular now emits the site into dist\pos-reports-web\browser and leaves build metadata
+# (3rdpartylicenses.txt, prerendered-routes.json) in the parent. Uploading the parent would put
+# index.html at /wwwroot/browser/index.html — a site with no home page — and litter the root with
+# files that are not part of it. Take the browser folder when it exists, and keep working with the
+# older flat layout if it does not.
+$distRoot  = Join-Path $PSScriptRoot 'dist\pos-reports-web'
+$localRoot = Join-Path $distRoot 'browser'
+if (-not (Test-Path $localRoot)) { $localRoot = $distRoot }
+
+if (-not (Test-Path (Join-Path $localRoot 'index.html'))) {
+    Write-Host "No index.html in $localRoot — build first:  npm run build" -ForegroundColor Yellow
     exit 1
 }
 
@@ -62,7 +70,18 @@ function Upload-File($localPath, $remoteUrl) {
     }
 }
 
-$files = Get-ChildItem $localRoot -Recurse -File
+$files = @(Get-ChildItem $localRoot -Recurse -File)
+
+# web.config lives at the repo root (Angular does not copy it), yet it is what makes deep links
+# work: without it IIS answers a refresh on /takeaway-day with a 404, because it looks for a folder
+# of that name. Ship it alongside the build rather than relying on a copy left by an older deploy.
+$webConfig = Join-Path $PSScriptRoot 'web.config'
+if ((Test-Path $webConfig) -and -not (Test-Path (Join-Path $localRoot 'web.config'))) {
+    Copy-Item $webConfig (Join-Path $localRoot 'web.config') -Force
+    $files = @(Get-ChildItem $localRoot -Recurse -File)
+    Write-Host "web.config added to the upload set (SPA deep links)." -ForegroundColor DarkCyan
+}
+
 $total = $files.Count; $done = 0; $fail = 0
 Write-Host ""
 Write-Host "Uploading $total files to  $ftpHost$remoteBase  ..." -ForegroundColor Cyan
