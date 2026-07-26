@@ -187,11 +187,15 @@ interface AppliedFilter { label: string; value: string; }
                     [class.cursor-pointer]="canDrill(r)"
                     class="hover:bg-slate-50 dark:hover:bg-surface-dark-muted/50"
                     [class.row-group]="hasMerge() && isMergeStart(ri)"
-                    [class.tree-parent]="isTree() && lvl(r) === 0"
-                    [class.tree-child]="isTree() && lvl(r) === 1">
+                    [class.tree-parent]="isTree() && isBranch(r)"
+                    [class.tree-child]="isTree() && !isBranch(r) && lvl(r) > 0">
+                  <!-- Chevron sits at the row's own depth, so a sub-category reads as nested
+                       under its category rather than level with it. -->
                   <td *ngIf="isTree()" class="px-2 py-2 text-center align-middle">
-                    <lucide-icon *ngIf="lvl(r) === 0" [img]="isExpanded(r) ? ChevronIcon : ChevronRightIcon"
-                                 class="h-4 w-4 inline-block text-slate-400"></lucide-icon>
+                    <span [style.padding-inline-start.rem]="lvl(r) * 0.75" class="inline-block">
+                      <lucide-icon *ngIf="isBranch(r)" [img]="isExpanded(r) ? ChevronIcon : ChevronRightIcon"
+                                   class="h-4 w-4 inline-block text-slate-400"></lucide-icon>
+                    </span>
                   </td>
                   <ng-container *ngFor="let c of visibleColumns()">
                     <td *ngIf="c.key !== mergeColKey() || isMergeStart(ri)" class="px-3 py-2"
@@ -199,7 +203,8 @@ interface AppliedFilter { label: string; value: string; }
                         [class.text-end]="isNumeric(c)" [class.text-start]="!isNumeric(c)"
                         [class.tabular]="isNumeric(c)"
                         [class.font-medium]="c.key === firstCol()"
-                        [class.merge-cell]="c.key === mergeColKey()">
+                        [class.merge-cell]="c.key === mergeColKey()"
+                        [style.padding-inline-start.rem]="c.key === firstCol() && isTree() ? 0.75 + lvl(r) * 0.9 : null">
                       <bdi>{{ fmt(r[c.key], c) }}</bdi>
                     </td>
                   </ng-container>
@@ -321,21 +326,39 @@ export class TabularReportPageComponent implements OnInit {
   readonly totals = computed(() => this.result().totals);
   readonly ar = computed(() => this.lang.language() === 'ar');
 
-  // ── Expandable per-day tree (Daily Discounts / Vouchers / Promo). The transform
-  //    emits day-summary rows (__level 0) + detail rows (__level 1, __parent=dayKey).
-  //    Days start collapsed; clicking a day row (or "Expand all") reveals its details. ──
+  // ── Expandable tree of ANY depth. A transform emits rows in document order, each with
+  //    __level (0 = root), __key (when it can be expanded) and __parent (the parent's __key).
+  //    Two-level reports (Daily Discounts / Vouchers / Promo, the per-order detail trees) are the
+  //    depth-1 case of exactly this; Sold Items adds category → sub-category → item at depth 2. ──
   readonly expanded = signal<Set<string>>(new Set());
   readonly isTree = computed(() => !!this.def.expandable && this.rows().some((r) => (r as Row)['__level'] != null));
-  /** Rows actually shown: all day rows + the detail rows of expanded days. */
+  /**
+   * Rows actually shown: roots always, and any deeper row whose WHOLE ancestor chain is open.
+   * One forward pass is enough because a transform always emits a parent before its children —
+   * a node is reachable only if its parent was itself reached and expanded, so collapsing a
+   * category correctly hides its sub-categories AND their items, not just one level.
+   */
   readonly displayRows = computed<Row[]>(() => {
     const all = this.rows() as Row[];
     if (!this.isTree()) return all;
     const exp = this.expanded();
-    return all.filter((r) => Number(r['__level']) === 0 || exp.has(String(r['__parent'])));
+    const openKeys = new Set<string>();
+    const out: Row[] = [];
+    for (const r of all) {
+      const shown = Number(r['__level']) === 0 || openKeys.has(String(r['__parent']));
+      if (!shown) continue;
+      out.push(r);
+      const key = r['__key'];
+      if (key != null && exp.has(String(key))) openKeys.add(String(key));
+    }
+    return out;
   });
+  /** Every expandable node, at any depth — what "Expand all" acts on. */
+  private readonly expandableKeys = computed<string[]>(() =>
+    (this.rows() as Row[]).filter((r) => r['__key'] != null && this.isBranch(r)).map((r) => String(r['__key'])));
   readonly allExpanded = computed(() => {
-    const parents = (this.rows() as Row[]).filter((r) => Number(r['__level']) === 0);
-    return parents.length > 0 && parents.every((r) => this.expanded().has(String(r['__key'])));
+    const keys = this.expandableKeys();
+    return keys.length > 0 && keys.every((k) => this.expanded().has(k));
   });
 
   // ── Client-side pagination (zero backend impact — the report already
@@ -487,18 +510,18 @@ export class TabularReportPageComponent implements OnInit {
 
   // ── expandable tree helpers ──────────────────────────────────────────
   lvl(r: Row): number { return Number(r['__level']) || 0; }
+  /** A row that has children to reveal — at ANY depth, so a sub-category opens just like a category.
+   *  Rows carrying a __key are branches unless a transform explicitly marks them as leaves. */
+  isBranch(r: Row): boolean { return r['__key'] != null && r['__expandable'] !== false; }
   isExpanded(r: Row): boolean { return this.expanded().has(String(r['__key'])); }
   toggleRow(r: Row): void {
-    if (!this.isTree() || this.lvl(r) !== 0) return;
+    if (!this.isTree() || !this.isBranch(r)) return;
     const key = String(r['__key']);
     const next = new Set(this.expanded());
     if (next.has(key)) next.delete(key); else next.add(key);
     this.expanded.set(next);
   }
-  expandAll(): void {
-    this.expanded.set(new Set((this.rows() as Row[])
-      .filter((r) => Number(r['__level']) === 0).map((r) => String(r['__key']))));
-  }
+  expandAll(): void { this.expanded.set(new Set(this.expandableKeys())); }
   collapseAll(): void { this.expanded.set(new Set()); }
 
   // ── row drill-down — per-order reports open that order's detail page ──
@@ -518,7 +541,8 @@ export class TabularReportPageComponent implements OnInit {
    * anything else drills through when the report opted in.
    */
   onRowClick(r: Row): void {
-    if (this.isTree() && this.lvl(r) === 0) { this.toggleRow(r); return; }
+    // A branch row toggles at any depth; only leaves fall through to the drill-down.
+    if (this.isTree() && this.isBranch(r)) { this.toggleRow(r); return; }
     const d = this.def.drilldown;
     if (!d || !this.canDrill(r)) return;
     void this.router.navigate([d.route], { queryParams: { [d.param]: r[d.rowKey] } });
@@ -574,6 +598,9 @@ export class TabularReportPageComponent implements OnInit {
     this.api.run(this.def.endpoint, body, {
       rowsKey: this.def.rowsKey, totalsKey: this.def.totalsKey, transform: this.def.transform,
       branchNames, branchId: this.filter.branchId(), mergeByDate: this.def.mergeByDate,
+      // Lets a transform name the rows it invents (tree branches, "uncategorised") in the reader's
+      // language rather than baking English into the data.
+      ar: this.ar(),
     }).pipe(
       catchError((err) => {
         this.error.set(err?.error?.message || err?.message || 'Failed to load report.');

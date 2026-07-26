@@ -120,9 +120,14 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     endpoint: "DailySoldItemsReports/DailySoldItemsReport",
     rowsKey: "items", totalsKey: "totals",
     defaultOrdersFilter: "Paid",
+    // Category → Sub-category → Item. Branches carry the totals beneath them, so collapsed the
+    // report reads as a category summary and opens down to the individual items.
+    transform: "categoryItemsTree", expandable: true,
     filters: ["payment", "transaction", "shift"],
     columns: [
       { key: "itemId", labelEn: "Item ID", labelAr: "رقم الصنف", type: "int", defaultHidden: true },
+      { key: "categoryName", labelEn: "Category", labelAr: "التصنيف", type: "text" },
+      { key: "subCategoryName", labelEn: "Sub-category", labelAr: "التصنيف الفرعي", type: "text" },
       { key: "itemName", labelEn: "Item", labelAr: "الصنف", type: "text" },
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number", totalKey: "quantity" },
       { key: "unitPrice", labelEn: "Unit Price", labelAr: "سعر الوحدة", type: "money", totalKey: "unitPrice" },
@@ -157,6 +162,8 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "waiterId", labelEn: "Waiter ID", labelAr: "رقم الويتر", type: "text", defaultHidden: true },
       { key: "waiterName", labelEn: "Waiter", labelAr: "الويتر", type: "text" },
       { key: "itemId", labelEn: "Item ID", labelAr: "رقم الصنف", type: "int", defaultHidden: true },
+      { key: "categoryName", labelEn: "Category", labelAr: "التصنيف", type: "text" },
+      { key: "subCategoryName", labelEn: "Sub-category", labelAr: "التصنيف الفرعي", type: "text" },
       { key: "itemName", labelEn: "Item", labelAr: "الصنف", type: "text" },
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number", totalKey: "quantity" },
       { key: "unitPrice", labelEn: "Unit Price", labelAr: "سعر الوحدة", type: "money", totalKey: "unitPrice" },
@@ -183,8 +190,12 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     endpoint: "ItemsSalesDetails/ItemAndModifierSalesDetails",
     rowsKey: "subCategories", totalsKey: null,
     defaultOrdersFilter: "Paid",
+    // Rows here are already sub-category level, so the parent category is a merged cell over its
+    // sub-categories rather than a third tree level.
+    mergeColumn: "categoryName",
     filters: ["payment", "transaction", "shift"],
     columns: [
+      { key: "categoryName", labelEn: "Category", labelAr: "التصنيف", type: "text" },
       { key: "subCategoryId", labelEn: "Sub-Category ID", labelAr: "رقم القسم الفرعي", type: "int", defaultHidden: true },
       { key: "subCategoryName", labelEn: "Sub-Category", labelAr: "القسم الفرعي", type: "text" },
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number" },
@@ -212,9 +223,12 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     rowsKey: "", totalsKey: null,
     requestExtra: { with: true, topCount: 0, sortByQuantity: false },
     defaultOrdersFilter: "Paid",
+    transform: "categoryItemsTree", expandable: true,
     filters: ["payment", "transaction", "shift"],
     columns: [
       { key: "itemId", labelEn: "Item ID", labelAr: "معرّف الصنف", type: "int", defaultHidden: true },
+      { key: "categoryName", labelEn: "Category", labelAr: "التصنيف", type: "text" },
+      { key: "subCategoryName", labelEn: "Sub-category", labelAr: "التصنيف الفرعي", type: "text" },
       { key: "itemName", labelEn: "Item", labelAr: "الصنف", type: "text" },
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number" },
       { key: "totalSales", labelEn: "Total Sales", labelAr: "إجمالي المبيعات", type: "money" },
@@ -227,9 +241,12 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     rowsKey: "", totalsKey: null,
     requestExtra: { with: true, topCount: 0, sortByQuantity: false },
     defaultOrdersFilter: "Paid",
+    transform: "categoryItemsTree", expandable: true,
     filters: ["payment", "transaction", "shift"],
     columns: [
       { key: "itemId", labelEn: "Item ID", labelAr: "معرّف الصنف", type: "int", defaultHidden: true },
+      { key: "categoryName", labelEn: "Category", labelAr: "التصنيف", type: "text" },
+      { key: "subCategoryName", labelEn: "Sub-category", labelAr: "التصنيف الفرعي", type: "text" },
       { key: "itemName", labelEn: "Item", labelAr: "الصنف", type: "text" },
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number" },
       { key: "totalSales", labelEn: "Total Sales", labelAr: "إجمالي المبيعات", type: "money" },

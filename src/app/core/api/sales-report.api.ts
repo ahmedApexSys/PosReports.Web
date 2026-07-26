@@ -24,7 +24,13 @@ const canonDate = (v: unknown): string => {
 };
 
 /** Optional context handed to transforms (e.g. the branch id / names to keep). */
-interface TransformCtx { branchNames?: string[]; branchId?: number | null; }
+interface TransformCtx {
+  branchNames?: string[];
+  branchId?: number | null;
+  /** Arabic display — lets a transform label the rows it invents (tree branches, buckets) in the
+   *  reader's language instead of hard-coding English into the data. */
+  ar?: boolean;
+}
 
 /** Numeric fields summed when aggregating Sales-Period rows into group totals. */
 const SALES_SUM_FIELDS = [
@@ -196,6 +202,82 @@ function soldItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
  * Sales-Period per-order rows into per-transaction / per-payment summaries;
  * the *Tree variants explode nested category/item hierarchies into indented rows.
  */
+/** Money/quantity fields rolled up at the category and sub-category levels of the item tree.
+ *  Only fields a row actually carries are summed, so a report without (say) tax simply has none. */
+const ITEM_ROLLUP_FIELDS = [
+  'quantity', 'totalQuantity', 'totalSales', 'total', 'unitPrice',
+  'commercialItemDiscount', 'itemDiscount', 'itemTax', 'totalAmount', 'netAmount',
+];
+
+/** Sum the roll-up fields of `src` into `dst` (creating keys as needed). unitPrice is deliberately
+ *  excluded from the addition: a per-unit price has no meaning summed across different items. */
+const addRollup = (dst: Obj, src: Obj): void => {
+  for (const f of ITEM_ROLLUP_FIELDS) {
+    if (f === 'unitPrice') continue;
+    const v = Number(src[f]);
+    if (!Number.isFinite(v) || src[f] == null) continue;
+    dst[f] = (Number(dst[f]) || 0) + v;
+  }
+};
+
+/**
+ * Category → SubCategory → Item, from flat item rows that each carry categoryName / subCategoryName.
+ * Branch rows show the totals of everything beneath them, so a collapsed report reads as a category
+ * summary and opens down to the individual items.
+ *
+ * Rows whose item no longer resolves to a category (deleted from the menu since it was sold) are
+ * gathered under one explicitly-labelled bucket — losing them, or silently filing them under a real
+ * category, would both misreport the day.
+ */
+function categoryItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
+  const ar = ctx?.ar === true;
+  // Item reports differ in wrapper: most nest the rows under `items`, the rankings return a bare
+  // array as the payload itself. Accept both rather than silently rendering nothing for the latter.
+  const rows = Array.isArray(d) ? (d as Obj[]) : asArr(pick(d, 'items', 'Items'));
+  const unknownCat = ar ? 'بدون تصنيف' : 'Uncategorised';
+
+  // Preserve first-appearance order at every level rather than re-ranking the server's ordering.
+  const cats = new Map<string, { label: string; sums: Obj; subs: Map<string, { label: string; sums: Obj; items: Obj[] }> }>();
+
+  for (const r of rows) {
+    const catId = pick(r, 'categoryId', 'CategoryId');
+    const catName = (ar ? pick(r, 'categoryNameAr', 'CategoryNameAr') : null)
+      ?? pick(r, 'categoryName', 'CategoryName');
+    const subId = pick(r, 'subCategoryId', 'SubCategoryId');
+    const subName = (ar ? pick(r, 'subCategoryNameAr', 'SubCategoryNameAr') : null)
+      ?? pick(r, 'subCategoryName', 'SubCategoryName');
+
+    const ck = catId != null ? 'c' + String(catId) : 'c?';
+    const sk = ck + (subId != null ? '|s' + String(subId) : '|s?');
+
+    let cat = cats.get(ck);
+    if (!cat) { cat = { label: String(catName ?? unknownCat), sums: {}, subs: new Map() }; cats.set(ck, cat); }
+    let sub = cat.subs.get(sk);
+    if (!sub) { sub = { label: String(subName ?? unknownCat), sums: {}, items: [] }; cat.subs.set(sk, sub); }
+
+    addRollup(cat.sums, r);
+    addRollup(sub.sums, r);
+    sub.items.push(r);
+  }
+
+  const out: Obj[] = [];
+  for (const [ck, cat] of cats) {
+    out.push({ __level: 0, __key: ck, __expandable: true, categoryName: cat.label, ...cat.sums });
+    for (const [sk, sub] of cat.subs) {
+      out.push({
+        __level: 1, __key: sk, __parent: ck, __expandable: true,
+        categoryName: '', subCategoryName: sub.label, ...sub.sums,
+      });
+      for (const it of sub.items) {
+        out.push({ __level: 2, __parent: sk, ...it, categoryName: '', subCategoryName: '' });
+      }
+    }
+  }
+
+  const totals = pick(d, 'totals', 'Totals');
+  return { rows: out, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+}
+
 /** One per-order detail child row (level-1) for the *OrdersTree transforms: the order's
  *  receipt/number, table, who applied it and when, plus __orderId so a click drills into
  *  that order's journey. Callers add the money column + any parent labels via `extra`. */
@@ -489,6 +571,12 @@ const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResu
     const totals = pick(d, 'grandTotals', 'GrandTotals');
     return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
   },
+  // Sold items, any of the item reports: Category → SubCategory → Item, each branch summing the
+  // items beneath it. Category comes off the item record, so a re-categorised item moves its whole
+  // history — the honest caveat of reading today's menu rather than a sale-time snapshot.
+  // Rows with no category (the item was deleted since) gather under one stated bucket rather than
+  // vanishing or pretending to belong somewhere.
+  categoryItemsTree: (d, ctx) => categoryItemsTree(d, ctx),
   // Sold-items-by-waiter: keep every row, but bring each waiter's rows together so the shared
   // waiter cell can merge into one (mergeColumn) instead of repeating the same name down the page.
   // The grouping is STABLE — waiters appear in the order they first occur and each waiter's items
@@ -553,9 +641,12 @@ export class SalesReportApi {
                 | 'totalPosTree' | 'soldItemsTree' | 'discountDaily'
                 | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree'
                 | 'discountDayOrdersTree' | 'promoOrdersTree' | 'promoDayOrdersTree'
-                | 'voucherOrdersTree' | 'voucherDayOrdersTree' | 'groupRowsByWaiter';
+                | 'voucherOrdersTree' | 'voucherDayOrdersTree' | 'groupRowsByWaiter'
+                | 'categoryItemsTree';
       branchNames?: string[];
       branchId?: number | null;
+      /** Arabic display — see TransformCtx.ar. */
+      ar?: boolean;
       /** Fetch a second per-date endpoint and merge one numeric value onto each row by date. */
       mergeByDate?: {
         endpoint: string; rowsKey: string;
@@ -579,7 +670,7 @@ export class SalesReportApi {
         const d = ((data != null && typeof data === 'object' ? data : res) ?? {}) as Record<string, unknown>;
         const at = (obj: Record<string, unknown>, key: string) => obj[key] ?? obj[cap(key)];
 
-        const ctx: TransformCtx = { branchNames: opts?.branchNames, branchId: opts?.branchId };
+        const ctx: TransformCtx = { branchNames: opts?.branchNames, branchId: opts?.branchId, ar: opts?.ar };
 
         // Nested responses (promo / vouchers group days[] → codes[]) or
         // aggregations (groupBy*) that the flat rowsKey/totalsKey can't express
