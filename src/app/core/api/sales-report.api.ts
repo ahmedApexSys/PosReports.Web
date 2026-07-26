@@ -171,8 +171,11 @@ function soldItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
   const rows: Obj[] = [];
   const qty = (o: Obj) => Number(pick(o, 'totalQuantity', 'TotalQuantity', 'quantity', 'Quantity', 'qty', 'Qty')) || 0;
   const sales = (o: Obj) => Number(pick(o, 'totalSales', 'TotalSales', 'total', 'Total')) || 0;
+  // __depth drives the tier styling in the shared table so a category header (0) reads distinctly
+  // from its sub-categories (1) / items (2) / variants (3) — otherwise the flat, indented list runs
+  // together and a bucket like "Other" is hard to pick out by eye.
   const push = (depth: number, name: unknown, o: Obj) =>
-    rows.push({ categoryName: indent(depth, name), totalQuantity: qty(o), totalSales: sales(o) });
+    rows.push({ categoryName: indent(depth, name), totalQuantity: qty(o), totalSales: sales(o), __depth: depth });
   for (const c of cats) {
     push(0, pick(c, 'categoryName', 'CategoryName'), c);
     for (const sc of asArr(pick(c, 'subCategories', 'SubCategories'))) {

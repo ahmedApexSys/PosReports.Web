@@ -188,7 +188,10 @@ interface AppliedFilter { label: string; value: string; }
                     class="hover:bg-slate-50 dark:hover:bg-surface-dark-muted/50"
                     [class.row-group]="hasMerge() && isMergeStart(ri)"
                     [class.tree-parent]="isTree() && lvl(r) === 0"
-                    [class.tree-child]="isTree() && lvl(r) === 1">
+                    [class.tree-child]="isTree() && lvl(r) === 1"
+                    [class.tier-0]="tierOf(r) === 0"
+                    [class.tier-1]="tierOf(r) === 1"
+                    [class.tier-deep]="tierOf(r) >= 2">
                   <td *ngIf="isTree()" class="px-2 py-2 text-center align-middle">
                     <lucide-icon *ngIf="lvl(r) === 0" [img]="isExpanded(r) ? ChevronIcon : ChevronRightIcon"
                                  class="h-4 w-4 inline-block text-slate-400"></lucide-icon>
@@ -270,6 +273,11 @@ interface AppliedFilter { label: string; value: string; }
     .tree-parent { cursor: pointer; }
     .tree-parent > td { @apply bg-slate-50 dark:bg-surface-dark-muted/40 font-semibold border-t border-slate-200 dark:border-slate-700; }
     .tree-child > td { @apply text-slate-500 dark:text-slate-400 bg-white dark:bg-transparent; }
+    /* Depth-tiered rows (e.g. Sold Items Summary): a category header reads distinctly from its
+       sub-categories and items, so a bucket like "Other" is obvious. No-op for flat reports. */
+    .tier-0 > td { @apply bg-slate-100 dark:bg-surface-dark-muted/60 font-semibold border-t border-slate-200 dark:border-slate-700; }
+    .tier-1 > td { @apply font-medium; }
+    .tier-deep > td { @apply text-slate-500 dark:text-slate-400; }
   `],
 })
 export class TabularReportPageComponent implements OnInit {
@@ -484,6 +492,9 @@ export class TabularReportPageComponent implements OnInit {
 
   // ── table helpers ────────────────────────────────────────────────────
   firstCol(): string { return this.visibleColumns()[0]?.key ?? ''; }
+
+  /** Depth tier for a row carrying __depth (Sold Items Summary); -1 when absent so no tier class applies. */
+  tierOf(r: Row): number { return r['__depth'] != null ? Number(r['__depth']) : -1; }
 
   // ── expandable tree helpers ──────────────────────────────────────────
   lvl(r: Row): number { return Number(r['__level']) || 0; }
