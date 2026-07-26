@@ -196,6 +196,20 @@ function soldItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
  * Sales-Period per-order rows into per-transaction / per-payment summaries;
  * the *Tree variants explode nested category/item hierarchies into indented rows.
  */
+/** One per-order detail child row (level-1) for the *OrdersTree transforms: the order's
+ *  receipt/number, table, who applied it and when, plus __orderId so a click drills into
+ *  that order's journey. Callers add the money column + any parent labels via `extra`. */
+const orderChild = (o: Obj, parentKey: string, extra: Obj = {}): Obj => ({
+  __level: 1,
+  __parent: parentKey,
+  __orderId: Number(pick(o, 'orderId', 'OrderId')) || 0,
+  orderNo: pick(o, 'receiptNumber', 'ReceiptNumber') ?? pick(o, 'orderId', 'OrderId'),
+  tableName: pick(o, 'tableName', 'TableName'),
+  appliedBy: pick(o, 'appliedBy', 'AppliedBy'),
+  appliedAt: pick(o, 'appliedAt', 'AppliedAt'),
+  ...extra,
+});
+
 const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResult> = {
   promoFlatten: (d) => {
     const days = asArr(pick(d, 'days', 'Days'));
@@ -352,6 +366,129 @@ const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResu
     const totals = pick(d, 'grandTotals', 'GrandTotals');
     return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
   },
+  // ── Per-ORDER detail trees (level 0 = summary, level 1 = one row per order:
+  //    order/receipt · table · who applied · when · amount, drilling into the journey). ──
+  // Daily Discounts: day → its orders. Day money comes from days[] (authoritative split);
+  // order rows come from orders[] bucketed by the server-sent Day (not the display clock).
+  discountDayOrdersTree: (d) => {
+    const groups = asArr(pick(d, 'discounts', 'Discounts'));
+    const F = ['totalCommercialItemDiscount', 'totalItemDiscount', 'service', 'tax', 'cash', 'visa', 'ledge', 'total'];
+    const dayMap = new Map<string, { dayVal: unknown; sums: Obj; orders: Obj[] }>();
+    const ensure = (dayVal: unknown) => {
+      const k = canonDate(dayVal);
+      let e = dayMap.get(k);
+      if (!e) { e = { dayVal, sums: Object.fromEntries(F.map((f) => [f, 0])) as Obj, orders: [] }; dayMap.set(k, e); }
+      return e;
+    };
+    for (const g of groups) {
+      const dname = pick(g, 'discountName', 'DiscountName');
+      for (const day of asArr(pick(g, 'days', 'Days'))) {
+        const e = ensure(pick(day, 'day', 'Day'));
+        for (const f of F) (e.sums[f] as number) += Number(pick(day, f, cap(f))) || 0;
+      }
+      for (const o of asArr(pick(g, 'orders', 'Orders'))) {
+        const dayVal = pick(o, 'day', 'Day');
+        ensure(dayVal).orders.push(orderChild(o, canonDate(dayVal), { discountName: dname, total: Number(pick(o, 'amount', 'Amount')) || 0 }));
+      }
+    }
+    const rows: Obj[] = [];
+    for (const k of [...dayMap.keys()].sort()) {
+      const e = dayMap.get(k)!;
+      rows.push({ __level: 0, __key: k, __expandable: true, day: e.dayVal, discountName: '', ...e.sums });
+      e.orders.sort((a, b) => String(a['discountName'] ?? '').localeCompare(String(b['discountName'] ?? '')) || (Number(a['__orderId']) || 0) - (Number(b['__orderId']) || 0));
+      for (const o of e.orders) rows.push(o);
+    }
+    const totals = pick(d, 'totals', 'Totals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
+  // Promo Code Details: each promo code (per day) → its orders.
+  promoOrdersTree: (d) => {
+    const rows: Obj[] = [];
+    for (const day of asArr(pick(d, 'days', 'Days'))) {
+      const dayVal = pick(day, 'day', 'Day');
+      for (const code of asArr(pick(day, 'promoCodes', 'PromoCodes'))) {
+        const did = pick(code, 'discountId', 'DiscountId');
+        const pname = pick(code, 'promoCodeName', 'PromoCodeName');
+        const k = 'p' + canonDate(dayVal) + '|' + String(did) + '|' + String(pname);
+        rows.push({ __level: 0, __key: k, __expandable: true, day: dayVal, ...code });
+        for (const o of asArr(pick(code, 'orders', 'Orders'))) {
+          rows.push(orderChild(o, k, { day: '', promoCodeName: '', total: Number(pick(o, 'amount', 'Amount')) || 0 }));
+        }
+      }
+    }
+    const totals = pick(d, 'grandTotals', 'GrandTotals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
+  // Daily Promo Codes: day → all its orders (each order row carries its promo code).
+  promoDayOrdersTree: (d) => {
+    const rows: Obj[] = [];
+    for (const day of asArr(pick(d, 'days', 'Days'))) {
+      const dayVal = pick(day, 'day', 'Day');
+      const k = canonDate(dayVal);
+      const t = (pick(day, 'totals', 'Totals') ?? {}) as Obj;
+      rows.push({
+        __level: 0, __key: k, __expandable: true, day: dayVal, promoCodeName: '',
+        ordersCount: Number(pick(t, 'ordersCount', 'OrdersCount')) || 0,
+        cash: Number(pick(t, 'cash', 'Cash')) || 0, visa: Number(pick(t, 'visa', 'Visa')) || 0,
+        ledge: Number(pick(t, 'ledge', 'Ledge')) || 0, total: Number(pick(t, 'total', 'Total')) || 0,
+      });
+      const kids: Obj[] = [];
+      for (const code of asArr(pick(day, 'promoCodes', 'PromoCodes'))) {
+        const pname = pick(code, 'promoCodeName', 'PromoCodeName');
+        for (const o of asArr(pick(code, 'orders', 'Orders'))) {
+          kids.push(orderChild(o, k, { day: '', promoCodeName: pname, total: Number(pick(o, 'amount', 'Amount')) || 0 }));
+        }
+      }
+      kids.sort((a, b) => (Number(a['__orderId']) || 0) - (Number(b['__orderId']) || 0));
+      rows.push(...kids);
+    }
+    const totals = pick(d, 'grandTotals', 'GrandTotals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
+  // Vouchers Details: each voucher code (per day) → its orders.
+  voucherOrdersTree: (d) => {
+    const rows: Obj[] = [];
+    for (const day of asArr(pick(d, 'days', 'Days'))) {
+      const dayVal = pick(day, 'day', 'Day');
+      for (const code of asArr(pick(day, 'voucherCodes', 'VoucherCodes'))) {
+        const vcode = pick(code, 'voucherCode', 'VoucherCode');
+        const k = 'v' + canonDate(dayVal) + '|' + String(vcode);
+        rows.push({ __level: 0, __key: k, __expandable: true, day: dayVal, ...code });
+        for (const o of asArr(pick(code, 'orders', 'Orders'))) {
+          rows.push(orderChild(o, k, { day: '', voucherCode: '', totalVoucherAmount: Number(pick(o, 'amount', 'Amount')) || 0 }));
+        }
+      }
+    }
+    const totals = pick(d, 'grandTotals', 'GrandTotals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
+  // Daily Vouchers: day → all its orders (each order row carries its voucher code).
+  voucherDayOrdersTree: (d) => {
+    const rows: Obj[] = [];
+    for (const day of asArr(pick(d, 'days', 'Days'))) {
+      const dayVal = pick(day, 'day', 'Day');
+      const k = canonDate(dayVal);
+      const t = (pick(day, 'totals', 'Totals') ?? {}) as Obj;
+      rows.push({
+        __level: 0, __key: k, __expandable: true, day: dayVal, voucherCode: '',
+        vouchersCount: Number(pick(t, 'vouchersCount', 'VouchersCount')) || 0,
+        distinctOrders: Number(pick(t, 'distinctOrders', 'DistinctOrders')) || 0,
+        totalVoucherAmount: Number(pick(t, 'totalVoucherAmount', 'TotalVoucherAmount')) || 0,
+        cash: Number(pick(t, 'cash', 'Cash')) || 0, visa: Number(pick(t, 'visa', 'Visa')) || 0, ledge: Number(pick(t, 'ledge', 'Ledge')) || 0,
+      });
+      const kids: Obj[] = [];
+      for (const code of asArr(pick(day, 'voucherCodes', 'VoucherCodes'))) {
+        const vcode = pick(code, 'voucherCode', 'VoucherCode');
+        for (const o of asArr(pick(code, 'orders', 'Orders'))) {
+          kids.push(orderChild(o, k, { day: '', voucherCode: vcode, totalVoucherAmount: Number(pick(o, 'amount', 'Amount')) || 0 }));
+        }
+      }
+      kids.sort((a, b) => (Number(a['__orderId']) || 0) - (Number(b['__orderId']) || 0));
+      rows.push(...kids);
+    }
+    const totals = pick(d, 'grandTotals', 'GrandTotals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
   // getDailySalesReport (per-order) uses `transaction`; SalePeriod uses `transactionName`.
   groupByTransaction: (d, ctx) => groupSales(d, 'transaction', ctx),
   groupByPayment: (d, ctx) => groupSales(d, 'paymentStatus', ctx),
@@ -396,7 +533,9 @@ export class SalesReportApi {
                 | 'groupByDate' | 'groupByDayTransaction' | 'groupByDayPayment'
                 | 'orderByTransaction' | 'orderByPayment'
                 | 'totalPosTree' | 'soldItemsTree' | 'discountDaily'
-                | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree';
+                | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree'
+                | 'discountDayOrdersTree' | 'promoOrdersTree' | 'promoDayOrdersTree'
+                | 'voucherOrdersTree' | 'voucherDayOrdersTree';
       branchNames?: string[];
       branchId?: number | null;
       /** Fetch a second per-date endpoint and merge one numeric value onto each row by date. */

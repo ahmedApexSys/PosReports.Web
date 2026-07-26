@@ -172,7 +172,9 @@ export interface ReportDef {
   transform?: 'promoFlatten' | 'voucherFlatten' | 'groupByTransaction' | 'groupByPayment'
             | 'groupByDate' | 'groupByDayTransaction' | 'groupByDayPayment'
             | 'orderByTransaction' | 'orderByPayment' | 'discountDaily'
-            | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree';
+            | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree'
+            | 'discountDayOrdersTree' | 'promoOrdersTree' | 'promoDayOrdersTree'
+            | 'voucherOrdersTree' | 'voucherDayOrdersTree';
   /**
    * Expandable per-day tree: the transform emits one summary row per day
    * (`__level: 0`) followed by its detail rows (`__level: 1`, `__parent: <dayKey>`).
