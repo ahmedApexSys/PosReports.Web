@@ -148,6 +148,10 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     endpoint: "SoldItemsByWaiter/SoldItemsByWaiter",
     rowsKey: "items", totalsKey: "totals",
     defaultOrdersFilter: "Paid",
+    // One merged Waiter cell per waiter — the same treatment the date gets on the period totals —
+    // so a waiter with twenty items reads as one block instead of "APEX" repeated twenty times.
+    // The transform only gathers each waiter's rows together; it never re-ranks them.
+    transform: "groupRowsByWaiter", mergeColumn: "waiterName",
     filters: ["payment", "transaction", "shift", "waiter"],
     columns: [
       { key: "waiterId", labelEn: "Waiter ID", labelAr: "رقم الويتر", type: "text", defaultHidden: true },

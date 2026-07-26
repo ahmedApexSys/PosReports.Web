@@ -489,6 +489,24 @@ const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResu
     const totals = pick(d, 'grandTotals', 'GrandTotals');
     return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
   },
+  // Sold-items-by-waiter: keep every row, but bring each waiter's rows together so the shared
+  // waiter cell can merge into one (mergeColumn) instead of repeating the same name down the page.
+  // The grouping is STABLE — waiters appear in the order they first occur and each waiter's items
+  // keep the server's ordering — so nothing is re-ranked, only gathered.
+  groupRowsByWaiter: (d) => {
+    const rows = asArr(pick(d, 'items', 'Items'));
+    const groups = new Map<string, Obj[]>();
+    for (const r of rows) {
+      const k = String(pick(r, 'waiterName', 'WaiterName') ?? '');
+      const g = groups.get(k);
+      if (g) { g.push(r); } else { groups.set(k, [r]); }
+    }
+    const totals = pick(d, 'totals', 'Totals');
+    return {
+      rows: [...groups.values()].flat(),
+      totals: (totals && typeof totals === 'object' ? totals : {}) as Obj,
+    };
+  },
   // getDailySalesReport (per-order) uses `transaction`; SalePeriod uses `transactionName`.
   groupByTransaction: (d, ctx) => groupSales(d, 'transaction', ctx),
   groupByPayment: (d, ctx) => groupSales(d, 'paymentStatus', ctx),
@@ -535,7 +553,7 @@ export class SalesReportApi {
                 | 'totalPosTree' | 'soldItemsTree' | 'discountDaily'
                 | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree'
                 | 'discountDayOrdersTree' | 'promoOrdersTree' | 'promoDayOrdersTree'
-                | 'voucherOrdersTree' | 'voucherDayOrdersTree';
+                | 'voucherOrdersTree' | 'voucherDayOrdersTree' | 'groupRowsByWaiter';
       branchNames?: string[];
       branchId?: number | null;
       /** Fetch a second per-date endpoint and merge one numeric value onto each row by date. */

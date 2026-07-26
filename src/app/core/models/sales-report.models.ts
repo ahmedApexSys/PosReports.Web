@@ -174,7 +174,7 @@ export interface ReportDef {
             | 'orderByTransaction' | 'orderByPayment' | 'discountDaily'
             | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree'
             | 'discountDayOrdersTree' | 'promoOrdersTree' | 'promoDayOrdersTree'
-            | 'voucherOrdersTree' | 'voucherDayOrdersTree';
+            | 'voucherOrdersTree' | 'voucherDayOrdersTree' | 'groupRowsByWaiter';
   /**
    * Expandable per-day tree: the transform emits one summary row per day
    * (`__level: 0`) followed by its detail rows (`__level: 1`, `__parent: <dayKey>`).
