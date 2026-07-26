@@ -264,7 +264,7 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     },
     filters: ["payment", "transaction", "shift", "user", "waiter", "pilot", "discount", "onlineApp"],
     columns: [
-      { key: "orderId", labelEn: "Order ID", labelAr: "رقم الطلب", type: "int", defaultHidden: true },
+      { key: "orderId", labelEn: "Order ID", labelAr: "رقم الطلب", type: "id", defaultHidden: true },
       { key: "transaction", labelEn: "Transaction", labelAr: "نوع المعاملة", type: "text" },
       { key: "orderDate", labelEn: "Order Date", labelAr: "تاريخ الطلب", type: "date" },
       { key: "orderTime", labelEn: "Order Time", labelAr: "وقت الطلب", type: "time" },
@@ -319,7 +319,7 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     defaultOrdersFilter: "Paid",
     filters: ["payment", "transaction", "shift", "user", "waiter"],
     columns: [
-      { key: "orderId", labelEn: "Order ID", labelAr: "رقم الطلب", type: "int", defaultHidden: true },
+      { key: "orderId", labelEn: "Order ID", labelAr: "رقم الطلب", type: "id", defaultHidden: true },
       { key: "itemId", labelEn: "Item ID", labelAr: "رقم الصنف", type: "int", defaultHidden: true },
       { key: "itemName", labelEn: "Item Name", labelAr: "اسم الصنف", type: "text" },
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "int", totalKey: "quantity" },
@@ -362,7 +362,7 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "cash", labelEn: "Cash", labelAr: "نقدي", type: "money" },
       { key: "visa", labelEn: "Visa", labelAr: "فيزا", type: "money" },
       { key: "otherPayments", labelEn: "Other Payments", labelAr: "مدفوعات أخرى", type: "money" },
-      { key: "orderNo", labelEn: "Order No", labelAr: "رقم الطلب", type: "int", defaultHidden: true },
+      { key: "orderNo", labelEn: "Order No", labelAr: "رقم الطلب", type: "id", defaultHidden: true },
     ],
     // Legacy Total POS receipt: ID · Shift · Trans · Cash · Visa · Orders.
     receiptColumns: [
@@ -389,7 +389,8 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     columns: [
       { key: "discountId", labelEn: "Discount ID", labelAr: "رقم الخصم", type: "int", defaultHidden: true },
       { key: "discountName", labelEn: "Discount Name", labelAr: "اسم الخصم", type: "text" },
-      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "text" },
+      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "id" },
+      { key: "receiptNumber", labelEn: "Receipt #", labelAr: "رقم الإيصال", type: "id", defaultHidden: true },
       { key: "tableName", labelEn: "Table", labelAr: "الترابيزة", type: "text" },
       { key: "appliedBy", labelEn: "Applied By", labelAr: "طبّقه", type: "text" },
       { key: "appliedAt", labelEn: "Applied At", labelAr: "وقت التطبيق", type: "text" },
@@ -423,7 +424,8 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "day", labelEn: "Day", labelAr: "اليوم", type: "date" },
       { key: "promoCodeName", labelEn: "Promo Code", labelAr: "كود الخصم", type: "text" },
       { key: "discountName", labelEn: "Discount", labelAr: "الخصم", type: "text" },
-      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "text" },
+      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "id" },
+      { key: "receiptNumber", labelEn: "Receipt #", labelAr: "رقم الإيصال", type: "id", defaultHidden: true },
       { key: "tableName", labelEn: "Table", labelAr: "الترابيزة", type: "text" },
       { key: "appliedBy", labelEn: "Applied By", labelAr: "طبّقه", type: "text" },
       { key: "appliedAt", labelEn: "Applied At", labelAr: "وقت التطبيق", type: "text" },
@@ -459,7 +461,8 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     columns: [
       { key: "day", labelEn: "Day", labelAr: "اليوم", type: "date" },
       { key: "voucherCode", labelEn: "Voucher Code", labelAr: "كود القسيمة", type: "text" },
-      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "text" },
+      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "id" },
+      { key: "receiptNumber", labelEn: "Receipt #", labelAr: "رقم الإيصال", type: "id", defaultHidden: true },
       { key: "tableName", labelEn: "Table", labelAr: "الترابيزة", type: "text" },
       { key: "appliedBy", labelEn: "Applied By", labelAr: "طبّقه", type: "text" },
       { key: "appliedAt", labelEn: "Applied At", labelAr: "وقت التطبيق", type: "text" },
@@ -529,7 +532,7 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     rowsKey: "items", totalsKey: "summary",
     filters: ["payment", "shift", "transaction", "user"],
     columns: [
-      { key: "orderHeaderId", labelEn: "Order #", labelAr: "رقم الأوردر", type: "int", defaultHidden: true },
+      { key: "orderHeaderId", labelEn: "Order #", labelAr: "رقم الأوردر", type: "id", defaultHidden: true },
       { key: "reservationDate", labelEn: "Reservation Date", labelAr: "تاريخ الحجز", type: "date" },
       { key: "reservationTime", labelEn: "Reservation Time", labelAr: "وقت الحجز", type: "time" },
       { key: "description", labelEn: "Description", labelAr: "ملاحظات", type: "text" },
@@ -617,7 +620,8 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     columns: [
       { key: "day", labelEn: "Date", labelAr: "التاريخ", type: "date" },
       { key: "discountName", labelEn: "Discount", labelAr: "الخصم", type: "text" },
-      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "text" },
+      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "id" },
+      { key: "receiptNumber", labelEn: "Receipt #", labelAr: "رقم الإيصال", type: "id", defaultHidden: true },
       { key: "tableName", labelEn: "Table", labelAr: "الترابيزة", type: "text" },
       { key: "appliedBy", labelEn: "Applied By", labelAr: "طبّقه", type: "text" },
       { key: "appliedAt", labelEn: "Applied At", labelAr: "وقت التطبيق", type: "text" },
@@ -655,7 +659,8 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     columns: [
       { key: "day", labelEn: "Date", labelAr: "التاريخ", type: "date" },
       { key: "promoCodeName", labelEn: "Promo Code", labelAr: "كود الخصم", type: "text" },
-      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "text" },
+      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "id" },
+      { key: "receiptNumber", labelEn: "Receipt #", labelAr: "رقم الإيصال", type: "id", defaultHidden: true },
       { key: "tableName", labelEn: "Table", labelAr: "الترابيزة", type: "text" },
       { key: "appliedBy", labelEn: "Applied By", labelAr: "طبّقه", type: "text" },
       { key: "appliedAt", labelEn: "Applied At", labelAr: "وقت التطبيق", type: "text" },
@@ -691,7 +696,8 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     columns: [
       { key: "day", labelEn: "Date", labelAr: "التاريخ", type: "date" },
       { key: "voucherCode", labelEn: "Voucher Code", labelAr: "كود القسيمة", type: "text" },
-      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "text" },
+      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "id" },
+      { key: "receiptNumber", labelEn: "Receipt #", labelAr: "رقم الإيصال", type: "id", defaultHidden: true },
       { key: "tableName", labelEn: "Table", labelAr: "الترابيزة", type: "text" },
       { key: "appliedBy", labelEn: "Applied By", labelAr: "طبّقه", type: "text" },
       { key: "appliedAt", labelEn: "Applied At", labelAr: "وقت التطبيق", type: "text" },

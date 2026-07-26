@@ -4,7 +4,12 @@
  * tabular-report engine renders them all — each report is just a column config.
  */
 
-export type CellType = 'text' | 'int' | 'number' | 'money' | 'date' | 'time';
+/**
+ * `id` is for identifiers — order ids, receipt numbers. They are digits, not quantities, so they
+ * are printed exactly as stored: order 1874 must never read as "1,874", which looks like a count
+ * and cannot be pasted back into a search box.
+ */
+export type CellType = 'text' | 'int' | 'number' | 'money' | 'date' | 'time' | 'id';
 
 /** One column in a tabular report. */
 export interface ReportColumn {

@@ -571,6 +571,8 @@ export class TabularReportPageComponent implements OnInit {
     return n;
   }
   hasTotals(): boolean { return this.def.columns.some((c) => !!c.totalKey) && Object.keys(this.totals()).length > 0; }
+  // `id` is excluded on purpose: an identifier is a label, so it reads start-aligned like a name
+  // rather than end-aligned like a figure.
   isNumeric(c: ReportColumn): boolean { return c.type === 'money' || c.type === 'number' || c.type === 'int' || !!c.alignEnd; }
 
   reload(): void {
@@ -619,6 +621,9 @@ export class TabularReportPageComponent implements OnInit {
       const n = Number(v); return Number.isFinite(n) ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(v);
     }
     if (c.type === 'int') { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString() : String(v); }
+    // Identifiers print exactly as stored — no thousands separator. Order 1874 is a name, not a
+    // quantity: "1,874" reads as a count and cannot be pasted back into a search box.
+    if (c.type === 'id') return String(v).trim();
     // Category-like text columns hold server values that stay English in Arabic
     // mode (e.g. transaction / payment-status / pay-way) → localise them.
     if (c.type === 'text' && I18N_TEXT_KEYS.has(c.key)) {

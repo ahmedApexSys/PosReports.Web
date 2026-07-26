@@ -39,7 +39,7 @@ export class SalesPeriodComponent {
     },
     filters: ['payment', 'transaction', 'shift', 'discount', 'promo', 'voucher', 'onlineApp', 'user', 'waiter', 'pilot'],
     columns: [
-      { key: 'orderId',                 labelEn: 'Order #',         labelAr: 'رقم الأوردر',    type: 'int',   width: 9 },
+      { key: 'orderId',                 labelEn: 'Order #',         labelAr: 'رقم الأوردر',    type: 'id',    width: 9 },
       { key: 'branchName',              labelEn: 'Branch',          labelAr: 'الفرع',          type: 'text',  defaultHidden: true, width: 16 },
       { key: 'transaction',             labelEn: 'Transaction',     labelAr: 'المعاملة',       type: 'text',  width: 12 },
       { key: 'orderDate',               labelEn: 'Date',            labelAr: 'التاريخ',        type: 'text',  width: 12 },

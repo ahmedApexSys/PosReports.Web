@@ -285,7 +285,11 @@ const orderChild = (o: Obj, parentKey: string, extra: Obj = {}): Obj => ({
   __level: 1,
   __parent: parentKey,
   __orderId: Number(pick(o, 'orderId', 'OrderId')) || 0,
-  orderNo: pick(o, 'receiptNumber', 'ReceiptNumber') ?? pick(o, 'orderId', 'OrderId'),
+  // The Order # column shows the ORDER ID — the id the journey page and every other report key on.
+  // The receipt number is a different, much longer number (a printed serial); it keeps its own
+  // column so a printed slip can still be matched, without impersonating the order id.
+  orderNo: pick(o, 'orderId', 'OrderId'),
+  receiptNumber: pick(o, 'receiptNumber', 'ReceiptNumber'),
   tableName: pick(o, 'tableName', 'TableName'),
   appliedBy: pick(o, 'appliedBy', 'AppliedBy'),
   appliedAt: pick(o, 'appliedAt', 'AppliedAt'),
