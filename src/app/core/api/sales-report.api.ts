@@ -291,6 +291,32 @@ const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResu
     const totals = pick(d, 'totals', 'Totals');
     return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
   },
+  // Discount → per-ORDER detail. __level 0 = the discount summary (its aggregate columns), __level 1
+  // = one row per order it landed on (order/receipt · table · who applied · when · that order's
+  // amount). A detail row carries __orderId so it drills into that order's journey.
+  discountOrdersTree: (d) => {
+    const groups = asArr(pick(d, 'discounts', 'Discounts'));
+    const rows: Obj[] = [];
+    for (const g of groups) {
+      const did = pick(g, 'discountId', 'DiscountId');
+      const k = 'd' + String(did);
+      rows.push({ __level: 0, __key: k, __expandable: true, ...g });
+      for (const o of asArr(pick(g, 'orders', 'Orders'))) {
+        rows.push({
+          __level: 1, __parent: k,
+          __orderId: Number(pick(o, 'orderId', 'OrderId')) || 0,
+          discountName: '',
+          orderNo: pick(o, 'receiptNumber', 'ReceiptNumber') ?? pick(o, 'orderId', 'OrderId'),
+          tableName: pick(o, 'tableName', 'TableName'),
+          appliedBy: pick(o, 'appliedBy', 'AppliedBy'),
+          appliedAt: pick(o, 'appliedAt', 'AppliedAt'),
+          total: Number(pick(o, 'amount', 'Amount')) || 0,
+        });
+      }
+    }
+    const totals = pick(d, 'totals', 'Totals');
+    return { rows, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
+  },
   promoDailyTree: (d) => {
     const rows: Obj[] = [];
     for (const day of asArr(pick(d, 'days', 'Days'))) {
@@ -370,7 +396,7 @@ export class SalesReportApi {
                 | 'groupByDate' | 'groupByDayTransaction' | 'groupByDayPayment'
                 | 'orderByTransaction' | 'orderByPayment'
                 | 'totalPosTree' | 'soldItemsTree' | 'discountDaily'
-                | 'discountDailyTree' | 'promoDailyTree' | 'voucherDailyTree';
+                | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree';
       branchNames?: string[];
       branchId?: number | null;
       /** Fetch a second per-date endpoint and merge one numeric value onto each row by date. */

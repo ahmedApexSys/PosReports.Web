@@ -358,10 +358,20 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     titleEn: "Total Discounts", titleAr: "إجمالي الخصومات",
     endpoint: "TotalDiscount/TotalDiscountReport",
     rowsKey: "discounts", totalsKey: "totals",
+    transform: "discountOrdersTree", expandable: true,
+    // Expand a discount to its per-order detail; a detail row opens that order's journey.
+    drilldown: {
+      route: '/journey', param: 'orderId', rowKey: '__orderId',
+      titleEn: "Open this order's journey", titleAr: "افتح رحلة الأوردر",
+    },
     filters: ["payment", "transaction", "shift", "user", "waiter", "discount", "promo", "onlineApp"],
     columns: [
       { key: "discountId", labelEn: "Discount ID", labelAr: "رقم الخصم", type: "int", defaultHidden: true },
       { key: "discountName", labelEn: "Discount Name", labelAr: "اسم الخصم", type: "text" },
+      { key: "orderNo", labelEn: "Order #", labelAr: "رقم الأوردر", type: "text" },
+      { key: "tableName", labelEn: "Table", labelAr: "الترابيزة", type: "text" },
+      { key: "appliedBy", labelEn: "Applied By", labelAr: "طبّقه", type: "text" },
+      { key: "appliedAt", labelEn: "Applied At", labelAr: "وقت التطبيق", type: "text" },
       { key: "totalCommercialItemDiscount", labelEn: "Commercial Discount", labelAr: "الخصم التجاري", type: "money", totalKey: "totalCommercialItemDiscount" },
       { key: "totalItemDiscount", labelEn: "Item Discount", labelAr: "خصم الأصناف", type: "money", totalKey: "totalItemDiscount" },
       { key: "tax", labelEn: "Tax", labelAr: "الضريبة", type: "money", totalKey: "tax" },
