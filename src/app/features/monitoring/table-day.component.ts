@@ -57,7 +57,12 @@ import { TableDay, TableSitting } from '../../core/models/day-journeys.models';
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 p-4 ring-1 ring-amber-200/50">
             <div class="text-2xl font-bold text-amber-800 dark:text-amber-200">{{ d.sittingCount }}</div>
-            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'جلسات' : 'sittings' }}</div>
+            <div class="text-xs text-slate-500">
+              {{ lang.language() === 'ar' ? 'زيارات' : 'visits' }}
+              <span *ngIf="d.openSittings" class="text-rose-600 font-medium">
+                · {{ d.openSittings }} {{ lang.language() === 'ar' ? 'لسه مفتوحة' : 'still open' }}
+              </span>
+            </div>
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
             <div class="text-2xl font-bold">{{ d.totalGuests }}</div>
@@ -82,12 +87,20 @@ import { TableDay, TableSitting } from '../../core/models/day-journeys.models';
           <li *ngFor="let s of d.sittings; let i = index"
               (click)="open(s)"
               class="group relative cursor-pointer rounded-2xl bg-white/80 dark:bg-slate-900/50 p-4 ring-1 ring-slate-200/70 dark:ring-slate-800 hover:ring-amber-400 transition">
-            <span class="absolute -start-[1.4rem] top-5 h-3 w-3 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-950"></span>
+            <span class="absolute -start-[1.4rem] top-5 h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-950"
+                  [class]="s.stillOpen ? 'bg-rose-500' : 'bg-amber-500'"></span>
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-2">
+                <!-- The table's own turn order for the day: visit 1, 2, 3 … so six uses of one table
+                     read as six separate visits instead of running together. -->
+                <span class="text-[11px] font-semibold rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 px-2 py-0.5">
+                  {{ lang.language() === 'ar' ? 'زيارة' : 'visit' }} {{ s.visitNumber }}
+                </span>
                 <span class="font-semibold">{{ s.openedAt || '—' }}</span>
                 <span class="text-slate-400">→</span>
-                <span class="font-semibold">{{ s.closedAt || (lang.language() === 'ar' ? 'مفتوحة' : 'open') }}</span>
+                <span class="font-semibold" [class.text-rose-600]="s.stillOpen">
+                  {{ s.closedAt || (lang.language() === 'ar' ? 'لسه مفتوحة' : 'still open') }}
+                </span>
                 <span *ngIf="s.durationMinutes != null" class="text-xs rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5">
                   {{ s.durationMinutes | number:'1.0-0' }} {{ lang.language() === 'ar' ? 'د' : 'min' }}
                 </span>
@@ -104,8 +117,12 @@ import { TableDay, TableSitting } from '../../core/models/day-journeys.models';
               <span *ngIf="s.cashierName">{{ lang.language() === 'ar' ? 'كاشير' : 'Cashier' }}: {{ s.cashierName }}</span>
               <span>{{ lang.language() === 'ar' ? s.transactionTypeAr : s.transactionType }}</span>
               <span *ngIf="s.paymentMethod" class="rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-1.5">{{ s.paymentMethod }}</span>
-              <span *ngIf="s.closedWithoutPayment" class="rounded bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-1.5">
+              <span *ngIf="s.closedWithoutPayment && !s.stillOpen" class="rounded bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-1.5">
                 {{ lang.language() === 'ar' ? 'اتقفلت بدون دفع' : 'closed unpaid' }}
+              </span>
+              <!-- No checkout and no End Table: the visit never ended. -->
+              <span *ngIf="s.stillOpen" class="rounded bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-1.5 font-medium">
+                {{ lang.language() === 'ar' ? 'ماتعملهاش checkout ولا End Table' : 'no checkout / End Table' }}
               </span>
             </div>
             <!-- counts strip -->

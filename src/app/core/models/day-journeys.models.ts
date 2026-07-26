@@ -16,6 +16,10 @@ export interface TableDayRequest {
 }
 
 export interface TableSitting {
+  /** This sitting's turn on the table that day — 1, 2, 3 … so repeat use reads as separate visits. */
+  visitNumber: number;
+  /** Never checked out and never ended — no close time, no duration. */
+  stillOpen: boolean;
   orderId: number;
   receiptNumber?: string | null;
   /** The sitting's own table name — a split child settles under "X-1" and is rolled into X's day. */
@@ -46,6 +50,8 @@ export interface TableDay {
   date: string;
   sittings: TableSitting[];
   sittingCount: number;
+  /** Sittings left open — no checkout, no End Table. */
+  openSittings: number;
   totalGuests: number;
   totalNet: number;
   totalOccupiedMinutes?: number | null;
@@ -85,6 +91,9 @@ export interface DeliveryOrderRow {
   paymentMethod?: string | null;
   isCollected: boolean;
   isReturned: boolean;
+  /** How the run ended: Delivered · Returned (came back/cancelled after dispatch) · OnRoad · Pending. */
+  outcome: string;
+  outcomeAr: string;
 }
 
 export interface DeliveryDay {
@@ -93,6 +102,10 @@ export interface DeliveryDay {
   orders: DeliveryOrderRow[];
   orderCount: number;
   delivered: number;
+  /** Runs that came back — returned or cancelled after a courier was holding the order. */
+  returned: number;
+  /** Assigned to a courier and not yet resolved either way. */
+  onRoad: number;
   notReturned: number;
   /** Orders from an aggregator (no action log) — the volume the milestone counts/averages can't see. */
   aggregatorCount: number;
@@ -126,6 +139,13 @@ export interface TakeAwayOrderRow {
   paymentMethod?: string | null;
   cashierName?: string | null;
   isCollected: boolean;
+  /** When the order stopped being editable — the moment it became final in practice. */
+  settlesAt?: string | null;
+  /** Handed over, or past the branch's edit window. */
+  isSettled: boolean;
+  /** Collected · Closed (edit window shut) · Waiting. */
+  outcome: string;
+  outcomeAr: string;
 }
 
 export interface TakeAwayDay {
@@ -135,6 +155,14 @@ export interface TakeAwayDay {
   orderCount: number;
   collected: number;
   uncollected: number;
+  /** Orders nobody can change any more — handed over, or past the edit window. */
+  settled: number;
+  /** Paid, not handed over, still inside the edit window. */
+  waiting: number;
+  /** The edit window the day was judged against, in minutes. */
+  editWindowMinutes: number;
+  /** False when the branch never configured a window and the one-hour fallback was used. */
+  editWindowConfigured: boolean;
   totalNet: number;
   avgWaitMinutes?: number | null;
   /** How many orders the wait average was measured over — only collected orders have both stamps. */

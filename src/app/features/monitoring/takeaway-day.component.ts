@@ -51,12 +51,15 @@ import { TakeAwayDay, TakeAwayOrderRow } from '../../core/models/day-journeys.mo
             <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'أوردرات' : 'orders' }}</div>
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
-            <div class="text-2xl font-bold">{{ d.collected }}</div>
-            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'اتستلمت' : 'collected' }}</div>
+            <div class="text-2xl font-bold">{{ d.settled }}</div>
+            <div class="text-xs text-slate-500">
+              {{ lang.language() === 'ar' ? 'خلصت' : 'finished' }}
+              <span *ngIf="d.collected" class="text-slate-400">· {{ d.collected }} {{ lang.language() === 'ar' ? 'اتستلمت' : 'collected' }}</span>
+            </div>
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
-            <div class="text-2xl font-bold" [class.text-rose-600]="d.uncollected > 0">{{ d.uncollected }}</div>
-            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'ماتستلمتش' : 'uncollected' }}</div>
+            <div class="text-2xl font-bold" [class.text-amber-600]="d.waiting > 0">{{ d.waiting }}</div>
+            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'لسه مفتوحة' : 'still open' }}</div>
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
             <div class="text-2xl font-bold">{{ d.avgWaitMinutes != null ? (d.avgWaitMinutes | number:'1.0-0') : '—' }}</div>
@@ -66,6 +69,18 @@ import { TakeAwayDay, TakeAwayOrderRow } from '../../core/models/day-journeys.mo
             </div>
           </div>
         </div>
+
+        <!-- State the rule the "finished" count was judged by, so it can be argued with. -->
+        <p *ngIf="!d.emptyReasonEn" class="text-[11px] text-slate-500">
+          <ng-container *ngIf="lang.language() === 'ar'">
+            الأوردر يتحسب خلص لما يتسلّم، أو لما تعدّي مهلة التعديل ({{ d.editWindowMinutes }} دقيقة من آخر دفع أو تعديل)
+            — وقتها البرنامج نفسه مابيسمحش بفتحه تاني.<span *ngIf="!d.editWindowConfigured"> الفرع مامحددش المهلة، فاتحسبت ساعة.</span>
+          </ng-container>
+          <ng-container *ngIf="lang.language() !== 'ar'">
+            An order counts as finished once it is handed over, or once the edit window closes
+            ({{ d.editWindowMinutes }} min after the last payment or edit) — past that the POS itself refuses to reopen it.<span *ngIf="!d.editWindowConfigured"> This branch set no window, so one hour was used.</span>
+          </ng-container>
+        </p>
 
         <div *ngIf="d.emptyReasonEn" class="rounded-xl bg-slate-50 dark:bg-slate-900/40 px-4 py-8 text-center text-sm text-slate-500">
           {{ lang.language() === 'ar' ? d.emptyReasonAr : d.emptyReasonEn }}
@@ -92,11 +107,18 @@ import { TakeAwayDay, TakeAwayOrderRow } from '../../core/models/day-journeys.mo
                 <span class="mt-1 text-slate-500">{{ lang.language() === 'ar' ? 'اتدفع' : 'paid' }}</span>
                 <span class="font-medium">{{ time(o.paidAt) }}</span>
               </div>
-              <div class="h-px flex-1" [class]="o.collectedAt ? 'bg-orange-200 dark:bg-orange-900/50' : 'bg-slate-200 dark:bg-slate-800 border-dashed'"></div>
+              <div class="h-px flex-1" [class]="o.isSettled ? 'bg-orange-200 dark:bg-orange-900/50' : 'bg-slate-200 dark:bg-slate-800 border-dashed'"></div>
+              <!-- Third dot: the hand-over when one was recorded, otherwise the moment the edit
+                   window shut — which is when the branch could no longer touch the order. -->
               <div class="flex flex-col items-center">
-                <div [class]="'h-2.5 w-2.5 rounded-full ' + (o.collectedAt ? 'bg-orange-500' : 'bg-slate-300 dark:bg-slate-700')"></div>
-                <span class="mt-1 text-slate-500">{{ lang.language() === 'ar' ? 'اتستلم' : 'collected' }}</span>
-                <span class="font-medium" [class.text-slate-300]="!o.collectedAt">{{ o.collectedAt ? time(o.collectedAt) : '—' }}</span>
+                <div [class]="'h-2.5 w-2.5 rounded-full ' + (o.isSettled ? 'bg-orange-500' : 'bg-slate-300 dark:bg-slate-700')"></div>
+                <span class="mt-1 text-slate-500">
+                  {{ o.collectedAt ? (lang.language() === 'ar' ? 'اتستلم' : 'collected')
+                                    : (lang.language() === 'ar' ? 'قفل' : 'closed') }}
+                </span>
+                <span class="font-medium" [class.text-slate-300]="!o.isSettled">
+                  {{ o.collectedAt ? time(o.collectedAt) : (o.settlesAt ? time(o.settlesAt) : '—') }}
+                </span>
               </div>
             </div>
 
@@ -104,8 +126,11 @@ import { TakeAwayDay, TakeAwayOrderRow } from '../../core/models/day-journeys.mo
               <span *ngIf="o.waitMinutes != null">{{ lang.language() === 'ar' ? 'انتظار' : 'wait' }}: {{ o.waitMinutes | number:'1.0-0' }}{{ lang.language() === 'ar' ? 'د' : 'm' }}</span>
               <span *ngIf="o.cashierName">{{ lang.language() === 'ar' ? 'كاشير' : 'cashier' }}: {{ o.cashierName }}</span>
               <span *ngIf="o.paymentMethod" class="rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 px-1.5">{{ o.paymentMethod }}</span>
-              <span *ngIf="!o.collectedAt" class="rounded bg-rose-100 dark:bg-rose-950/40 text-rose-600 px-1.5">
-                {{ lang.language() === 'ar' ? 'لسه ماتستلمش' : 'not collected' }}
+              <span *ngIf="o.outcome === 'Closed'" class="rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5">
+                {{ lang.language() === 'ar' ? o.outcomeAr : 'closed — edit window shut' }}
+              </span>
+              <span *ngIf="o.outcome === 'Waiting'" class="rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 px-1.5">
+                {{ lang.language() === 'ar' ? 'لسه مفتوح' : 'still open' }}
               </span>
             </div>
           </article>

@@ -45,14 +45,21 @@ import { DeliveryDay, DeliveryOrderRow } from '../../core/models/day-journeys.mo
       </div>
 
       <ng-container *ngIf="data() as d">
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           <div class="rounded-2xl bg-teal-50/70 dark:bg-teal-950/20 p-4 ring-1 ring-teal-200/50">
             <div class="text-2xl font-bold text-teal-800 dark:text-teal-200">{{ d.orderCount }}</div>
             <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'أوردرات' : 'orders' }}</div>
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
             <div class="text-2xl font-bold">{{ d.delivered }}</div>
-            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'اتسلّمت' : 'delivered' }}</div>
+            <div class="text-xs text-slate-500">
+              {{ lang.language() === 'ar' ? 'اتسلّمت' : 'delivered' }}
+              <span *ngIf="d.onRoad" class="text-slate-400">· {{ d.onRoad }} {{ lang.language() === 'ar' ? 'مع الطيار' : 'on road' }}</span>
+            </div>
+          </div>
+          <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
+            <div class="text-2xl font-bold" [class.text-rose-600]="d.returned > 0">{{ d.returned }}</div>
+            <div class="text-xs text-slate-500">{{ lang.language() === 'ar' ? 'رجعت / اتلغت' : 'returned' }}</div>
           </div>
           <div class="rounded-2xl bg-white/70 dark:bg-slate-900/40 p-4 ring-1 ring-slate-200/60">
             <div class="text-2xl font-bold">{{ d.totalNet | number:'1.0-2' }}</div>
@@ -117,6 +124,14 @@ import { DeliveryDay, DeliveryOrderRow } from '../../core/models/day-journeys.mo
               <span *ngIf="o.dispatchToDoorMinutes != null">{{ lang.language() === 'ar' ? 'للباب' : 'to door' }}: {{ o.dispatchToDoorMinutes | number:'1.0-0' }}{{ lang.language() === 'ar' ? 'د' : 'm' }}</span>
               <span *ngIf="o.roundTripMinutes != null">{{ lang.language() === 'ar' ? 'رحلة كاملة' : 'round trip' }}: {{ o.roundTripMinutes | number:'1.0-0' }}{{ lang.language() === 'ar' ? 'د' : 'm' }}</span>
               <span *ngIf="o.paymentMethod" class="rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 px-1.5">{{ o.paymentMethod }}</span>
+              <!-- How the run actually ended. A return recorded by the office outranks a door stamp. -->
+              <span *ngIf="o.outcome" class="rounded px-1.5"
+                    [class]="o.outcome === 'Returned' ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-600'
+                           : o.outcome === 'Delivered' ? 'bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300'
+                           : o.outcome === 'OnRoad' ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700'
+                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'">
+                {{ lang.language() === 'ar' ? o.outcomeAr : o.outcome }}
+              </span>
             </div>
           </article>
         </div>
