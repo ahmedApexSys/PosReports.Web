@@ -1,34 +1,41 @@
 # ============================================================================
 #  Deploy PosReports.Web (the live reports site) via FTP.
-#  الموقع: posreporting.tryasp.net  (host site73506 على MonsterASP.NET / tryasp.net)
+#  Site: posreporting.tryasp.net  (host site73506 on MonsterASP.NET / tryasp.net)
 #
-#  طريقة التشغيل:
-#    1) افتح PowerShell في فولدر المشروع (D:\Apex work\PosReports.Web)
-#    2) شغّل:   powershell -ExecutionPolicy Bypass -File .\deploy-reports-ftp.ps1
-#    3) هيسألك على: FTP host + username + password  ->  انسخهم من لوحة تحكم
-#       الاستضافة (MonsterASP.NET -> Websites -> site73506 -> FTP / Connection Info).
+#  How to run:
+#    1) Open PowerShell in the project folder (D:\Apex work\PosReports.Web)
+#    2) Run:   powershell -ExecutionPolicy Bypass -File .\deploy-reports-ftp.ps1
+#    3) It asks for: FTP host + username + password  ->  copy them from the
+#       hosting panel (MonsterASP.NET -> Websites -> site73506 -> FTP access).
 #
-#  مفيش أي باسورد متخزن في الملف ده. إنت بتكتبه وقت التشغيل وهو بيتمسح بعد كده.
+#  No password is stored in this file. You type it at run time and it is gone
+#  when the script ends.
+#
+#  ASCII ONLY, ON PURPOSE. Windows PowerShell 5.1 reads a .ps1 with no byte-order
+#  mark as ANSI, so any non-ASCII character (Arabic text, a long dash) is decoded
+#  into bytes that break string parsing - which is exactly how this script once
+#  died with "The string is missing the terminator". Keeping it to plain ASCII
+#  means the file cannot be broken by whatever editor or tool touches it next.
 # ============================================================================
 
 $ErrorActionPreference = 'Stop'
 
-# Angular now emits the site into dist\pos-reports-web\browser and leaves build metadata
+# Angular emits the site into dist\pos-reports-web\browser and leaves build metadata
 # (3rdpartylicenses.txt, prerendered-routes.json) in the parent. Uploading the parent would put
-# index.html at /wwwroot/browser/index.html — a site with no home page — and litter the root with
-# files that are not part of it. Take the browser folder when it exists, and keep working with the
-# older flat layout if it does not.
+# index.html at /wwwroot/browser/index.html - a site with no home page - and litter the web root
+# with files that are not part of it. Take the browser folder when it exists, and keep working
+# with the older flat layout when it does not.
 $distRoot  = Join-Path $PSScriptRoot 'dist\pos-reports-web'
 $localRoot = Join-Path $distRoot 'browser'
 if (-not (Test-Path $localRoot)) { $localRoot = $distRoot }
 
 if (-not (Test-Path (Join-Path $localRoot 'index.html'))) {
-    Write-Host "No index.html in $localRoot — build first:  npm run build" -ForegroundColor Yellow
+    Write-Host "No index.html in $localRoot - build first:  npm run build" -ForegroundColor Yellow
     exit 1
 }
 
 # ---- credentials (you type them now; nothing is saved) ---------------------
-$ftpHost = Read-Host 'FTP host (e.g. ftp://posreporting.tryasp.net  OR  ftp://<server-ip from panel>)'
+$ftpHost = Read-Host 'FTP host (e.g. ftp://site73506.siteasp.net)'
 if ([string]::IsNullOrWhiteSpace($ftpHost)) { Write-Host 'No host. Aborting.'; exit 1 }
 if ($ftpHost -notmatch '^ftp://') { $ftpHost = 'ftp://' + $ftpHost }
 $ftpHost = $ftpHost.TrimEnd('/')
@@ -70,21 +77,20 @@ function Upload-File($localPath, $remoteUrl) {
     }
 }
 
-$files = @(Get-ChildItem $localRoot -Recurse -File)
-
-# web.config lives at the repo root (Angular does not copy it), yet it is what makes deep links
+# web.config lives at the repo root (Angular never copies it), yet it is what makes deep links
 # work: without it IIS answers a refresh on /takeaway-day with a 404, because it looks for a folder
-# of that name. Ship it alongside the build rather than relying on a copy left by an older deploy.
+# by that name. Ship it with the build instead of relying on a copy left by an earlier upload.
 $webConfig = Join-Path $PSScriptRoot 'web.config'
 if ((Test-Path $webConfig) -and -not (Test-Path (Join-Path $localRoot 'web.config'))) {
     Copy-Item $webConfig (Join-Path $localRoot 'web.config') -Force
-    $files = @(Get-ChildItem $localRoot -Recurse -File)
-    Write-Host "web.config added to the upload set (SPA deep links)." -ForegroundColor DarkCyan
+    Write-Host 'web.config added to the upload set (SPA deep links).' -ForegroundColor DarkCyan
 }
 
+$files = @(Get-ChildItem $localRoot -Recurse -File)
 $total = $files.Count; $done = 0; $fail = 0
 Write-Host ""
-Write-Host "Uploading $total files to  $ftpHost$remoteBase  ..." -ForegroundColor Cyan
+Write-Host "Uploading $total files from $localRoot" -ForegroundColor Cyan
+Write-Host "                        to $ftpHost$remoteBase" -ForegroundColor Cyan
 
 foreach ($f in $files) {
     $rel = $f.FullName.Substring($localRoot.Length).Replace('\', '/')
