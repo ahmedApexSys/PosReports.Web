@@ -11,6 +11,7 @@ import { FilterService } from '../../core/filters/filter.service';
 import { MonitoringApi } from '../../core/api/monitoring.api';
 import {
   OrderJourney, JourneyStep, JourneyDelivery, JourneyMovement, JourneyClipItem, JourneyChip,
+  JourneyDiscount,
 } from '../../core/models/journey.models';
 
 type SearchBy = 'receipt' | 'order';
@@ -291,6 +292,62 @@ interface ClipView {
           <div class="flex justify-between py-1" *ngIf="d.money.addition"><span class="jr-muted">{{ ar() ? 'إضافات' : 'Addition' }}</span><span class="tabular-nums jr-ink"><bdi>{{ money(d.money.addition) }}</bdi></span></div>
           <div class="flex justify-between pt-2.5 mt-2 jr-rule-strong font-semibold text-base jr-ink">
             <span>{{ ar() ? 'الصافي' : 'Net' }}</span><span class="tabular-nums"><bdi>{{ money(d.money.net) }}</bdi></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── The discount, named ──────────────────────────────
+           The receipt above prints "− 1,019.00" and stops there. This panel is the answer to the
+           only question that figure raises: WHICH discount, on WHAT, applied by WHOM. The data is
+           read from the order's own lines, so it answers for orders taken long before any of this
+           was logged — but it also means the time is often unknown, and the panel says so rather
+           than borrowing a plausible one from a nearby event. -->
+      <div *ngIf="d.discounts?.length" class="jr-card p-4 md:p-5">
+        <div class="flex items-baseline justify-between gap-2 mb-3">
+          <span class="font-medium jr-ink">{{ ar() ? 'الخصم — مين وليه' : 'The discount — who and why' }}</span>
+          <span class="text-sm tabular-nums jr-neg"><bdi>− {{ money(discountTotal()) }}</bdi></span>
+        </div>
+
+        <div *ngFor="let dc of d.discounts; let last = last"
+          class="py-2.5" [class.jr-rule-b]="!last">
+
+          <div class="flex items-baseline justify-between gap-3">
+            <div class="min-w-0">
+              <span class="jr-ink font-medium">{{ discountLabel(dc) }}</span>
+              <span *ngIf="dc.isPromoCode && dc.promoCode" class="jr-inset text-[11px] px-1.5 py-0.5 ms-1.5">
+                <bdi>{{ dc.promoCode }}</bdi>
+              </span>
+              <span *ngIf="dc.isAutomatic" class="text-[11px] jr-faint ms-1.5">
+                {{ ar() ? 'تلقائي' : 'automatic' }}
+              </span>
+            </div>
+            <span class="tabular-nums jr-neg shrink-0"><bdi>− {{ money(dc.amount) }}</bdi></span>
+          </div>
+
+          <!-- Who and when. "Not recorded" is printed as itself; a blank would read as
+               "nobody", which is a different and untrue claim. -->
+          <div class="text-xs jr-muted mt-1">
+            <span>{{ ar() ? 'طبّقه' : 'Applied by' }}:
+              <b [ngClass]="dc.appliedBy ? 'jr-ink' : 'jr-faint'">{{ dc.appliedBy || (ar() ? 'غير مسجَّل' : 'not recorded') }}</b>
+            </span>
+            <span class="ms-2">· {{ ar() ? 'الوقت' : 'At' }}:
+              <b [ngClass]="dc.appliedAt ? 'jr-ink' : 'jr-faint'"><bdi>{{ dc.appliedAt || (ar() ? 'غير مسجَّل' : 'not recorded') }}</bdi></b>
+            </span>
+            <span *ngIf="dc.source === 'Log'" class="ms-2 jr-warn-text">
+              · {{ ar() ? 'اتطبّق واتشال بعد كده — مش على الفاتورة النهائية' : 'applied then removed — not on the final bill' }}
+            </span>
+          </div>
+
+          <!-- The lines it came off. Without them "1,019.00 off" is a number with no anchor;
+               with them it is checkable against the item list two panels down. -->
+          <div *ngIf="dc.lines?.length" class="mt-2 text-xs">
+            <div *ngFor="let ln of dc.lines" class="flex justify-between gap-3 py-0.5">
+              <span class="jr-muted min-w-0 truncate">
+                {{ ln.itemName }}<span *ngIf="ln.variantName" class="jr-faint"> · {{ ln.variantName }}</span>
+                <span class="jr-faint"> × {{ num(ln.quantity) }}</span>
+              </span>
+              <span class="tabular-nums jr-neg shrink-0"><bdi>− {{ money(ln.amount) }}</bdi></span>
+            </div>
           </div>
         </div>
       </div>
@@ -751,6 +808,27 @@ export class JourneyComponent {
     const t = (this.data()?.transactionType ?? '').replace(/\s/g, '').toLowerCase();
     return t === 'dinein' || t === 'reservation' || t === 'hospitality';
   });
+
+  /**
+   * The discount panel's headline.
+   *
+   * Summed from the rows rather than reusing `money.discount`, because the two answer different
+   * questions: the receipt figure is what came off the FINAL bill, while a row marked source="Log"
+   * is a discount that was applied and later removed. Adding a removed discount into the receipt
+   * figure would contradict the receipt printed directly above it.
+   */
+  protected discountTotal(): number {
+    const rows = this.data()?.discounts ?? [];
+    return this.num(rows.filter(r => r.source !== 'Log').reduce((sum, r) => sum + (r.amount ?? 0), 0));
+  }
+
+  /** The discount's name in the reader's language, falling back to whichever one exists. */
+  protected discountLabel(d: JourneyDiscount): string {
+    const ar = (d.discountNameAr ?? '').trim();
+    const en = (d.discountName ?? '').trim();
+    if (this.ar()) { return ar || en || (d.isPromoCode ? 'كود خصم' : 'خصم'); }
+    return en || ar || (d.isPromoCode ? 'Promo code' : 'Discount');
+  }
 
   /** The minimum the table had to reach: the per-guest rate × the guests on the bill. */
   protected minimumRequired(): number {

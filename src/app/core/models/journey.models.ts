@@ -185,12 +185,31 @@ export interface JourneyLineItem {
   net: number;
 }
 
+/** One discounted line inside a discount: the item, how many, and how much came off it. */
+export interface JourneyDiscountLine {
+  itemName: string;
+  variantName?: string | null;
+  quantity: number;
+  amount: number;
+}
+
 export interface JourneyDiscount {
   discountName: string;
+  discountNameAr?: string | null;
   amount: number;
   isPromoCode: boolean;
+  promoCode?: string | null;
+  /** True when a rule applied it, not a person. */
+  isAutomatic?: boolean;
   appliedBy?: string | null;
   appliedAt?: string | null;
+  /**
+   * "Order" — read off the persisted order (identity + amount are certain, the time may not be
+   * recorded). "Log" — an audit row with no surviving line, i.e. applied and later removed.
+   * The page says which, because the two carry different confidence.
+   */
+  source?: string | null;
+  lines?: JourneyDiscountLine[];
 }
 
 export interface OrderJourney {
