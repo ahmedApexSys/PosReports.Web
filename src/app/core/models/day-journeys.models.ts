@@ -129,6 +129,12 @@ export interface TakeAwayDayRequest {
 
 export interface TakeAwayOrderRow {
   orderId: number;
+  /**
+   * Which header table this order came from: 0 paid, 1 PayTabs, 2 hospitality (Officer / comped).
+   * Passed to the journey on drill-down — the three tables run independent identity sequences, so
+   * the id alone does not say which one an order is in.
+   */
+  source?: number | null;
   receiptNumber?: string | null;
   createdAt?: string | null;
   paidAt?: string | null;

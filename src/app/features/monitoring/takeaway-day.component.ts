@@ -168,6 +168,13 @@ export class TakeawayDayComponent {
   }
 
   open(o: TakeAwayOrderRow): void {
-    if (o.orderId > 0) this.router.navigate(['/journey'], { queryParams: { orderId: o.orderId } });
+    if (o.orderId <= 0) { return; }
+    // `source` says WHICH header table this row came from. An Officer / comped order lives only in
+    // the hospitality tables, and the three run independent identity sequences — so passing what
+    // this list already knows is the difference between opening the right order and the server
+    // having to guess between two that share a number.
+    this.router.navigate(['/journey'], {
+      queryParams: { orderId: o.orderId, source: o.source ?? undefined },
+    });
   }
 }

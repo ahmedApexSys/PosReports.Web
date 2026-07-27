@@ -712,6 +712,12 @@ export class JourneyComponent {
 
   protected readonly by = signal<SearchBy>('receipt');
   protected term = '';
+
+  /**
+   * Which header table the order lives in (0 paid, 2 hospitality), when the link that opened this
+   * page knew. Null for a number typed into the box — nobody has told us, so the server searches.
+   */
+  private source: number | null = null;
   protected readonly data = signal<OrderJourney | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -745,6 +751,13 @@ export class JourneyComponent {
     const p = this.route.snapshot.queryParamMap;
     const rcpt = p.get('receipt');
     const oid = p.get('orderId');
+
+    // Which table the order lives in, when whoever linked here already knew. A hand-typed number
+    // arrives without it and the server searches; a drill-down from a list that shows an "Officer"
+    // badge passes it and the server goes straight to the hospitality table.
+    const src = p.get('source');
+    if (src !== null && src !== '' && Number.isFinite(Number(src))) { this.source = Number(src); }
+
     if (oid) { this.by.set('order'); this.term = oid; this.load(); }
     else if (rcpt) { this.by.set('receipt'); this.term = rcpt; this.load(); }
   }
@@ -1079,9 +1092,12 @@ export class JourneyComponent {
     this.expanded.set(new Set<number>());
     // Branch scopes the lookup: receipt numbers are a per-branch sequence.
     const branchId = this.filter.branchId() ?? undefined;
+    // Carried only when a caller told us; a typed-in number leaves it undefined so the server
+    // searches both tables rather than being told the wrong one.
+    const source = this.source ?? undefined;
     const req = this.by() === 'order'
-      ? { orderId: Number(t), branchId }
-      : { receiptNumber: t, branchId };
+      ? { orderId: Number(t), branchId, source }
+      : { receiptNumber: t, branchId, source };
     this.api.orderJourney(req).pipe(
       catchError((e: Error) => { this.error.set(e?.message || 'Failed to load'); return of(null); }),
       finalize(() => this.loading.set(false)),

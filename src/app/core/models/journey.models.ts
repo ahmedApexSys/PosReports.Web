@@ -263,4 +263,11 @@ export interface OrderJourneyRequest {
   userId?: string | null;
   /** Receipt numbers are a per-branch sequence — scope the lookup or you can match another branch. */
   branchId?: number | null;
+  /**
+   * Which header table the order lives in: 0 = paid, 2 = hospitality (Officer / comped).
+   * The three tables run independent identity sequences, so the id alone does not say which one
+   * an order is in — a drill-down that already knows passes it through instead of making the
+   * server guess. Omitted for a hand-typed number, which the server then searches for.
+   */
+  source?: number | null;
 }
