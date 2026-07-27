@@ -141,8 +141,15 @@ export class MonitoringApi {
 
   private unwrap<T>(res: ApiResponse<T>, path: string): T {
     if (res && res.success === false && res.succeeded === false) {
-      const msg = res.message
-               || (res.errors && res.errors.length ? res.errors.join('; ') : '')
+      // Show the message AND the detail, not whichever came first.
+      //
+      // `message` is the sentence written for the reader ("this order's journey could not be
+      // assembled"); `errors` carries what actually went wrong. Preferring one meant the server
+      // could name a fault precisely and the page would still print only the polite half, which
+      // makes a screenshot useless to whoever has to fix it. They are joined now, and the detail
+      // is dropped only when it merely repeats the message.
+      const detail = (res.errors ?? []).filter((e) => !!e && e !== res.message).join('; ');
+      const msg = [res.message, detail].filter(Boolean).join(' — ')
                || `${path} request failed`;
       throw new Error(msg);
     }
