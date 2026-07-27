@@ -32,7 +32,13 @@ export interface JourneyClipItem {
 export interface JourneyChip {
   labelAr: string;
   labelEn: string;
+  /** Usually language-neutral — a table name, a count, a sum. */
   value: string;
+  /**
+   * The English rendering, for the few chips whose value is prose rather than a number
+   * (the minimum-charge rule). Absent on every other chip, so `value` is the fallback.
+   */
+  valueEn?: string | null;
 }
 
 /**

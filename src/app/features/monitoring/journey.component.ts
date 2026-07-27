@@ -16,9 +16,22 @@ import {
 
 type SearchBy = 'receipt' | 'order';
 
+/**
+ * Which stage of a movement a panel represents.
+ *
+ * Carried explicitly rather than inferred from position, because the clip is not always three
+ * panels: a first send has no before and leaves nothing behind, and drawing it as the middle of
+ * three would invent a comparison the data never made. The badge is what lets a reader tell a
+ * one-panel clip's single box apart from a three-panel clip's middle one at a glance.
+ */
+type ClipStage = 'before' | 'moved' | 'after';
+
 /** One column of the three-panel clip, already resolved into the reading language. */
 interface ClipPanel {
   title: string;
+  /** "قبل" / "الحركة" / "بعد" — the stage, said out loud above the title. */
+  badge: string;
+  stage: ClipStage;
   items: JourneyClipItem[];
   total: number;
   /** The emphasised middle panel — what this event actually moved. */
@@ -302,7 +315,7 @@ interface ClipView {
            read from the order's own lines, so it answers for orders taken long before any of this
            was logged — but it also means the time is often unknown, and the panel says so rather
            than borrowing a plausible one from a nearby event. -->
-      <div *ngIf="d.discounts?.length" class="jr-card p-4 md:p-5">
+      <div *ngIf="d.discounts.length" class="jr-card p-4 md:p-5">
         <div class="flex items-baseline justify-between gap-2 mb-3">
           <span class="font-medium jr-ink">{{ ar() ? 'الخصم — مين وليه' : 'The discount — who and why' }}</span>
           <span class="text-sm tabular-nums jr-neg"><bdi>− {{ money(discountTotal()) }}</bdi></span>
@@ -510,7 +523,14 @@ interface ClipView {
               <p *ngIf="c.note" class="jr-note text-[12.5px] leading-[1.7] jr-muted rounded-[10px] px-[11px] py-[9px]">{{ c.note }}</p>
 
               <div *ngIf="c.panels.length" class="jr-clip" [class.is-solo]="c.panels.length === 1">
-                <div *ngFor="let p of c.panels" class="jr-panel jr-inset p-2.5" [class.is-moved]="p.moved">
+                <div *ngFor="let p of c.panels" class="jr-panel jr-inset p-2.5"
+                  [class.is-moved]="p.moved" [attr.data-stage]="p.stage">
+                  <!-- The stage is stated, not implied by column order. A clip is not always
+                       three panels — a first send is one — and without the badge a lone box is
+                       indistinguishable from the middle of a triptych. -->
+                  <div class="flex items-center gap-1.5 mb-1.5">
+                    <span class="jr-stage text-[10px] font-bold uppercase tracking-wide px-1.5 py-px rounded">{{ p.badge }}</span>
+                  </div>
                   <div class="jr-rule-b flex items-baseline justify-between gap-2 pb-[7px]">
                     <span class="jr-panel-title text-xs font-bold">{{ p.title }}</span>
                     <span class="text-[11px] jr-faint tabular-nums"><bdi>{{ p.items.length }}</bdi></span>
@@ -544,13 +564,18 @@ interface ClipView {
               <div *ngIf="c.chips.length" class="flex flex-wrap gap-2">
                 <div class="jr-inset min-w-[104px] px-2.5 py-1.5" *ngFor="let ch of c.chips">
                   <div class="text-[11px] jr-muted">{{ ar() ? ch.labelAr : ch.labelEn }}</div>
-                  <div class="mt-px text-[13px] font-semibold jr-ink"><bdi>{{ ch.value }}</bdi></div>
+                  <div class="mt-px text-[13px] font-semibold jr-ink"><bdi>{{ chipValue(ch) }}</bdi></div>
                 </div>
               </div>
             </ng-container>
 
-            <!-- ── before → after → difference ── -->
-            <div *ngIf="hasStrip(s); else noStrip" class="grid grid-cols-3 gap-2">
+            <!-- ── before → after → difference → where it ended up ──
+                 The fourth cell is the order's FINAL net, repeated on every row on purpose: the
+                 question a reader actually has at a movement in the middle of a long order is
+                 "and where did this end up?", and answering it meant scrolling back to the
+                 receipt and losing their place. It is a fixed number, so it is labelled as the
+                 order's total rather than as this step's outcome. -->
+            <div *ngIf="hasStrip(s); else noStrip" class="grid grid-cols-2 md:grid-cols-4 gap-2">
               <div class="jr-inset px-2.5 py-[7px]">
                 <div class="text-[11px] jr-muted">{{ ar() ? 'قبل' : 'Before' }}</div>
                 <div class="mt-px text-[13px] font-bold jr-ink tabular-nums"><bdi>{{ cash(stripBefore(s)) }}</bdi></div>
@@ -562,6 +587,10 @@ interface ClipView {
               <div class="jr-inset px-2.5 py-[7px]">
                 <div class="text-[11px] jr-muted">{{ ar() ? 'الفرق' : 'Difference' }}</div>
                 <div class="jr-diff mt-px text-[13px] font-bold tabular-nums" [ngClass]="deltaTone(s)"><bdi>{{ diffLabel(s) }}</bdi></div>
+              </div>
+              <div class="jr-inset px-2.5 py-[7px]">
+                <div class="text-[11px] jr-muted">{{ ar() ? 'الصافي النهائي' : 'Final net' }}</div>
+                <div class="mt-px text-[13px] font-bold jr-ink tabular-nums"><bdi>{{ cash(finalNet()) }}</bdi></div>
               </div>
             </div>
             <ng-template #noStrip>
@@ -648,6 +677,13 @@ interface ClipView {
     .jr-clip.is-solo .jr-panel{max-width:640px}
     .jr-panel-title{color:var(--muted)}
     .jr-line+.jr-line{border-top:1px solid var(--border)}
+
+    /* The stage badge. Deliberately quiet on the two outer panels — they are context, and a
+       loud "BEFORE" would compete with the middle panel, which is the one carrying the event.
+       The moved panel's badge borrows the row's own tone so the clip reads as one object. */
+    .jr-stage{background:var(--bg-2);color:var(--faint);letter-spacing:.04em}
+    .jr-panel.is-moved .jr-stage{background:var(--tone-soft);color:var(--tone)}
+
     .jr-panel.is-moved{border-color:var(--tone-ring);background:var(--tone-soft)}
     .jr-panel.is-moved .jr-panel-title{color:var(--tone)}
     .jr-panel.is-moved .jr-rule-b{border-bottom-color:var(--tone-ring)}
@@ -756,6 +792,8 @@ export class JourneyComponent {
 
     const movedPanel: ClipPanel = {
       title: ar ? m.movedHeadingAr : (m.movedHeadingEn || m.movedHeadingAr),
+      badge: ar ? 'الحركة' : 'Moved',
+      stage: 'moved',
       items: moved,
       total: this.num(m.movedTotal),
       moved: true,
@@ -773,11 +811,15 @@ export class JourneyComponent {
       panels: [
         {
           title: ar ? 'الترابيزة كانت فيها' : 'The table had',
+          badge: ar ? 'قبل' : 'Before',
+          stage: 'before',
           items: before, total: this.num(m.beforeTotal), moved: false, derived: !!m.beforeAfterDerived,
         },
         movedPanel,
         {
-          title: ar ? 'اللي فضل' : 'What was left',
+          title: ar ? 'اللي فضل على الترابيزة' : 'What was left on the table',
+          badge: ar ? 'بعد' : 'After',
+          stage: 'after',
           items: after, total: this.num(m.afterTotal), moved: false, derived: !!m.beforeAfterDerived,
         },
       ],
@@ -785,10 +827,24 @@ export class JourneyComponent {
     };
   }
 
+  /** The chip's value in the reading language; most chips carry only one. */
+  protected chipValue(c: JourneyChip): string {
+    return (this.ar() ? c.value : (c.valueEn || c.value)) || '';
+  }
+
   // ── Money on one step ──────────────────────────────────────────────
 
   /** Whether the before/after/difference strip has anything trustworthy to show. */
   protected hasStrip(s: JourneyStep): boolean { return s.hasMoneyDelta && !!s.details; }
+
+  /**
+   * Where the order finished — the stored net, the same figure the receipt panel prints.
+   *
+   * Repeated beside every movement so a reader in the middle of a long order can see each step
+   * against the number it eventually became, without scrolling back and losing their place. It is
+   * the ORDER's net, not this step's, and the label says so.
+   */
+  protected finalNet(): number { return this.num(this.data()?.money?.net ?? 0); }
 
   protected stripBefore(s: JourneyStep): number { return this.delta(s)?.before ?? 0; }
   protected stripAfter(s: JourneyStep): number { return this.delta(s)?.after ?? 0; }
