@@ -94,8 +94,13 @@ interface ClipView {
       </div>
       <div class="relative flex-1 min-w-[200px] max-w-sm">
         <lucide-icon [img]="Search" class="absolute end-3 top-2.5 w-4 h-4 jr-faint"></lucide-icon>
+        <!-- The placeholder names WHICH number this box wants right now. The two modes take
+             completely different ones — a receipt is a 17-digit serial, an order id is small —
+             and a generic "type the number" left the selected mode easy to miss. -->
         <input type="text" [(ngModel)]="term" (keyup.enter)="load()"
-          [placeholder]="ar() ? 'اكتب الرقم واضغط Enter' : 'Type the number and press Enter'"
+          [placeholder]="by() === 'receipt'
+            ? (ar() ? 'رقم الإيصال — ١٧ رقم' : 'Receipt number — 17 digits')
+            : (ar() ? 'رقم الأوردر — مثال 1934' : 'Order number — e.g. 1934')"
           class="jr-input w-full pe-9 ps-3 py-2 text-sm rounded-lg" />
       </div>
       <button type="button" (click)="load()"
