@@ -63,12 +63,18 @@ if (-not $msdeploy) {
 # msdeploy mangles source paths containing spaces, and this project lives under
 # "D:\Apex work\...". A previous deploy in this stack was lost to exactly that,
 # so stage the files somewhere plain first and sync from there.
-$stage = Join-Path $env:TEMP 'posreports-deploy'
-if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+#
+# Deliberately NOT $env:TEMP: on this machine that resolves to the 8.3 short form
+# C:\Users\ZHOK~1\AppData\Local\Temp, and PowerShell treats the "~" as the home-directory
+# shortcut, so Remove-Item fails with "An object at the specified path C:\Users\ZHOK~1 does
+# not exist" the moment a previous run has left the folder behind. A plain long path has
+# neither spaces nor a tilde. -LiteralPath everywhere keeps any path character literal.
+$stage = Join-Path $env:SystemDrive 'ApexDeploy\posreports'
+if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
-Copy-Item (Join-Path $localRoot '*') $stage -Recurse -Force
+Copy-Item -Path (Join-Path $localRoot '*') -Destination $stage -Recurse -Force
 
-$count = @(Get-ChildItem $stage -Recurse -File).Count
+$count = @(Get-ChildItem -LiteralPath $stage -Recurse -File).Count
 Write-Host ""
 Write-Host "Staged $count files -> $stage" -ForegroundColor Cyan
 Write-Host "Target: https://${Server}:$Port  site '$SiteName'" -ForegroundColor Cyan
@@ -97,7 +103,7 @@ $code = $LASTEXITCODE
 
 # The password only ever lived in this process; drop it and the staged copy.
 $pass = $null
-Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
 if ($code -eq 0) {
