@@ -2,6 +2,10 @@
 
 # Compiled output
 /dist
+
+# Deploy packages built from /dist. They are build output, not source: a 1 MB zip per
+# release would bloat history permanently and can always be regenerated from the tag.
+/publish
 /tmp
 /out-tsc
 /bazel-out
