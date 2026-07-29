@@ -37,6 +37,27 @@ export interface UnifiedAuditLog {
   sessionId: string;
   success: boolean;
   errorMessage: string;
+
+  // ── The money, as numbers (order rows only) ──
+  // oldValue/newValue carry the same figures as "Sales:.. Net:.. Total:..", which is a sentence
+  // and cannot be subtracted. These can. Null on system and menu rows: a login has no net, and 0
+  // would read as "the bill was zero" rather than "this was never about a bill".
+  netBefore?: number | null;
+  netAfter?: number | null;
+  totalSalesBefore?: number | null;
+  totalSalesAfter?: number | null;
+  itemCountBefore?: number | null;
+  itemCountAfter?: number | null;
+  guestCountBefore?: number | null;
+  guestCountAfter?: number | null;
+
+  // ── Which order / table, so the feed can GROUP rather than merely print ──
+  orderId?: number;
+  receiptNumber?: number;
+  tableName?: string;
+  destinationTableName?: string;
+  transactionTypeName?: string;
+  waiterName?: string;
 }
 
 /** Request body for POST /api/AuditReport/Timeline (mirrors AuditLogFilterDto). */

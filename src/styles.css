@@ -140,7 +140,7 @@
     /* ── The journey page's palette ──────────────────────────────────
        Warm editorial cream. Held on the host so the page is recoloured in one
        place and no other feature is touched. Indigo is the only cool hue. */
-    app-journey{
+    app-journey, app-live-feed{
       --bg-2:#eae6de; --card:#fff; --card-2:#faf8f4;
       --border:#e9e4db; --border-strong:#d7d0c4;
       --ink:#221f1b; --muted:#6f695f; --faint:#a49d90;
@@ -156,7 +156,7 @@
 
     /* The switch the rest of the app already uses — ThemeService toggles .dark on
        <html>. A second mechanism here would drift from the theme button. */
-    .dark app-journey{
+    .dark app-journey, .dark app-live-feed{
       --bg-2:#211d17; --card:#201c15; --card-2:#26221a;
       --border:#322c22; --border-strong:#443c2f;
       --ink:#efeae1; --muted:#a79f90; --faint:#6f6759;
@@ -170,17 +170,17 @@
 
 /* Set once per event card so the glyph, the moved panel and the focus ring all agree,
    instead of three bindings repeating the same decision. */
-app-journey .tone-neutral{--tone:var(--neutral);--tone-soft:var(--neutral-soft);--tone-ring:var(--neutral-ring)}
-app-journey .tone-brand{--tone:var(--brand);--tone-soft:var(--brand-soft);--tone-ring:var(--brand-ring)}
-app-journey .tone-good{--tone:var(--good);--tone-soft:var(--good-soft);--tone-ring:var(--good-ring)}
-app-journey .tone-warn{--tone:var(--warn);--tone-soft:var(--warn-soft);--tone-ring:var(--warn-ring)}
-app-journey .tone-high{--tone:var(--high);--tone-soft:var(--high-soft);--tone-ring:var(--high-ring)}
-app-journey .tone-bad{--tone:var(--bad);--tone-soft:var(--bad-soft);--tone-ring:var(--bad-ring)}
+app-journey .tone-neutral, app-live-feed .tone-neutral{--tone:var(--neutral);--tone-soft:var(--neutral-soft);--tone-ring:var(--neutral-ring)}
+app-journey .tone-brand, app-live-feed .tone-brand{--tone:var(--brand);--tone-soft:var(--brand-soft);--tone-ring:var(--brand-ring)}
+app-journey .tone-good, app-live-feed .tone-good{--tone:var(--good);--tone-soft:var(--good-soft);--tone-ring:var(--good-ring)}
+app-journey .tone-warn, app-live-feed .tone-warn{--tone:var(--warn);--tone-soft:var(--warn-soft);--tone-ring:var(--warn-ring)}
+app-journey .tone-high, app-live-feed .tone-high{--tone:var(--high);--tone-soft:var(--high-soft);--tone-ring:var(--high-ring)}
+app-journey .tone-bad, app-live-feed .tone-bad{--tone:var(--bad);--tone-soft:var(--bad-soft);--tone-ring:var(--bad-ring)}
 
 /* Colour aliases — the same token set under shorter names, so they live beside it. */
-app-journey .jr-ink{color:var(--ink)}
-app-journey .jr-muted{color:var(--muted)}
-app-journey .jr-faint{color:var(--faint)}
+app-journey .jr-ink, app-live-feed .jr-ink{color:var(--ink)}
+app-journey .jr-muted, app-live-feed .jr-muted{color:var(--muted)}
+app-journey .jr-faint, app-live-feed .jr-faint{color:var(--faint)}
 app-journey .jr-neg{color:var(--bad)}
 app-journey .jr-pos{color:var(--good)}
 app-journey .jr-warn-text{color:var(--warn)}
