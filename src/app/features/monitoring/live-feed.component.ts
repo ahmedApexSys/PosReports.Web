@@ -654,9 +654,14 @@ export class LiveFeedComponent implements OnDestroy {
   detail(e: FeedEvent): string {
     const l = this.lang.language();
     const d = l === 'ar' ? unifiedDescription(e.row, 'ar') : (e.row.description || unifiedDescription(e.row, 'en'));
-    // The title already says the action. A description that only repeats it is the noise the
-    // old screen printed under every single row.
-    return d && d.trim() !== e.title.trim() ? d : (e.row.entityType ? entityLabel(e.row.entityType, l) : '');
+    // The title already says the action. Anything that only repeats it — or the generic entity
+    // label, which says "Order" under a row already headed "Pay" — is the noise the old screen
+    // printed under every single row. Nothing is better than filler.
+    if (!d) return '';
+    const t = d.trim();
+    if (!t || t === e.title.trim()) return '';
+    if (t === entityLabel(e.row.entityType, l)?.trim()) return '';
+    return t;
   }
 
   sessionGlyph(s: FeedSession): string {
