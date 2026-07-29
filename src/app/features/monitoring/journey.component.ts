@@ -479,18 +479,21 @@ interface ClipView {
       <div class="jr-card p-4 md:p-5">
         <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
           <div class="font-medium jr-ink">{{ ar() ? 'كل حركات الأوردر' : 'Every movement on the order' }}</div>
+          <!-- The count is the number of rows on screen, in BOTH states. It used to show a
+               different figure from the one it sat above, so an owner counting the pills to
+               check the number never arrived at it. -->
           <button *ngIf="noiseCount() > 0" type="button" (click)="showNoise.set(!showNoise())"
             class="jr-toggle inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border"
             [class.is-on]="!showNoise()">
             <span class="jr-dot w-1.5 h-1.5 rounded-full"></span>
             {{ showNoise() ? (ar() ? 'كل الأحداث' : 'All events')
-                           : (ar() ? 'أحداث المال فقط' : 'Money events only') }}
-            <span class="opacity-60">({{ showNoise() ? visibleSteps().length : moneyStepCount() }})</span>
+                           : (ar() ? 'الأحداث المهمة' : 'Key events') }}
+            <span class="opacity-60">({{ visibleSteps().length }})</span>
           </button>
         </div>
 
         <div *ngFor="let s of visibleSteps()" class="jr-ev rounded-xl overflow-hidden mb-2.5 last:mb-0"
-          [ngClass]="toneClass(s)" [class.is-open]="isOpen(s.step)">
+          [ngClass]="toneClass(s)" [class.is-open]="isOpen(s.step)" [class.is-settlement]="!!s.settlesStep">
 
           <!-- Collapsed, the row says what it always said. The clip is one click away,
                never in the way of scanning the column. -->
@@ -503,10 +506,16 @@ interface ClipView {
 
             <span class="flex-1 min-w-0">
               <span class="flex items-baseline gap-2 flex-wrap">
-                <span class="text-sm font-semibold jr-ink">{{ ar() ? s.actionAr : s.action }}</span>
+                <!-- A settlement row is TITLED as one. Indentation alone cannot carry the
+                     relationship, because the void it belongs to is not always the row above. -->
+                <span class="text-sm font-semibold jr-ink">{{ titleOf(s) }}</span>
                 <bdi class="text-[11.5px] jr-faint">{{ s.time || s.date }}</bdi>
+                <span *ngIf="s.settlesStep" class="jr-tag text-[11px] px-1.5 py-0.5 rounded">
+                  <bdi>{{ ar() ? 'ضمن حساب الحذف #' + s.settlesStep : 'part of void #' + s.settlesStep }}</bdi>
+                </span>
                 <span *ngIf="s.stage === 'Table'" class="jr-tag text-[11px] px-1.5 py-0.5 rounded">{{ ar() ? 'على الترابيزة' : 'table session' }}</span>
               </span>
+              <span *ngIf="settlementNote(s)" class="block mt-0.5 text-[13px] leading-[1.6] jr-muted">{{ settlementNote(s) }}</span>
               <span *ngIf="hasSub(s)" class="block mt-0.5 text-[13px] leading-[1.6] jr-muted">
                 {{ detail(s) }}
                 <bdi *ngIf="s.destinationName" class="jr-dest">→ {{ s.destinationName }}</bdi>
@@ -598,6 +607,15 @@ interface ClipView {
                 <div class="mt-px text-[13px] font-bold jr-ink tabular-nums"><bdi>{{ cash(finalNet()) }}</bdi></div>
               </div>
             </div>
+
+            <!-- The till logs a take-away payment's "before" as zero, so left alone every edit
+                 reports the whole bill as its change. The figure above is the running total
+                 instead — said out loud, because a rebuilt number is honest only while it says
+                 it was rebuilt. -->
+            <p *ngIf="s.moneyBeforeDerived && hasStrip(s)" class="text-[11px] leading-normal jr-faint">
+              {{ ar() ? 'رقم «قبل» محسوب من الحركة اللي قبلها — الجهاز بيسجّله صفر على الأوردرات دي.'
+                      : '"Before" is taken from the running total — the till logs it as zero on these orders.' }}
+            </p>
             <ng-template #noStrip>
               <p class="jr-note text-[12.5px] leading-[1.7] jr-muted rounded-[10px] px-[11px] py-[9px]">
                 {{ ar() ? 'الحركة دي مفيش عليها أرقام صافي متسجّلة، فمش هنخمّن.'
@@ -661,6 +679,15 @@ interface ClipView {
     .jr-ev{border:1px solid var(--border);background:var(--card);
       transition:border-color .18s ease-out,box-shadow .18s ease-out}
     .jr-ev.is-open{border-color:var(--tone-ring);box-shadow:0 12px 28px -20px rgba(30,27,20,.55)}
+
+    /* A settlement belongs to the void above it. Inset from the margin and tied back with a
+       rail, so the pair reads as one event with its paperwork rather than as two payments.
+       The rail carries the relationship visually; the row's TITLE carries it in words, because
+       the void is not always the row immediately above. */
+    .jr-ev.is-settlement{margin-inline-start:22px;border-style:dashed;background:var(--card-2);position:relative}
+    .jr-ev.is-settlement::before{content:'';position:absolute;inset-block:-9px 50%;
+      inset-inline-start:-13px;width:13px;border-inline-start:2px solid var(--tone-ring);
+      border-block-end:2px solid var(--tone-ring);border-end-start-radius:9px;opacity:.55}
     .jr-ev-head{cursor:pointer;transition:background-color .18s ease-out}
     .jr-ev-head:hover{background:var(--card-2)}
     .jr-ev-head:focus-visible{outline:2px solid var(--tone-ring);outline-offset:-3px}
@@ -965,9 +992,26 @@ export class JourneyComponent {
     return this.ar() ? `بعد حذف ${names}` : `after voiding ${names}`;
   }
 
-  /** How many steps actually moved money — the count on the filter pill. */
-  protected moneyStepCount(): number {
-    return (this.data()?.timeline ?? []).filter(s => !s.isNoise && this.deltaOf(s) !== 0).length;
+  /**
+   * The row's headline. A post-void settlement is named for what it is — the till writing the
+   * void down — instead of "Edited Payment", which is what the log calls it and which reads as a
+   * second payment nobody made. The name travels with the row, so it still says what it is when
+   * the void it belongs to is scrolled off or a checkout sits between them.
+   */
+  protected titleOf(s: JourneyStep): string {
+    if (s.settlesStep) {
+      const label = this.ar() ? s.settlementLabelAr : s.settlementLabelEn;
+      if (label) { return label; }
+    }
+    return this.ar() ? s.actionAr : s.action;
+  }
+
+  /** Why this row exists, in the owner's words. Only on a settlement. */
+  protected settlementNote(s: JourneyStep): string {
+    if (!s.settlesStep) { return ''; }
+    return this.ar()
+      ? 'الجهاز سجّل الباقي بعد الحذف — مش دفعة تانية.'
+      : 'the till recorded what was left after the void — not a second payment.';
   }
 
   /** The signed change this step made to the net, or 0 when it moved nothing. */
@@ -1023,6 +1067,8 @@ export class JourneyComponent {
    * report pages are routinely turned into.
    */
   protected stepGlyph(s: JourneyStep): string {
+    // A settlement wears the void's mark, so the pair reads as one thing at a glance.
+    if (s.settlesStep) { return '✕'; }
     const a = this.kindOf(s).toLowerCase();
     if (a.includes('open')) { return '+'; }
     if (a.includes('send') || a.includes('sent')) { return '↑'; }
@@ -1052,7 +1098,9 @@ export class JourneyComponent {
     return 'neutral';
   }
 
-  protected toneClass(s: JourneyStep): string { return `tone-${this.tone(this.kindOf(s))}`; }
+  protected toneClass(s: JourneyStep): string {
+    return s.settlesStep ? 'tone-bad' : `tone-${this.tone(this.kindOf(s))}`;
+  }
 
   /** Who did what, when, and what it did to the money — as one sentence. */
   protected sentence(s: JourneyStep): string {

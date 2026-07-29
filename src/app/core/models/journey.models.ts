@@ -83,6 +83,20 @@ export interface JourneyStep {
   stage: string;
   /** Internal repricing/technical event — hidden unless the user opts in. */
   isNoise: boolean;
+  /**
+   * The step number of the void this row is the paperwork for. The till re-saves the order
+   * straight after a void to commit what is left; that row is real money but it is the void's
+   * accounting, not a payment of its own, so the page draws it attached to that void.
+   */
+  settlesStep?: number | null;
+  /** What to call the row when `settlesStep` is set. */
+  settlementLabelAr?: string | null;
+  settlementLabelEn?: string | null;
+  /**
+   * The "before" figure was rebuilt from the running total because the till logged it as zero.
+   * Said out loud on the row rather than substituted quietly.
+   */
+  moneyBeforeDerived?: boolean;
   /** Only true when the before/after money on this row is trustworthy. */
   hasMoneyDelta: boolean;
   details?: JourneyStepDetails | null;
