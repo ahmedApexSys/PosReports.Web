@@ -553,7 +553,18 @@ interface ClipView {
                   <div class="jr-line flex items-start justify-between gap-2.5 py-1.5" *ngFor="let it of p.items">
                     <span class="min-w-0 text-[12.5px] leading-normal jr-ink">
                       {{ it.itemName }}<span *ngIf="it.variantName" class="jr-faint"> ({{ it.variantName }})</span>
-                      <bdi class="block mt-px text-[11px] jr-muted tabular-nums">×{{ num(it.quantity) }} &#64; {{ money(it.unitPrice) }}</bdi>
+                      <!-- Whether the food had already been fired. It rides on the name rather than
+                           beside the total, because the money is what an owner scans this panel for
+                           and a second bold thing on the line would fight it. Nothing is drawn when
+                           the till recorded neither flag — see kitchenTag(). -->
+                      <span *ngIf="kitchenTag(it) as tag"
+                        class="jr-tag ms-1.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap">{{ tag }}</span>
+                      <!-- The time the line was rung in, on the quantity line where the rest of this
+                           item's small print already lives. It gets its OWN isolate because "PM" is
+                           the first strong character in the stamp, and left in the same one it would
+                           set the reading direction for the quantity and price sitting beside it. -->
+                      <bdi class="block mt-px text-[11px] jr-muted tabular-nums">×{{ num(it.quantity) }} &#64; {{ money(it.unitPrice) }}<bdi
+                        *ngIf="it.timeOrdered" class="jr-faint"> · {{ it.timeOrdered }}</bdi></bdi>
                     </span>
                     <bdi class="shrink-0 text-[12.5px] font-semibold jr-ink tabular-nums">{{ money(it.lineTotal) }}</bdi>
                   </div>
@@ -875,6 +886,38 @@ export class JourneyComponent {
   /** The chip's value in the reading language; most chips carry only one. */
   protected chipValue(c: JourneyChip): string {
     return (this.ar() ? c.value : (c.valueEn || c.value)) || '';
+  }
+
+  /**
+   * What the kitchen knew about one clip line — or nothing at all.
+   *
+   * This is the question an owner asks of a transfer or a void and the money cannot answer: was
+   * this food already cooked and carried out, or was it a mis-key caught before anyone touched a
+   * pan. Both cost the same on the bill and mean completely different things about the branch.
+   *
+   * A line carrying NEITHER flag is a movement logged before the till started recording them, and
+   * it is left bare on purpose. An absent flag says "nobody wrote it down", which is not the same
+   * claim as "it was new" — badging it either way would be the page inventing a fact about an old
+   * order. For the same reason `isPrinted: false` alone earns no badge: not-printed is not proof
+   * the line was newly added, only that this half of the answer is missing.
+   *
+   * `isPrinted` wins when both arrive, because food that reached the kitchen is the expensive
+   * claim and the one being asked about.
+   */
+  protected kitchenTag(it: JourneyClipItem): string {
+    const ar = this.ar();
+    if (it.isPrinted) {
+      const fired = this.num(it.slipQty ?? 0);
+      const qty = this.num(it.quantity);
+      // Part of the line went out and part did not — a line topped up after the first send. Left
+      // unsaid, the badge would vouch for a quantity the kitchen never saw.
+      if (it.slipQty != null && fired > 0 && fired < qty) {
+        return ar ? `اتبعت للمطبخ · ${fired} من ${qty}` : `sent to the kitchen · ${fired} of ${qty}`;
+      }
+      return ar ? 'اتبعت للمطبخ' : 'sent to the kitchen';
+    }
+    if (it.isNew) { return ar ? 'جديد — لسه ماتبعتش' : 'new — not sent yet'; }
+    return '';
   }
 
   // ── Money on one step ──────────────────────────────────────────────

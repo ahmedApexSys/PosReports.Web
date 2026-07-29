@@ -26,6 +26,30 @@ export interface JourneyClipItem {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  /**
+   * Whether the line had already gone to the kitchen when this movement touched it. Food that was
+   * cooked and carried out moves exactly the same money as a mis-key corrected seconds later, and
+   * this flag is the only thing that tells an owner which of the two they are reading.
+   *
+   * ABSENT means the movement was logged before the server started recording this — it is NOT a
+   * quiet "the line was new". The page draws nothing at all in that case rather than a badge
+   * nobody wrote.
+   */
+  isPrinted?: boolean;
+  /** The other half of the same answer: rung in but never fired. Absent carries no claim either. */
+  isNew?: boolean;
+  /**
+   * How much of the line had actually been fired. It can be less than `quantity` — a line topped up
+   * after the first send goes out in two pieces — so "already sent to the kitchen" is only true of
+   * this much of it, and the page says so instead of vouching for the whole line.
+   */
+  slipQty?: number;
+  /**
+   * When the line was rung in ("hh:mm:ss tt"). Without it every item on a clip appears to have been
+   * ordered at the moment of the event that last touched it, which on a transfer or a late void is
+   * hours away from the truth.
+   */
+  timeOrdered?: string | null;
 }
 
 /** A single labelled fact about a movement (guests, reason, destination, …). */
