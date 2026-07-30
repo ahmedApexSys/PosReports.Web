@@ -654,18 +654,23 @@ interface ClipView {
                  "and where did this end up?", and answering it meant scrolling back to the
                  receipt and losing their place. It is a fixed number, so it is labelled as the
                  order's total rather than as this step's outcome. -->
-            <div *ngIf="hasStrip(s); else noStrip" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div *ngIf="hasStrip(s) || hasStrip(g.tail); else noStrip" class="grid grid-cols-2 md:grid-cols-4 gap-2">
               <div class="jr-inset px-2.5 py-[7px]">
                 <div class="text-[11px] jr-muted">{{ ar() ? 'قبل' : 'Before' }}</div>
                 <div class="mt-px text-[13px] font-bold jr-ink tabular-nums"><bdi>{{ cash(stripBefore(s)) }}</bdi></div>
               </div>
+              <!-- The "after" and the difference are the WHOLE event's, matching the pill above.
+                   Reading them off the void row alone contradicted that pill: the void emitter
+                   subtracts the raw item value without recomputing tax, so the row claimed a net of
+                   1,244.79 where the receipt said 1,214.13, while the settlement row beside it had
+                   measured the real figure all along. A row must not disagree with its own badge. -->
               <div class="jr-inset px-2.5 py-[7px]">
                 <div class="text-[11px] jr-muted">{{ ar() ? 'بعد' : 'After' }}</div>
-                <div class="mt-px text-[13px] font-bold jr-ink tabular-nums"><bdi>{{ cash(stripAfter(s)) }}</bdi></div>
+                <div class="mt-px text-[13px] font-bold jr-ink tabular-nums"><bdi>{{ cash(stripAfterOf(g)) }}</bdi></div>
               </div>
               <div class="jr-inset px-2.5 py-[7px]">
                 <div class="text-[11px] jr-muted">{{ ar() ? 'الفرق' : 'Difference' }}</div>
-                <div class="jr-diff mt-px text-[13px] font-bold tabular-nums" [ngClass]="deltaTone(s)"><bdi>{{ diffLabel(s) }}</bdi></div>
+                <div class="jr-diff mt-px text-[13px] font-bold tabular-nums" [ngClass]="groupDeltaTone(g)"><bdi>{{ stripDiffLabel(g) }}</bdi></div>
               </div>
               <div class="jr-inset px-2.5 py-[7px]">
                 <div class="text-[11px] jr-muted">{{ ar() ? 'الصافي النهائي' : 'Final net' }}</div>
@@ -896,7 +901,30 @@ export class JourneyComponent {
    * This is the figure the owner reads first and the one that was missing.
    */
   protected groupDelta(g: { head: JourneyStep; tail: JourneyStep | null }): number {
-    return this.deltaOf(g.head) + (g.tail ? this.deltaOf(g.tail) : 0);
+    if (!g.tail) { return this.deltaOf(g.head); }
+
+    // Measured ONCE, across the whole event: the net before the void against the net after the
+    // till re-saved. The two rows are not two consecutive movements — they are two measurements of
+    // the SAME movement from the same starting point, so adding them counted the food twice.
+    //
+    // On a real order the void row read 1,463.79 → 1,244.79 (the raw item value, 219.00; the void
+    // emitter subtracts it without recomputing tax) while the settlement read 1,463.79 → 1,214.13
+    // (219.00 all-in, 249.66). Adding those two deltas produced −468.66 for a deletion that moved
+    // −249.66, and the receipt agrees with the settlement to the piastre.
+    //
+    // Taking the span rather than the tail's own delta makes this independent of which basis either
+    // writer used: whatever the intermediate row claims, before-of-the-first to after-of-the-last
+    // is the money that actually left the bill.
+    const from = this.delta(g.head)?.before;
+    const to = this.delta(g.tail)?.after;
+
+    if (from !== undefined && to !== undefined && (g.head.hasMoneyDelta || g.tail.hasMoneyDelta)) {
+      return Math.round((to - from) * 100) / 100;
+    }
+
+    // No usable span. The settlement is the later and more complete of the two measurements, so
+    // prefer it over the head's pre-recalculation figure, and never add them.
+    return this.deltaOf(g.tail) || this.deltaOf(g.head);
   }
 
   protected groupDeltaLabel(g: { head: JourneyStep; tail: JourneyStep | null }): string {
@@ -912,17 +940,23 @@ export class JourneyComponent {
   }
 
   /**
-   * The sentence under a void that carries a settlement: what the items were worth, and what else
-   * came off with them. Naming the remainder "ضريبة وخدمة" would be an inference — the page does
-   * not know the split — so it is called what it is, a recalculation.
+   * The sentence under a void that carries a settlement: what the food was worth, and what taking
+   * it off did to the bill.
+   *
+   * It used to read "items X · recalculation Y" with Y being the settlement's own delta, which
+   * invited the reader to add them — and the pill above did add them. Y is not a remainder; it is
+   * the same removal measured all-in. So the two figures are now stated as what they are: the
+   * food's own value, and its effect on what the guest owes. The gap between them is not named
+   * "tax and service" because the page does not know the split and will not infer one.
    */
   protected groupBreakdown(g: { head: JourneyStep; tail: JourneyStep | null }): string {
     if (!g.tail) { return ''; }
     const items = this.abs(this.deltaOf(g.head));
-    const rest = this.abs(this.deltaOf(g.tail));
+    const total = this.abs(this.groupDelta(g));
+    if (!items || !total) { return ''; }
     return this.ar()
-      ? `قيمة الأصناف ${this.money(items)} · فرق إعادة الحساب ${this.money(rest)}`
-      : `items ${this.money(items)} · recalculation ${this.money(rest)}`;
+      ? `قيمة الأصناف ${this.money(items)} · أثرها على الحساب ${this.money(total)}`
+      : `food ${this.money(items)} · effect on the bill ${this.money(total)}`;
   }
 
   /**
@@ -1150,8 +1184,16 @@ export class JourneyComponent {
 
   // ── Money on one step ──────────────────────────────────────────────
 
-  /** Whether the before/after/difference strip has anything trustworthy to show. */
-  protected hasStrip(s: JourneyStep): boolean { return s.hasMoneyDelta && !!s.details; }
+  /**
+   * Whether the before/after/difference strip has anything trustworthy to show.
+   *
+   * Accepts null so a group's tail can be asked the same question without the caller unwrapping it:
+   * a void whose own row carries no usable money still deserves a strip when the settlement folded
+   * into it does.
+   */
+  protected hasStrip(s: JourneyStep | null | undefined): boolean {
+    return !!s && s.hasMoneyDelta && !!s.details;
+  }
 
   /**
    * Where the order finished — the stored net, the same figure the receipt panel prints.
@@ -1164,6 +1206,30 @@ export class JourneyComponent {
 
   protected stripBefore(s: JourneyStep): number { return this.delta(s)?.before ?? 0; }
   protected stripAfter(s: JourneyStep): number { return this.delta(s)?.after ?? 0; }
+
+  /**
+   * Where the bill landed once the WHOLE event was done — the settlement's after, when one was
+   * folded in, otherwise the row's own.
+   *
+   * The void row's stored net is the pre-void net minus the raw item value: truthful about the food
+   * that left, but short by whatever tax and service came off with it, because the emitter has no
+   * recomputed header to read at the moment it writes (the recalculation is the settlement row).
+   * The settlement measured the same removal all-in, so it is the authoritative endpoint.
+   */
+  protected stripAfterOf(g: { head: JourneyStep; tail: JourneyStep | null }): number {
+    if (g.tail) {
+      const to = this.delta(g.tail)?.after;
+      if (to !== undefined) { return to; }
+    }
+    return this.stripAfter(g.head);
+  }
+
+  /** The strip's difference, for the whole event, so it cannot disagree with the badge above it. */
+  protected stripDiffLabel(g: { head: JourneyStep; tail: JourneyStep | null }): string {
+    const d = this.groupDelta(g);
+    if (!d) { return this.ar() ? 'من غير تغيير' : 'No change'; }
+    return `${d > 0 ? '+' : '−'}${this.money(this.abs(d))} ج.م`;
+  }
 
   protected diffLabel(s: JourneyStep): string {
     const d = this.deltaOf(s);
