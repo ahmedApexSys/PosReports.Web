@@ -40,11 +40,38 @@ interface ClipPanel {
   derived: boolean;
 }
 
+/**
+ * One cell of the movement ledger — the three numbers that answer "what was there, what changed,
+ * what is there now".
+ *
+ * <para>
+ * The panels alone could not answer it. A send re-submits the WHOLE basket, so the middle panel
+ * listed 11 items while the headline said 4 and the before panel said 7 — three numbers that do not
+ * reconcile unless you already know that a send resends everything. The ledger states the arithmetic
+ * outright instead of leaving a reader to infer it from three lists.
+ * </para>
+ */
+interface ClipTally {
+  label: string;
+  /** Distinct lines. What the panels' own badges count. */
+  lines: number;
+  /**
+   * Total quantity. Carried separately because a void frequently changes a QUANTITY and not a line
+   * — the reported order removed one of three haircuts, so the line count read 16 before and 16
+   * after and the only evidence of the removal was a ×3 becoming a ×2 halfway down a list.
+   */
+  qty: number;
+  /** The changed middle figure, which is the one worth emphasising. */
+  isChange?: boolean;
+}
+
 /** The whole clip for one movement: a note to state, the panels to draw, the facts. */
 interface ClipView {
   note: string;
   panels: ClipPanel[];
   chips: JourneyChip[];
+  /** was / changed / now. Empty when the movement has nothing to reconcile. */
+  tally: ClipTally[];
 }
 
 /**
@@ -545,6 +572,24 @@ interface ClipView {
             <ng-container *ngIf="clip(s) as c">
               <p *ngIf="c.note" class="jr-note text-[12.5px] leading-[1.7] jr-muted rounded-[10px] px-[11px] py-[9px]">{{ c.note }}</p>
 
+              <!-- was / changed / now, stated rather than left to be inferred from three lists.
+                   A send re-submits the whole basket, so the middle list showed 11 while the
+                   headline said 4 and the before list said 7 — numbers that cannot be reconciled
+                   unless you already know that a send resends everything. -->
+              <div *ngIf="c.tally.length" class="jr-tally">
+                <div *ngFor="let t of c.tally" class="jr-tally-cell" [class.is-change]="t.isChange">
+                  <div class="text-[11px] jr-muted">{{ t.label }}</div>
+                  <div class="mt-px text-[15px] font-bold tabular-nums"><bdi>{{ t.lines }}</bdi></div>
+                  <!-- The quantity only when it disagrees with the line count. A void of one of
+                       three identical items leaves the line count unchanged, and on the reported
+                       order that made 16 -> 16 the only thing on screen while a ×3 quietly became
+                       a ×2 halfway down a list. -->
+                  <div *ngIf="t.qty !== t.lines" class="text-[11px] jr-faint tabular-nums">
+                    <bdi>{{ ar() ? num(t.qty) + ' قطعة' : num(t.qty) + ' pcs' }}</bdi>
+                  </div>
+                </div>
+              </div>
+
               <div *ngIf="c.panels.length" class="jr-clip" [class.is-solo]="c.panels.length === 1">
                 <div *ngFor="let p of c.panels" class="jr-panel jr-inset p-2.5"
                   [class.is-moved]="p.moved" [attr.data-stage]="p.stage">
@@ -746,6 +791,14 @@ interface ClipView {
     /* Two classes beat the media query's one, so a solo panel stays single-column at
        every width without depending on rule order. */
     .jr-clip.is-solo{grid-template-columns:minmax(0,1fr)}
+    /* The ledger. Three equal cells so the eye reads them as one sentence, with the middle one
+       carrying the tone because it is the figure that changed. */
+    .jr-tally{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .jr-tally-cell{background:var(--card-2);border:1px solid var(--border);border-radius:10px;padding:7px 10px}
+    .jr-tally-cell.is-change{border-color:var(--tone-ring);background:var(--tone-soft)}
+    .jr-tally-cell.is-change .jr-muted,.jr-tally-cell.is-change .tabular-nums{color:var(--tone)}
+    @media (max-width:520px){ .jr-tally{grid-template-columns:1fr} }
+
     .jr-clip.is-solo .jr-panel{max-width:640px}
     .jr-panel-title{color:var(--muted)}
     .jr-line+.jr-line{border-top:1px solid var(--border)}
@@ -939,14 +992,25 @@ export class JourneyComponent {
           : 'No item detail was recorded for this movement.'),
         panels: [],
         chips,
+        tally: [],
       };
     }
+
+    const tally = this.buildTally(m, before, moved, after, ar);
+
+    // Newly-added lines first. A send lists the whole basket, so without this the four lines that
+    // actually went to the kitchen sit scattered among the seven that were already there, and the
+    // per-line badge is the only thing separating them. Sorted rather than split into a fourth
+    // panel: three columns is the shape a reader already knows.
+    const movedOrdered = moved.some(i => i.isNew === true)
+      ? [...moved].sort((a, b) => (b.isNew === true ? 1 : 0) - (a.isNew === true ? 1 : 0))
+      : moved;
 
     const movedPanel: ClipPanel = {
       title: ar ? m.movedHeadingAr : (m.movedHeadingEn || m.movedHeadingAr),
       badge: ar ? 'الحركة' : 'Moved',
       stage: 'moved',
-      items: moved,
+      items: movedOrdered,
       total: this.num(m.movedTotal),
       moved: true,
       derived: false,
@@ -955,7 +1019,7 @@ export class JourneyComponent {
     // A first send has no "before" and leaves nothing behind. Framing it with two
     // empty boxes invents a comparison the data never made.
     if (!before.length && !after.length) {
-      return { note: reason, panels: [movedPanel], chips };
+      return { note: reason, panels: [movedPanel], chips, tally };
     }
 
     return {
@@ -976,7 +1040,75 @@ export class JourneyComponent {
         },
       ],
       chips,
+      tally,
     };
+  }
+
+  /**
+   * was / changed / now, for whichever kind of movement this is.
+   *
+   * <para>
+   * The CHANGED figure is the one that needed thinking about, because the panels do not carry it. A
+   * send re-submits the whole basket, so its middle list is every line on the table — 11 of them on
+   * the reported order — while what actually went to the kitchen was 4. Counting the flagged-new
+   * lines gives the real answer when the flags are there; on movements logged before the server
+   * started recording them it falls back to the difference between before and after, which is the
+   * same number for a send and is at least arithmetic a reader can check.
+   * </para>
+   *
+   * <para>
+   * A void and a transfer are simpler: their middle list IS what changed, because the till sends
+   * only the removed or moved lines.
+   * </para>
+   */
+  private buildTally(
+    m: JourneyMovement,
+    before: JourneyClipItem[],
+    moved: JourneyClipItem[],
+    after: JourneyClipItem[],
+    ar: boolean): ClipTally[] {
+
+    const lines = (xs: JourneyClipItem[]) => xs.length;
+    const qty = (xs: JourneyClipItem[]) => this.num(xs.reduce((t, i) => t + (i.quantity || 0), 0));
+
+    const kind = (m.kind || '').toLowerCase();
+    const isSend = kind.includes('send');
+
+    // Nothing to reconcile on an event that moves no items.
+    if (!before.length && !after.length) { return []; }
+
+    let changedLines: number;
+    let changedQty: number;
+
+    if (isSend) {
+      const flagged = moved.filter(i => i.isNew === true);
+      if (flagged.length > 0) {
+        changedLines = lines(flagged);
+        changedQty = qty(flagged);
+      } else {
+        // No flags on this row — derive. Negative would mean the send removed lines, which the
+        // send path cannot do, so it is clamped rather than shown as a negative addition.
+        changedLines = Math.max(0, lines(after) - lines(before));
+        changedQty = Math.max(0, qty(after) - qty(before));
+      }
+    } else {
+      changedLines = lines(moved);
+      changedQty = qty(moved);
+    }
+
+    const changedLabel = isSend
+      ? (ar ? 'اتضاف' : 'Added')
+      : kind.includes('void')
+        ? (ar ? 'اتشال' : 'Removed')
+        : kind.includes('split')
+          ? (ar ? 'اتقسم' : 'Split off')
+          : (ar ? 'اتحوّل' : 'Moved');
+
+    return [
+      { label: ar ? 'كان على الترابيزة' : 'The table had', lines: lines(before), qty: qty(before) },
+      { label: changedLabel, lines: changedLines, qty: changedQty, isChange: true },
+      { label: ar ? 'بقى عليها' : 'Now on the table', lines: lines(after), qty: qty(after) },
+    ];
   }
 
   /** The chip's value in the reading language; most chips carry only one. */
