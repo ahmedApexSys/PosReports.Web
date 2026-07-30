@@ -492,7 +492,8 @@ interface ClipView {
           </button>
         </div>
 
-        <div *ngFor="let s of visibleSteps()" class="jr-ev rounded-xl overflow-hidden mb-2.5 last:mb-0"
+        <ng-container *ngFor="let g of eventGroups()">
+        <div class="jr-ev rounded-xl overflow-hidden mb-2.5 last:mb-0" *ngIf="g.head as s"
           [ngClass]="toneClass(s)" [class.is-open]="isOpen(s.step)" [class.is-settlement]="!!s.settlesStep">
 
           <!-- Collapsed, the row says what it always said. The clip is one click away,
@@ -520,12 +521,20 @@ interface ClipView {
                 {{ detail(s) }}
                 <bdi *ngIf="s.destinationName" class="jr-dest">→ {{ s.destinationName }}</bdi>
               </span>
+
+              <!-- The breakdown of the headline. Shown only when a settlement was folded in, so
+                   the combined figure above is explainable rather than asserted. -->
+              <span *ngIf="g.tail" class="block mt-1 text-[12.5px] leading-[1.6] jr-faint">
+                <bdi>{{ groupBreakdown(g) }}</bdi>
+              </span>
             </span>
 
-            <!-- What it did to the bill. "No change" is stated rather than left blank,
-                 because a blank reads as missing data instead of as a real answer. -->
+            <!-- What the WHOLE event did to the bill. Deleting one item produces two log rows —
+                 the void and the till's re-save carrying the tax and service that came off with
+                 it — and the number an owner asks for is their sum. Drawn as two peers, that
+                 number appeared nowhere and the page left them to add −2,000.00 and −280.00 up. -->
             <span class="jr-pill shrink-0 mt-1 rounded-full px-[11px] py-[3px] text-[11.5px] font-bold tabular-nums whitespace-nowrap"
-              [ngClass]="deltaTone(s)"><bdi>{{ deltaLabel(s) }}</bdi></span>
+              [ngClass]="groupDeltaTone(g)"><bdi>{{ groupDeltaLabel(g) }}</bdi></span>
             <lucide-icon [img]="ChevronDown" class="jr-chev shrink-0 mt-1.5 w-4 h-4"></lucide-icon>
           </button>
 
@@ -619,14 +628,6 @@ interface ClipView {
               </div>
             </div>
 
-            <!-- The till logs a take-away payment's "before" as zero, so left alone every edit
-                 reports the whole bill as its change. The figure above is the running total
-                 instead — said out loud, because a rebuilt number is honest only while it says
-                 it was rebuilt. -->
-            <p *ngIf="s.moneyBeforeDerived && hasStrip(s)" class="text-[11px] leading-normal jr-faint">
-              {{ ar() ? 'رقم «قبل» محسوب من الحركة اللي قبلها — الجهاز بيسجّله صفر على الأوردرات دي.'
-                      : '"Before" is taken from the running total — the till logs it as zero on these orders.' }}
-            </p>
             <ng-template #noStrip>
               <p class="jr-note text-[12.5px] leading-[1.7] jr-muted rounded-[10px] px-[11px] py-[9px]">
                 {{ ar() ? 'الحركة دي مفيش عليها أرقام صافي متسجّلة، فمش هنخمّن.'
@@ -634,14 +635,38 @@ interface ClipView {
               </p>
             </ng-template>
 
-            <details *ngIf="s.description" class="jr-inset">
+            <!-- ── The settlement, inside the void it belongs to ──
+                 Still here with its own figure — nobody asked for it to disappear, only for it to
+                 stop reading as a second payment. Nested, it explains the headline instead of
+                 competing with it. -->
+            <div *ngIf="g.tail as t" class="jr-sub jr-inset px-[11px] py-[9px]">
+              <div class="flex items-baseline justify-between gap-2 flex-wrap">
+                <span class="text-[13px] font-semibold jr-ink">{{ titleOf(t) }}</span>
+                <bdi class="text-[11.5px] jr-faint">{{ t.time || t.date }}</bdi>
+                <span class="jr-pill rounded-full px-[9px] py-px text-[11px] font-bold tabular-nums whitespace-nowrap"
+                  [ngClass]="deltaTone(t)"><bdi>{{ deltaLabel(t) }}</bdi></span>
+              </div>
+              <p class="mt-1 text-[12.5px] leading-[1.6] jr-muted">{{ settlementNote(t) }}</p>
+            </div>
+
+            <details *ngIf="s.description || s.moneyBeforeDerived" class="jr-inset">
               <summary class="jr-summary cursor-pointer px-[11px] py-[7px] text-xs jr-muted">{{ ar() ? 'تفاصيل تقنية' : 'Technical detail' }}</summary>
-              <div class="px-[11px] py-[9px] text-[11.5px] leading-[1.7] jr-muted font-mono break-words">
-                <bdi>{{ s.description }}</bdi>
+              <div class="px-[11px] py-[9px] text-[11.5px] leading-[1.7] jr-muted break-words">
+                <!-- Moved in here from the body. It is plumbing — the till records a take-away
+                     payment's "before" as zero and the page rebuilds it — and repeating it under
+                     every money strip put a sentence about the database in front of an owner
+                     reading a bill. It still has to be SAYABLE, because a rebuilt number is
+                     honest only while it says it was rebuilt; it just does not belong up front. -->
+                <p *ngIf="s.moneyBeforeDerived" class="mb-1.5">
+                  {{ ar() ? 'رقم «قبل» محسوب من الحركة اللي قبلها — الجهاز بيسجّله صفر على الأوردرات دي.'
+                          : '"Before" is taken from the running total — the till logs it as zero on these orders.' }}
+                </p>
+                <bdi *ngIf="s.description" class="font-mono">{{ s.description }}</bdi>
               </div>
             </details>
           </div>
         </div>
+        </ng-container>
       </div>
     </ng-container>
   </div>
@@ -695,6 +720,10 @@ interface ClipView {
        rail, so the pair reads as one event with its paperwork rather than as two payments.
        The rail carries the relationship visually; the row's TITLE carries it in words, because
        the void is not always the row immediately above. */
+    /* The settlement inside its void: set in, dashed, quieter than the card around it, so it
+       reads as part of the event rather than as another one. */
+    .jr-sub{border:1px dashed var(--border-strong);border-radius:10px}
+
     .jr-ev.is-settlement{margin-inline-start:22px;border-style:dashed;background:var(--card-2);position:relative}
     .jr-ev.is-settlement::before{content:'';position:absolute;inset-block:-9px 50%;
       inset-inline-start:-13px;width:13px;border-inline-start:2px solid var(--tone-ring);
@@ -775,6 +804,73 @@ export class JourneyComponent {
     const steps = this.data()?.timeline ?? [];
     return this.showNoise() ? steps : steps.filter(s => !s.isNoise);
   });
+
+  /**
+   * The rows as EVENTS rather than as log lines.
+   *
+   * <para>
+   * Deleting one item produces two rows: the void itself, and the till's re-save carrying the tax
+   * and service that came off with it. Drawn as peers they read as two deletions, and the number
+   * an owner actually asked for — what removing that item took off the bill — appeared nowhere: the
+   * page showed −2,000.00 and −280.00 and left them to add it up.
+   * </para>
+   *
+   * <para>
+   * So the settlement is folded into the void it belongs to. It is not hidden: it keeps its own
+   * figure inside the parent, which is what makes the total explainable rather than asserted.
+   * </para>
+   */
+  protected readonly eventGroups = computed<{ head: JourneyStep; tail: JourneyStep | null }[]>(() => {
+    const steps = this.visibleSteps();
+    const byStep = new Map(steps.map(s => [s.step, s]));
+
+    // Only fold when the parent is actually on screen. With the noise toggle in its other
+    // position, or on a payload where the void was filtered out, an orphaned settlement must
+    // still be drawn — dropping it would lose money from the page.
+    const folded = new Set(
+      steps.filter(s => s.settlesStep && byStep.has(s.settlesStep)).map(s => s.step));
+
+    return steps
+      .filter(s => !folded.has(s.step))
+      .map(head => ({
+        head,
+        tail: steps.find(s => s.settlesStep === head.step && folded.has(s.step)) ?? null,
+      }));
+  });
+
+  /**
+   * What the whole event did to the bill — the void plus its settlement, when there is one.
+   * This is the figure the owner reads first and the one that was missing.
+   */
+  protected groupDelta(g: { head: JourneyStep; tail: JourneyStep | null }): number {
+    return this.deltaOf(g.head) + (g.tail ? this.deltaOf(g.tail) : 0);
+  }
+
+  protected groupDeltaLabel(g: { head: JourneyStep; tail: JourneyStep | null }): string {
+    const d = this.groupDelta(g);
+    if (!d) { return this.ar() ? 'من غير تغيير' : 'No change'; }
+    const sign = d > 0 ? '+' : '−';
+    return this.ar() ? `${sign}${this.money(this.abs(d))} ج.م` : `${sign}${this.money(this.abs(d))}`;
+  }
+
+  protected groupDeltaTone(g: { head: JourneyStep; tail: JourneyStep | null }): string {
+    const d = this.groupDelta(g);
+    return d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  }
+
+  /**
+   * The sentence under a void that carries a settlement: what the items were worth, and what else
+   * came off with them. Naming the remainder "ضريبة وخدمة" would be an inference — the page does
+   * not know the split — so it is called what it is, a recalculation.
+   */
+  protected groupBreakdown(g: { head: JourneyStep; tail: JourneyStep | null }): string {
+    if (!g.tail) { return ''; }
+    const items = this.abs(this.deltaOf(g.head));
+    const rest = this.abs(this.deltaOf(g.tail));
+    return this.ar()
+      ? `قيمة الأصناف ${this.money(items)} · فرق إعادة الحساب ${this.money(rest)}`
+      : `items ${this.money(items)} · recalculation ${this.money(rest)}`;
+  }
 
   /**
    * Clips built once per payload (and per language) rather than per change-detection
@@ -1046,7 +1142,27 @@ export class JourneyComponent {
       const label = this.ar() ? s.settlementLabelAr : s.settlementLabelEn;
       if (label) { return label; }
     }
+
+    // A payment edit that changed the BASKET is named for the basket. The log calls every one of
+    // them "تعديل الدفع", so an operator adding two dishes to a paid order produced a row saying
+    // "Edited Payment +700.01" — true, and it tells an owner nothing about food being added. The
+    // item counts are on the row; when they moved, they are the headline.
+    const before = s.details?.itemCountBefore;
+    const after = s.details?.itemCountAfter;
+
+    if (this.isPaymentEdit(s) && before != null && after != null && before !== after) {
+      return after > before
+        ? (this.ar() ? 'إضافة أصناف' : 'Items added')
+        : (this.ar() ? 'شيل أصناف' : 'Items removed');
+    }
+
     return this.ar() ? s.actionAr : s.action;
+  }
+
+  /** The action names the log uses for an edit of an already-paid order. */
+  private isPaymentEdit(s: JourneyStep): boolean {
+    const a = (s.action || '').toLowerCase();
+    return a.includes('edit') && a.includes('pay');
   }
 
   /** Why this row exists, in the owner's words. Only on a settlement. */
