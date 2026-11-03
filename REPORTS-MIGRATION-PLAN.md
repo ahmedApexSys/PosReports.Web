@@ -29,18 +29,22 @@ bespoke routes (`total-report`, `journey`, `takeaway-day`, `delivery-day`,
 | sales-deferred · total-deferred | same ids | ✓ |
 | daily-transactions | bespoke `total-report` (Daily Transactions) | ✓ |
 | orderLog · order-control | bespoke `journey` (order journey / audit) | likely ✓ — confirm |
-| **daily-sales** | — | **to build** |
-| **sales-details** | — | **to build** |
-| **sales-settlements · total-settlements** | — | **to build** |
-| **order-time-after-prepar** | — | **to build** |
-| **wasted-report** | — | **to build** |
-| **view-cheque** (the cheque reprint) | — | **to build — and it must print the designed cheque, not the legacy one** |
+| daily-sales | `salesPeriod` + its per-transaction / per-payment views (same `getDailySalesReport`) | ✓ already here |
+| sales-details | `sold-items-details` (same `ItemAndModifierSalesDetails`) | ✓ already here |
+| sales-settlements · total-settlements | `sales-deferred` · `total-deferred` — the API retired the settlements route onto CLedges | ✓ already here |
+| order-time-after-prepar | **`order-prep-time`** — Kitchen & Delivery Time, with the gaps in minutes | ✓ **built + live 2026-11-03** (`a68108f`) |
+| wasted-report | **`wasted-report`** — Wasted & Officer Orders | ✓ **built + live 2026-11-03** (`a68108f`) |
+| view-cheque (the cheque reprint) | stays in the till for now — see Phase 3 | the till's reprint now prints the designed cheque (`3806c20`) |
 
-### Every endpoint PosReports calls is present on the live API
+### Every endpoint PosReports calls is present in the API
 
-All 19 distinct endpoints in the registry answer **401** on
-`ts9api.tryasp.net` unauthenticated — the route exists. None is 404. So
-"broken" is not a removed route.
+~~All 19 answer 401, so the routes exist~~ — **that proof was wrong**: the live
+API answers **401 to a route that does not exist too** (`/api/zzz/NoSuchThing`
+→ 401), because authentication runs before routing. Checked instead against the
+API source (705 routes): every endpoint in the registry exists. The till's
+`SalesReports/SalesReports`, `GetOrderDetailsPrint/GetOrderDetailsPrint` and
+`reports/settlements/*` do NOT — but those are dead `url` fields on services
+the screens never call; the screens call routes that do exist.
 
 ### What IS wrong, found so far
 
@@ -70,10 +74,37 @@ All 19 distinct endpoints in the registry answer **401** on
 Phase 4 deletes code from the till — 29 screens — which is the point of the
 move; it happens only after each one is confirmed working in PosReports.
 
+## Phase 3 — the cheques (2026-11-03)
+
+Found: **every reprint printed the legacy cheque**, whatever the branch's
+Cheque Template. Order-status drew `<app-print-order>` but `Print()` sent a
+hidden hand-built copy; Reports › View Cheque rebuilt the cheque by hand. Both
+now print `<app-print-order>`, the checkout's own component (till `3806c20`).
+
+Moving the reprint INTO PosReports means copying the cheque engine (~1,600
+lines: cheque-doc, cheque-slip, the component) into a second repo, to be kept
+in step by hand. **Owner's decision**: copy it, publish it as one shared
+package both apps import, or keep the reprint in the till.
+
+## Fields that are not recorded — and whether we need them (2026-11-03)
+
+Asked: *"اي حاجة ناقصة مش بتتسجل لو احنا محتاجينها تتسجل في الـ database
+نشوف محتاجينها فين ونحطها في مكانها صح"*.
+
+Method: every report column the API fills with a constant instead of a
+column, checked against what the order tables actually store.
+
+| Field | Where it showed blank | Is it recorded? | Done |
+|---|---|---|---|
+| `PrintNo` (hospitality / officer) | Sales reports: 0 on every free order | **Yes** — on `OrderHeader_Hospitality`, PayEdit increments it. The report hard-coded 0 | **Fixed** — API `988bcd9de`, live |
+| Prepare / pick-up / assign / return times | Prep-time report: NaN, or the report failing | **Yes**, nullable — a take-away never gets assign/return. The report cast them as non-null | **Fixed** — `988bcd9de`, live; a missing stamp now reads empty |
+| Order date in the prep-time screen | "NaN" | Yes — sent preformatted `dd/MM/yyyy`, then re-parsed by the date pipe | **Fixed** — till `3806c20` |
+| `MinimumChargeValue`, `AdditionValue` (hospitality / officer) | 0 | **No column** on the hospitality table | **Not needed**: a free order collects no money, so there is no minimum to top up and no cover charge — 0 is the true value |
+| `NumberOfPrintAfterCheckOut` (hospitality / officer) | 0 in the category reports | **No column** | **Owner's call**: only matters if reprints of free cheques are watched for abuse. `PrintNo` above already counts them |
+| Waiter / pilot / discount / online-app names | blank in the projection | placeholders, filled after the query from the ids | nothing missing |
+
 ## Blocked on the owner
 
-- The `.publishSettings` for **site73506** (posreporting) — nothing can be
-  deployed here without it.
 - The certificate for **posreporting.tryasp.net** (https).
 - A login for PosReports, or the failing screen — so Phase 0 can see the
   failure rather than guess at it.
