@@ -617,6 +617,8 @@ export class TabularReportPageComponent implements OnInit {
     if (c.dashIfZero && String(v).trim() === '0') return '—';
     // Date columns: drop any time component (e.g. 2026-06-10T00:00:00 → 2026-06-10).
     if (c.type === 'date') return String(v).trim().split('T')[0].split(' ')[0];
+    // Time columns that arrive as a full timestamp (2026-10-25T13:44:09) show the clock only.
+    if (c.type === 'time') { const m = /T(\d{2}:\d{2})/.exec(String(v)); if (m) return m[1]; }
     if (c.type === 'money' || c.type === 'number') {
       const n = Number(v); return Number.isFinite(n) ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(v);
     }

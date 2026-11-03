@@ -180,7 +180,7 @@ export interface ReportDef {
             | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree'
             | 'discountDayOrdersTree' | 'promoOrdersTree' | 'promoDayOrdersTree'
             | 'voucherOrdersTree' | 'voucherDayOrdersTree' | 'groupRowsByWaiter'
-            | 'categoryItemsTree';
+            | 'categoryItemsTree' | 'orderTimes';
   /**
    * Expandable per-day tree: the transform emits one summary row per day
    * (`__level: 0`) followed by its detail rows (`__level: 1`, `__parent: <dayKey>`).

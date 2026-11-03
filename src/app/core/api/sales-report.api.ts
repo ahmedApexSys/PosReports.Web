@@ -607,6 +607,26 @@ const TRANSFORMS: Record<string, (d: Obj, ctx?: TransformCtx) => SalesReportResu
   groupByDayPayment: (d, ctx) => groupSales(d, 'paymentStatus', ctx, true),
   orderByTransaction: (d, ctx) => sortOrders(d, 'transaction', ctx),
   orderByPayment: (d, ctx) => sortOrders(d, 'paymentStatus', ctx),
+  // Kitchen / delivery times: the server sends the stamps, the report is about the gaps between
+  // them. A stamp that was never recorded (a take-away has no assign/return) leaves its gap
+  // empty rather than a negative or a day-long number.
+  orderTimes: (d, ctx) => {
+    const minutes = (from: unknown, to: unknown): number | null => {
+      if (!from || !to) return null;
+      const ms = new Date(String(to)).getTime() - new Date(String(from)).getTime();
+      return Number.isFinite(ms) && ms >= 0 ? Math.round(ms / 60000) : null;
+    };
+    const rows = asArr(pick(d, 'reportData', 'ReportData')).map((r) => ({
+      ...r,
+      kitchenMinutes: minutes(pick(r, 'orderTimeIn', 'OrderTimeIn'), pick(r, 'prepareTime', 'PrepareTime')),
+      deliveryMinutes: minutes(pick(r, 'assignTime', 'AssignTime'), pick(r, 'returnTime', 'ReturnTime')),
+    }));
+    const totals = pick(d, 'totals', 'Totals');
+    return {
+      rows: filterByBranch(rows, ctx),
+      totals: (totals && typeof totals === 'object' ? totals : {}) as Obj,
+    };
+  },
   totalPosTree,
   soldItemsTree,
 };
@@ -646,7 +666,7 @@ export class SalesReportApi {
                 | 'discountDailyTree' | 'discountOrdersTree' | 'promoDailyTree' | 'voucherDailyTree'
                 | 'discountDayOrdersTree' | 'promoOrdersTree' | 'promoDayOrdersTree'
                 | 'voucherOrdersTree' | 'voucherDayOrdersTree' | 'groupRowsByWaiter'
-                | 'categoryItemsTree';
+                | 'categoryItemsTree' | 'orderTimes';
       branchNames?: string[];
       branchId?: number | null;
       /** Arabic display — see TransformCtx.ar. */
