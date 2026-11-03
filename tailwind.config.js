@@ -1,4 +1,48 @@
 /** @type {import('tailwindcss').Config} */
+
+// ── Palette switch ───────────────────────────────────────────────────────────
+// 'neutral' = the till's "Apex POS Dark" design (owner, 2026-11-03: the reports
+// the same look as the till). 'original' = the slate / navy this app shipped
+// with - kept below untouched; set PALETTE to 'original' and rebuild to go back.
+const PALETTE = 'neutral';
+
+const SURFACES = {
+  original: {
+    DEFAULT:    '#FAFAF9',  // light mode body
+    subtle:     '#F5F5F4',
+    muted:      '#E7E5E4',
+    'dark':     '#0F172A',  // dark mode body
+    'dark-subtle': '#1E293B',
+    'dark-muted':  '#334155',
+  },
+  // The design's page / card / raised / line, light and dark.
+  neutral: {
+    DEFAULT:    '#F4F4F2',
+    subtle:     '#F1F1EF',
+    muted:      '#E6E6E3',
+    'dark':     '#202124',
+    'dark-subtle': '#2A2B2F',
+    'dark-muted':  '#3E3F45',
+  },
+};
+
+// The app's 1,700 `slate-*` utilities (text, borders, dark cards) re-pointed at
+// the design's neutral greys instead of Tailwind's blue-grey. Same steps, same
+// roles: 900/800 are the dark cards, 100/200 the light lines, 500/600 muted ink.
+const NEUTRAL_SLATE = {
+  50:  '#FAFAF9',
+  100: '#F4F4F2',
+  200: '#E6E6E3',
+  300: '#D4D4D0',
+  400: '#A6A6AC',
+  500: '#75746F',
+  600: '#5C5B56',
+  700: '#45443F',
+  800: '#2A2B2F',
+  900: '#202124',
+  950: '#121212',
+};
+
 module.exports = {
   content: [
     "./src/**/*.{html,ts}",
@@ -31,15 +75,9 @@ module.exports = {
         warning:  { DEFAULT: '#F59E0B', soft: '#FEF3C7', ring: '#FBBF24' },
         high:     { DEFAULT: '#F97316', soft: '#FFEDD5', ring: '#FB923C' },
         critical: { DEFAULT: '#EF4444', soft: '#FEE2E2', ring: '#F87171' },
-        // Surface tones — warm, not stark
-        surface: {
-          DEFAULT:    '#FAFAF9',  // light mode body
-          subtle:     '#F5F5F4',
-          muted:      '#E7E5E4',
-          'dark':     '#0F172A',  // dark mode body
-          'dark-subtle': '#1E293B',
-          'dark-muted':  '#334155',
-        },
+        // Surface tones - see PALETTE at the top of the file.
+        surface: SURFACES[PALETTE],
+        ...(PALETTE === 'neutral' ? { slate: NEUTRAL_SLATE } : {}),
       },
       fontFamily: {
         sans: ['Inter', 'Tajawal', 'system-ui', 'sans-serif'],
