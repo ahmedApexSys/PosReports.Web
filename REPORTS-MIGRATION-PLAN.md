@@ -60,6 +60,12 @@ the screens never call; the screens call routes that do exist.
    there, so the failure is in auth, response shape or the page — and it
    cannot be seen without a session.
 
+4. **Every till report showed its print copy over the screen** (owner's
+   screenshot, 2026-11-03): raw column headers across the top, the real
+   report underneath. The print-only `.table-container` is absolute inside a
+   flex column, so it sat at the top. Hidden on screen, still printed — till
+   `1c4e056`, live (`styles-MHJYPRQK.css`).
+
 ## The plan
 
 | Phase | What | Done when |
