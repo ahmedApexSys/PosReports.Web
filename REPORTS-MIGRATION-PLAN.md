@@ -83,8 +83,11 @@ now print `<app-print-order>`, the checkout's own component (till `3806c20`).
 
 Moving the reprint INTO PosReports means copying the cheque engine (~1,600
 lines: cheque-doc, cheque-slip, the component) into a second repo, to be kept
-in step by hand. **Owner's decision**: copy it, publish it as one shared
-package both apps import, or keep the reprint in the till.
+in step by hand.
+
+**Decided 2026-11-03 — keep the reprint in the till** (owner: "the recommended
+and safest"). It already prints the designed cheque; no second copy to drift.
+Phase 4 therefore retires every till report screen EXCEPT View Cheque.
 
 ## Fields that are not recorded — and whether we need them (2026-11-03)
 
@@ -100,11 +103,12 @@ column, checked against what the order tables actually store.
 | Prepare / pick-up / assign / return times | Prep-time report: NaN, or the report failing | **Yes**, nullable — a take-away never gets assign/return. The report cast them as non-null | **Fixed** — `988bcd9de`, live; a missing stamp now reads empty |
 | Order date in the prep-time screen | "NaN" | Yes — sent preformatted `dd/MM/yyyy`, then re-parsed by the date pipe | **Fixed** — till `3806c20` |
 | `MinimumChargeValue`, `AdditionValue` (hospitality / officer) | 0 | **No column** on the hospitality table | **Not needed**: a free order collects no money, so there is no minimum to top up and no cover charge — 0 is the true value |
-| `NumberOfPrintAfterCheckOut` (hospitality / officer) | 0 in the category reports | **No column** | **Owner's call**: only matters if reprints of free cheques are watched for abuse. `PrintNo` above already counts them |
+| `NumberOfPrintAfterCheckOut` (hospitality / officer) | 0 in the category reports | **No column** | **Decided 2026-11-03 — not added.** A new column is a migration on the shared live database for 275 tills; `PrintNo` (now reported) already counts these reprints |
 | Waiter / pilot / discount / online-app names | blank in the projection | placeholders, filled after the query from the ids | nothing missing |
 
 ## Blocked on the owner
 
-- The certificate for **posreporting.tryasp.net** (https).
+- ~~The certificate for posreporting.tryasp.net~~ — SSL enabled by the owner 2026-11-03; verified serving: Let's Encrypt, expires 2026-12-22 (MonsterASP renews it), http redirects to https, deep links answer 200.
+- Rotating the 3 leaked DeterministicCrypto keys — **postponed by the owner** ("متغيرش المفاتيح دلوقتي"); do not do it unasked.
 - A login for PosReports, or the failing screen — so Phase 0 can see the
   failure rather than guess at it.
