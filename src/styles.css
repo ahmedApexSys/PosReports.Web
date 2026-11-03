@@ -1,5 +1,8 @@
 /* ── Google Fonts (must come BEFORE @tailwind per CSS spec) ──────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Both sets load, so PALETTE in tailwind.config.js can switch between them
+   without touching this line: the till's Manrope / Bricolage Grotesque / Noto
+   Sans Arabic, and the original Inter / Tajawal. */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ── Tailwind directives ─────────────────────────────────────────── */
 @tailwind base;
@@ -25,6 +28,9 @@
   html[dir="rtl"] {
     font-family: theme('fontFamily.ar');
   }
+
+  /* Headings in the display face, as the till sets its titles. */
+  h1, h2 { font-family: theme('fontFamily.display'); }
 
   /* Tabular numbers for KPI values */
   .num, .kpi-value, .tabular {

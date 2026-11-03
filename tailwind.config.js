@@ -29,6 +29,21 @@ const SURFACES = {
 // The app's 1,700 `slate-*` utilities (text, borders, dark cards) re-pointed at
 // the design's neutral greys instead of Tailwind's blue-grey. Same steps, same
 // roles: 900/800 are the dark cards, 100/200 the light lines, 500/600 muted ink.
+// Type follows the palette: the till's Manrope / Bricolage Grotesque / Noto
+// Sans Arabic with 'neutral', the app's own Inter / Tajawal with 'original'.
+const FONTS = {
+  original: {
+    sans: ['Inter', 'Tajawal', 'system-ui', 'sans-serif'],
+    ar:   ['Tajawal', 'IBM Plex Arabic', 'system-ui', 'sans-serif'],
+    display: ['Inter', 'Tajawal', 'system-ui', 'sans-serif'],
+  },
+  neutral: {
+    sans: ['Manrope', 'Noto Sans Arabic', 'system-ui', 'sans-serif'],
+    ar:   ['Noto Sans Arabic', 'Manrope', 'system-ui', 'sans-serif'],
+    display: ['Bricolage Grotesque', 'Noto Sans Arabic', 'system-ui', 'sans-serif'],
+  },
+};
+
 const NEUTRAL_SLATE = {
   50:  '#FAFAF9',
   100: '#F4F4F2',
@@ -80,8 +95,7 @@ module.exports = {
         ...(PALETTE === 'neutral' ? { slate: NEUTRAL_SLATE } : {}),
       },
       fontFamily: {
-        sans: ['Inter', 'Tajawal', 'system-ui', 'sans-serif'],
-        ar:   ['Tajawal', 'IBM Plex Arabic', 'system-ui', 'sans-serif'],
+        ...FONTS[PALETTE],
         mono: ['JetBrains Mono', 'Menlo', 'monospace'],
       },
       fontSize: {
