@@ -36,8 +36,8 @@ export class EmbedComponent implements OnInit, OnDestroy {
     }
     // Only the window that frames this page, and only while framed. The origin
     // alone is not enough: "null" is any sandboxed or opaque page, and a popup's
-    // opener or another frame can post here too. Who may frame us is
-    // web.config's frame-ancestors.
+    // opener or another frame can post here too. Who may frame us is the
+    // frame-ancestors in public/web.config, which the build ships.
     if (window.parent === window || event.source !== window.parent) {
       return;
     }

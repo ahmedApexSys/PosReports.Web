@@ -29,9 +29,14 @@ $distRoot  = Join-Path $PSScriptRoot 'dist\pos-reports-web'
 $localRoot = Join-Path $distRoot 'browser'
 if (-not (Test-Path $localRoot)) { $localRoot = $distRoot }
 
-if (-not (Test-Path (Join-Path $localRoot 'index.html'))) {
-    Write-Host "No index.html in $localRoot - build first:  npm run build" -ForegroundColor Yellow
-    exit 1
+# web.config comes with the build, from public/. It holds the SPA rewrite (without it IIS
+# answers a refresh on /takeaway-day with a 404, because it looks for a folder by that name)
+# and the frame-ancestors that lets only the till frame /embed.
+foreach ($f in 'index.html', 'web.config') {
+    if (-not (Test-Path (Join-Path $localRoot $f))) {
+        Write-Host "No $f in $localRoot - build first:  npm run build" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # ---- credentials (you type them now; nothing is saved) ---------------------
@@ -75,15 +80,6 @@ function Upload-File($localPath, $remoteUrl) {
         Write-Host "FAIL: $remoteUrl - $_" -ForegroundColor Red
         return $false
     }
-}
-
-# web.config lives at the repo root (Angular never copies it), yet it is what makes deep links
-# work: without it IIS answers a refresh on /takeaway-day with a 404, because it looks for a folder
-# by that name. Ship it with the build instead of relying on a copy left by an earlier upload.
-$webConfig = Join-Path $PSScriptRoot 'web.config'
-if ((Test-Path $webConfig) -and -not (Test-Path (Join-Path $localRoot 'web.config'))) {
-    Copy-Item $webConfig (Join-Path $localRoot 'web.config') -Force
-    Write-Host 'web.config added to the upload set (SPA deep links).' -ForegroundColor DarkCyan
 }
 
 $files = @(Get-ChildItem $localRoot -Recurse -File)

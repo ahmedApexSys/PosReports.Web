@@ -62,4 +62,13 @@ describe('EmbedComponent', () => {
     post(window, 'null');
     expect(adopt).not.toHaveBeenCalled();
   });
+
+  it('may be framed by the till only: the web.config the build ships says so', async () => {
+    const config = new DOMParser().parseFromString(await (await fetch('/web.config')).text(), 'text/xml');
+    expect(config.documentElement.nodeName).toBe('configuration');
+    const csp = config.querySelector('add[name="Content-Security-Policy"]')?.getAttribute('value') ?? '';
+    const ancestors = /frame-ancestors([^;]*)/.exec(csp)?.[1].trim().split(/\s+/) ?? [];
+    expect(ancestors).toContain('https://newposui.premiumasp.net');
+    expect(ancestors).not.toContain('*');
+  });
 });
