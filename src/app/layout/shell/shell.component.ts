@@ -1,8 +1,8 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterModule, RouterOutlet, Router } from '@angular/router';
+import { CommonModule, Location } from '@angular/common';
+import { RouterModule, RouterOutlet, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, ChevronRight, UserRound, Settings, CircleHelp, ReceiptText, Wallet, Tag, CalendarClock, Boxes, Sigma, Server } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, ChevronRight, UserRound, Settings, CircleHelp, ReceiptText, Wallet, Tag, CalendarClock, Boxes, Sigma, Server, ArrowLeft } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -188,6 +188,13 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
             <lucide-icon [img]="MenuIcon" class="h-5 w-5"></lucide-icon>
           </button>
 
+          <!-- Inside the till the frame has no browser Back and no sidebar, so a
+               report opened from another (an order's journey) had no way out. -->
+          <button *ngIf="embedded && backDepth() > 1" (click)="goBack()"
+                  class="btn-ghost p-1.5" [attr.aria-label]="'Back'">
+            <lucide-icon [img]="BackIcon" class="h-5 w-5 rtl:rotate-180"></lucide-icon>
+          </button>
+
           <div class="flex-1 min-w-0 flex items-center gap-3">
             <!-- Branch picker — REQUIRED before any data fetch -->
             <app-branch-picker></app-branch-picker>
@@ -284,6 +291,10 @@ export class ShellComponent {
 
   /** Framed inside the till: no sidebar, no account menu (core/embed). */
   readonly embedded = EMBEDDED;
+  private readonly location = inject(Location);
+  readonly BackIcon = ArrowLeft;
+  /** Pages opened inside the frame since the till opened it; Back shows past one. */
+  readonly backDepth = signal(0);
 
   readonly collapsed = signal(false);
   readonly mobileNavOpen = signal(false);
@@ -481,7 +492,25 @@ export class ShellComponent {
     })),
   ];
 
-  constructor() { this.restoreOrder(); this.restoreExpanded(); }
+  constructor() {
+    this.restoreOrder();
+    this.restoreExpanded();
+    if (this.embedded) {
+      let back = false;
+      this.router.events.subscribe((event) => {
+        if (event instanceof NavigationStart) {
+          back = event.navigationTrigger === 'popstate';
+        } else if (event instanceof NavigationEnd) {
+          this.backDepth.update((depth) => back ? Math.max(1, depth - 1) : depth + 1);
+          back = false;
+        }
+      });
+    }
+  }
+
+  goBack(): void {
+    this.location.back();
+  }
 
   /**
    * One computed class string for the aside element. Combines:

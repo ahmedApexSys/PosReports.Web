@@ -49,7 +49,9 @@ export class EmbedComponent implements OnInit, OnDestroy {
     if (branchId > 0) {
       this.filter.setBranch(branchId);
     }
-    this.router.navigateByUrl(EmbedComponent.safeTarget(this.route.snapshot.queryParamMap.get('to')));
+    // replaceUrl: Back from the first report must not land on this page.
+    this.router.navigateByUrl(
+      EmbedComponent.safeTarget(this.route.snapshot.queryParamMap.get('to')), { replaceUrl: true });
   };
 
   ngOnInit(): void {
