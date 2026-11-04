@@ -75,6 +75,17 @@ export class AuthService {
       );
   }
 
+  /**
+   * Take a sign-in the till already holds (core/embed). The till and these
+   * reports sign in against the same API, so its token is valid here as it is.
+   */
+  adopt(token: string, refreshToken?: string, profile?: UserProfile | null): void {
+    this.persistToken(token, refreshToken);
+    this.persistProfile(profile ?? null);
+    this.token.set(token);
+    this.profile.set(profile ?? null);
+  }
+
   logout(): void {
     try {
       localStorage.removeItem(TOKEN_KEY);

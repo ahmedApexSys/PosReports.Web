@@ -152,6 +152,12 @@ export const routes: Routes = [
     title: 'Sign in — Apex Reports',
   },
 
+  // The till's frame lands here, takes the till's sign-in, then opens the report.
+  {
+    path: 'embed',
+    loadComponent: () => import('./core/embed/embed.component').then(m => m.EmbedComponent),
+  },
+
   // ── Authenticated shell ─────────────────────────────────────────
   {
     path: '',

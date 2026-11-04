@@ -10,6 +10,7 @@ import { NotificationCenterService } from '../../core/notifications/notification
 import { BranchPickerComponent } from '../../shared/branch-picker/branch-picker.component';
 import { DateRangePickerComponent } from '../../shared/date-range-picker/date-range-picker.component';
 import { REPORT_NAV, REPORT_REGISTRY } from '../../core/reports/report-registry';
+import { EMBEDDED } from '../../core/embed/embed';
 
 type LucideIcon = typeof Sun;
 
@@ -68,7 +69,8 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
            class="fixed inset-0 z-40"></div>
 
       <!-- ── Sidebar ────────────────────────────────────────────── -->
-      <aside class="fixed lg:sticky top-0 z-40 h-screen lg:shrink-0
+      <!-- Inside the till (core/embed) the till's own sidebar is the menu. -->
+      <aside *ngIf="!embedded" class="fixed lg:sticky top-0 z-40 h-screen lg:shrink-0
                     bg-white dark:bg-surface-dark-subtle
                     border-e border-slate-200 dark:border-slate-800
                     transition-transform duration-220
@@ -175,12 +177,12 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
         <header class="sticky top-0 z-20 h-16 glass
                        border-b border-slate-200 dark:border-slate-800
                        flex items-center gap-3 px-4 md:px-6">
-          <button (click)="mobileNavOpen.set(!mobileNavOpen())"
+          <button *ngIf="!embedded" (click)="mobileNavOpen.set(!mobileNavOpen())"
                   class="btn-ghost lg:hidden p-1.5"
                   aria-label="Toggle navigation">
             <lucide-icon [img]="mobileNavOpen() ? CloseIcon : MenuIcon" class="h-5 w-5"></lucide-icon>
           </button>
-          <button (click)="collapsed.set(!collapsed())"
+          <button *ngIf="!embedded" (click)="collapsed.set(!collapsed())"
                   class="btn-ghost hidden lg:inline-flex p-1.5"
                   aria-label="Collapse sidebar">
             <lucide-icon [img]="MenuIcon" class="h-5 w-5"></lucide-icon>
@@ -192,7 +194,8 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
             <app-date-range-picker></app-date-range-picker>
           </div>
 
-          <div class="flex items-center gap-1.5">
+          <!-- Notifications and the account menu: the till's, while framed. -->
+          <div class="flex items-center gap-1.5" *ngIf="!embedded">
             <!-- Notifications bell -->
             <a routerLink="/notifications" class="relative btn-ghost p-2"
                [attr.aria-label]="lang.language() === 'ar' ? 'الإشعارات' : 'Notifications'">
@@ -278,6 +281,9 @@ export class ShellComponent {
   readonly theme = inject(ThemeService);
   readonly notif = inject(NotificationCenterService);
   private readonly router = inject(Router);
+
+  /** Framed inside the till: no sidebar, no account menu (core/embed). */
+  readonly embedded = EMBEDDED;
 
   readonly collapsed = signal(false);
   readonly mobileNavOpen = signal(false);
