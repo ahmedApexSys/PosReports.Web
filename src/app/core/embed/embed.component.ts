@@ -13,7 +13,8 @@ import { EMBED_AUTH, EMBED_READY } from './embed';
  * It asks the parent for a sign-in, takes the till's own token (the same API
  * issued it, so it is valid here as it is), and goes on to the report. The
  * token arrives by postMessage, never in the URL, where it would sit in the
- * history; and only from an origin in `environment.embedOrigins`.
+ * history; and only from the window that frames this page, at an origin in
+ * `environment.embedOrigins`.
  */
 @Component({
   selector: 'app-embed',
@@ -31,6 +32,13 @@ export class EmbedComponent implements OnInit, OnDestroy {
   private readonly onMessage = (event: MessageEvent): void => {
     const data = event.data;
     if (!data || data.type !== EMBED_AUTH || typeof data.token !== 'string' || !data.token) {
+      return;
+    }
+    // Only the window that frames this page, and only while framed. The origin
+    // alone is not enough: "null" is any sandboxed or opaque page, and a popup's
+    // opener or another frame can post here too. Who may frame us is
+    // web.config's frame-ancestors.
+    if (window.parent === window || event.source !== window.parent) {
       return;
     }
     if (!environment.embedOrigins.includes(event.origin)) {
