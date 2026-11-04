@@ -6,6 +6,7 @@ import { BranchService } from '../../core/branches/branch.service';
 import { FilterService } from '../../core/filters/filter.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { Branch } from '../../core/models/branch.models';
+import { EMBEDDED } from '../../core/embed/embed';
 
 /**
  * Persistent branch picker shown in the shell header. Every report
@@ -52,8 +53,11 @@ import { Branch } from '../../core/models/branch.models';
       </button>
 
       <!-- Dropdown -->
+      <!-- Inside the till the picker sits at the frame's start edge, so the list
+           opens toward the page; anchored to its end it ran off the frame. -->
       <div *ngIf="open()"
-           class="absolute end-0 top-full mt-1 z-50
+           [class.end-0]="!embedded" [class.start-0]="embedded"
+           class="absolute top-full mt-1 z-50
                   w-80 max-w-[90vw]
                   rounded-card bg-white dark:bg-surface-dark-subtle
                   shadow-card-dk ring-1 ring-slate-200 dark:ring-slate-700
@@ -131,6 +135,7 @@ export class BranchPickerComponent implements OnInit {
   readonly lang = inject(LanguageService);
 
   readonly open = signal(false);
+  readonly embedded = EMBEDDED;
   searchText = '';
 
   readonly BuildingIcon = Building2;

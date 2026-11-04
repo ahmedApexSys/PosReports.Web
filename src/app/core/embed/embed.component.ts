@@ -4,6 +4,7 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../auth/auth.service';
 import { LanguageService } from '../i18n/language.service';
 import { ThemeService } from '../theme/theme.service';
+import { FilterService } from '../filters/filter.service';
 import { EMBED_AUTH, EMBED_READY } from './embed';
 
 /**
@@ -25,6 +26,7 @@ export class EmbedComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly theme = inject(ThemeService);
   private readonly lang = inject(LanguageService);
+  private readonly filter = inject(FilterService);
 
   private readonly onMessage = (event: MessageEvent): void => {
     const data = event.data;
@@ -41,6 +43,11 @@ export class EmbedComponent implements OnInit, OnDestroy {
     }
     if (data.language === 'ar' || data.language === 'en') {
       this.lang.setLanguage(data.language);
+    }
+    // Open on the till's own branch; a call-centre user (branch 0) picks one.
+    const branchId = Number(data.profile?.branchId);
+    if (branchId > 0) {
+      this.filter.setBranch(branchId);
     }
     this.router.navigateByUrl(EmbedComponent.safeTarget(this.route.snapshot.queryParamMap.get('to')));
   };
