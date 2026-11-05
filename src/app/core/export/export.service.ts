@@ -232,6 +232,10 @@ export class ExportService {
 <head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
   @page { size: ${width} auto; margin: 3mm; }
+  /* A roll has no pages, but the print engine still cuts it into page-sized
+     pieces and repeats the table head at the top of each (owner, 2026-11-05).
+     Printed once, as an ordinary row. */
+  thead { display: table-row-group; }
   @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact } }
   * { box-sizing:border-box; }
   body { font-family:'Tajawal','Segoe UI',Arial,sans-serif; margin:0 auto; padding:6px; color:#000;
@@ -478,6 +482,7 @@ export class ExportService {
 
     const printCss = forExcel ? '' : `
       @page { size: ${pageSize}; margin: ${pageMargin}; }
+      ${pos ? 'thead { display: table-row-group; }' : ''}
       @media print { .noprint { display:none } body { -webkit-print-color-adjust:exact; print-color-adjust:exact } }
       .hint { margin: 8px 0 14px; color:${MUTE}; font-size:12px }
     `;
@@ -613,6 +618,10 @@ export class ExportService {
      are 1-bit — any grey or colour is dithered into sparse dots that barely burn
      (that's why the old grey headers / red logo printed almost invisible). */
   @page { size: ${width} auto; margin: 3mm; }
+  /* A roll has no pages, but the print engine still cuts it into page-sized
+     pieces and repeats the table head at the top of each (owner, 2026-11-05).
+     Printed once, as an ordinary row. */
+  thead { display: table-row-group; }
   @media print { .noprint { display:none } body { -webkit-print-color-adjust:exact; print-color-adjust:exact } }
   * { box-sizing:border-box; }
   body { font-family:'Tajawal','Segoe UI',Arial,sans-serif; margin:0 auto; padding:6px; color:#000;
