@@ -70,6 +70,17 @@ export interface ExportMeta {
   };
 }
 
+/** One table of a multi-table export (`ExportService.sections`). */
+export interface ExportSection {
+  titleEn: string;
+  titleAr: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rows: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cols: ExportColumn<any>[];
+  footer?: (string | number | null | undefined)[];
+}
+
 /** Header meta for the multi-section TotalsReport ("Daily Transactions") receipt. */
 export interface TotalReceiptMeta {
   titleEn: string;
@@ -159,6 +170,42 @@ export class ExportService {
     }
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     this.download(blob, this.fileName(meta, 'csv'));
+  }
+
+  /**
+   * Several tables in ONE document — each section is the ordinary styled table
+   * (title, meta, header, rows, footer) and they follow one another: Excel opens
+   * them as one sheet, A4 prints them in sequence. Built from `buildHtml`, so a
+   * section looks exactly like a single-table export.
+   */
+  sections(sections: ExportSection[], meta: ExportMeta, mode: 'excel' | 'a4'): void {
+    if (!sections.length) return;
+    const docs = sections.map((s, i) => this.buildHtml(s.rows, s.cols, {
+      ...meta,
+      titleEn: `${meta.titleEn} · ${s.titleEn}`,
+      titleAr: `${meta.titleAr} · ${s.titleAr}`,
+      footer: s.footer,
+      // Filters print once, under the first heading.
+      appliedFilters: i === 0 ? meta.appliedFilters : undefined,
+      subtitleEn: i === 0 ? meta.subtitleEn : undefined,
+      subtitleAr: i === 0 ? meta.subtitleAr : undefined,
+      summary: undefined,
+    }, mode));
+    const first = docs[0];
+    const bodyOpen = first.indexOf('<body');
+    const head = first.slice(0, bodyOpen);
+    const bodyTag = first.slice(bodyOpen, first.indexOf('>', bodyOpen) + 1);
+    const inner = docs.map((d) => {
+      const open = d.indexOf('>', d.indexOf('<body')) + 1;
+      return d.slice(open, d.lastIndexOf('</body>'));
+    });
+    const html = `${head}${bodyTag}${inner.join('<div style="height:24px"></div>')}</body>\n</html>`;
+    if (mode === 'excel') {
+      const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      this.download(blob, this.fileName(meta, 'xls'));
+    } else {
+      this.printHtml(html);
+    }
   }
 
   /** Print / Save-as-PDF at the requested paper size (default A4 landscape). */

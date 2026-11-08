@@ -118,3 +118,14 @@ column, checked against what the order tables actually store.
 - Rotating the 3 leaked DeterministicCrypto keys — **postponed by the owner** ("متغيرش المفاتيح دلوقتي"); do not do it unasked.
 - A login for PosReports, or the failing screen — so Phase 0 can see the
   failure rather than guess at it.
+
+## Call centre sales by agent (owner, 2026-11-08)
+
+| Step | Status |
+|---|---|
+| Page `/callcenter/agents`, Sales menu after Daily Transactions; dates from the header, branch / agent / order type on the page (all optional — no header branch needed) | Done — branch `feat/callcentre-agent-report` |
+| Sections: per agent + total, agent × branch, per day, per day × agent, order list (cancelled marked) | Done |
+| Exports: Excel (every section, order list with all columns), A4 (every section), POS 72 / 80 (agent summary only) | Done — `ExportService.sections()` |
+| API: `CallCenterAgentSales/CallCenterAgentSalesReport`, permission 572 `CallCenterAgentSalesPage` | Done — API branch `feat/callcentre-agent-report` |
+| Till catalog entry gated on 572 | Not done — POSOrdering out of scope |
+| Deploy (API first) | Waiting for the owner |

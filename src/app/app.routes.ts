@@ -128,6 +128,9 @@ const lazy = {
   // ── Daily Transactions (multi-section TotalsReport summary) ─────
   totalReport: () =>
     import('./features/reports/total-report.component').then(m => m.TotalReportComponent),
+  // Call centre sales by agent (owner 2026-11-08; API permission 572 CallCenterAgentSalesPage)
+  callCenterAgents: () =>
+    import('./features/reports/callcenter-agents.component').then(m => m.CallCenterAgentsComponent),
 
   // ── Utility pages ──────────────────────────────────────────────
   profile: () =>
@@ -225,6 +228,7 @@ export const routes: Routes = [
       // ── Sales reports ───────────────────────────────────────
       { path: 'sales/period',              loadComponent: lazy.salesPeriod,       title: 'Sales Period' },
       { path: 'total-report',              loadComponent: lazy.totalReport,       title: 'Daily Transactions' },
+      { path: 'callcenter/agents',         loadComponent: lazy.callCenterAgents,  title: 'Call Centre Sales by Agent' },
 
       // ── Migrated legacy reports (22, config-driven host) ────
       { path: 'report/:id',                loadComponent: lazy.reportHost },
