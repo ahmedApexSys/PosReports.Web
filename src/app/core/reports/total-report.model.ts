@@ -145,6 +145,9 @@ function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
   out.push({ title: L('PayWay', 'طرق الدفع'), rows: [
     { label: L('Cash', 'نقدي'), value: money(pw['cash']) },
     { label: L('Visa', 'فيزا'), value: money(pw['visa']) },
+    // Paid in the app before the order reached the branch: a sale, not on the card terminal,
+    // so Visa matches the terminal's batch (API OPEN-ITEMS A2, 2026-11-08).
+    { label: L('Online Apps', 'تطبيقات الأونلاين'), value: money(pw['onlineApps']) },
     { label: L('Vodafone Cash', 'فودافون كاش'), value: money(pw['vodafoneCash']) },
     { label: L('Ledge', 'آجل'), value: money(pw['ledge']) },
     { label: L('Credit (Ledge) Sales', 'مبيعات آجلة'), value: money(d.cl) },
