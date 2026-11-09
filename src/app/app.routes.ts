@@ -131,6 +131,9 @@ const lazy = {
   // Call centre sales by agent (owner 2026-11-08; API permission 572 CallCenterAgentSalesPage)
   callCenterAgents: () =>
     import('./features/reports/callcenter-agents.component').then(m => m.CallCenterAgentsComponent),
+  // Out of zone requests per zone (owner 2026-11-09; API permission 576 OutOfZoneReportPage)
+  outOfZone: () =>
+    import('./features/reports/out-of-zone.component').then(m => m.OutOfZoneComponent),
 
   // ── Utility pages ──────────────────────────────────────────────
   profile: () =>
@@ -229,6 +232,7 @@ export const routes: Routes = [
       { path: 'sales/period',              loadComponent: lazy.salesPeriod,       title: 'Sales Period' },
       { path: 'total-report',              loadComponent: lazy.totalReport,       title: 'Daily Transactions' },
       { path: 'callcenter/agents',         loadComponent: lazy.callCenterAgents,  title: 'Call Centre Sales by Agent' },
+      { path: 'out-of-zone',               loadComponent: lazy.outOfZone,         title: 'Out of Zone Requests' },
 
       // ── Migrated legacy reports (22, config-driven host) ────
       { path: 'report/:id',                loadComponent: lazy.reportHost },
