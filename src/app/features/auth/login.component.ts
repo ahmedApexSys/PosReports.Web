@@ -6,13 +6,15 @@ import { LucideAngularModule, ShieldCheck, Eye, EyeOff, Globe, Loader, Sun, Moon
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
+import { SecretFieldDirective, toggleSecret } from '../../shared/secret-field/secret-field.directive';
+import { ClearCacheButtonComponent } from '../../shared/clear-cache/clear-cache-button.component';
 
 type LucideIcon = typeof Sun;
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, SecretFieldDirective, ClearCacheButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br
@@ -68,7 +70,9 @@ type LucideIcon = typeof Sun;
         </div>
 
         <!-- ── Form ───────────────────────────────────────────────── -->
-        <form (ngSubmit)="submit()" class="card-padded space-y-4">
+        <!-- Not a <form>: no native submit for the browser to treat as a sign-in
+             it should offer to save (plan 10.9). Enter submits from the field. -->
+        <div role="form" class="card-padded space-y-4">
 
           <!-- Mode toggle — Password (default) vs PIN -->
           <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-surface-dark-muted rounded-card-sm">
@@ -110,13 +114,12 @@ type LucideIcon = typeof Sun;
                   : (lang.language() === 'ar' ? 'كلمة المرور' : 'Password') }}
             </label>
             <div class="relative">
-              <input
-                [type]="(showPassword() || isPIN) ? (isPIN ? 'tel' : 'text') : 'password'"
+              <input #secret
+                type="text" apexSecret
                 [(ngModel)]="password"
-                name="password"
                 [attr.inputmode]="isPIN ? 'numeric' : 'text'"
                 [attr.pattern]="isPIN ? '[0-9]*' : null"
-                autocomplete="current-password"
+                (keydown.enter)="$event.preventDefault(); submit()"
                 required
                 class="w-full rounded-card-sm border border-slate-300 dark:border-slate-700
                        bg-white dark:bg-surface-dark-muted
@@ -128,8 +131,7 @@ type LucideIcon = typeof Sun;
                     : (lang.language() === 'ar' ? 'اكتب كلمة المرور' : 'Enter password')"
               />
               <button type="button"
-                      *ngIf="!isPIN"
-                      (click)="showPassword.set(!showPassword())"
+                      (click)="showPassword.set(toggleSecret(secret))"
                       class="absolute end-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                       [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
                 <lucide-icon [img]="showPassword() ? EyeOff : Eye" class="h-4 w-4"></lucide-icon>
@@ -143,7 +145,8 @@ type LucideIcon = typeof Sun;
           </div>
 
           <!-- Submit -->
-          <button type="submit"
+          <button type="button"
+                  (click)="submit()"
                   [disabled]="loading()"
                   class="btn-primary w-full justify-center py-2.5">
             <lucide-icon *ngIf="loading()" [img]="Loader" class="h-4 w-4 animate-spin"></lucide-icon>
@@ -157,7 +160,12 @@ type LucideIcon = typeof Sun;
                 ? 'كلمة المرور بتتشفّر بـ RSA قبل ما تتبعت.'
                 : 'Password is RSA-encrypted before transit.' }}
           </p>
-        </form>
+        </div>
+
+        <!-- Plan 10.8: clears this browser's copy of the app; keeps the device id. -->
+        <div class="mt-4 flex justify-center text-slate-500 dark:text-slate-400">
+          <apex-clear-cache [lang]="lang.language()"></apex-clear-cache>
+        </div>
 
         <p class="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
           {{ lang.language() === 'ar'
@@ -189,6 +197,8 @@ export class LoginComponent {
   readonly Loader = Loader;
   readonly LockKeyhole = LockKeyhole;
   readonly KeySquare = KeySquare;
+  /** Show/hide never flips `type` (plan 10.9, SecretFieldDirective). */
+  readonly toggleSecret = toggleSecret;
 
   themeIcon(): LucideIcon {
     const m = this.theme.mode();
