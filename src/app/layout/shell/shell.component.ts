@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListe
 import { CommonModule, Location } from '@angular/common';
 import { RouterModule, RouterOutlet, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, ChevronRight, UserRound, Settings, CircleHelp, ReceiptText, Wallet, Tag, CalendarClock, Boxes, Sigma, Server, ArrowLeft, Headset } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, ChartBar, FileText, Truck, Soup, Globe, Menu, X, LogOut, Sun, Moon, MonitorCog, TrendingUp, Banknote, UserCog, Timer, TriangleAlert, Activity, ScrollText, Armchair, Gauge, Bell, ChevronDown, ChevronRight, UserRound, Settings, CircleHelp, ReceiptText, Wallet, Tag, CalendarClock, Boxes, Sigma, Server, ArrowLeft, Headset, MapPinOff } from 'lucide-angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -483,6 +483,7 @@ export class ShellComponent {
           ? [
               { labelEn: 'Daily Transactions', labelAr: 'حركة المبيعات اليومية', route: '/total-report', icon: ReceiptText },
               { labelEn: 'Call Centre by Agent', labelAr: 'الكول سنتر حسب الموظف', route: '/callcenter/agents', icon: Headset },
+              { labelEn: 'Out of Zone Requests', labelAr: 'طلبات خارج النطاق', route: '/out-of-zone', icon: MapPinOff },
             ]
           : []),
         ...g.ids.map((id) => ({
