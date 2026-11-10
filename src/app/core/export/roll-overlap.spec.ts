@@ -37,7 +37,11 @@ function rollHtml(svc: ExportService, cols: ExportColumn<Row>[], rows: Row[], ar
   return html;
 }
 
-function measure(frame: HTMLIFrameElement, html: string): string[] {
+/** Owner, 2026-11-10: Sold Items by Waiter keeps the item name on the roll and accepts smaller
+ *  type at 72 mm only. Every other roll, and this one at 80 mm / Flash, stays at the normal size. */
+const SMALL_TYPE_OK = new Set(['sold-item-waiter/pos72']);
+
+function measure(frame: HTMLIFrameElement, html: string, smallOk = false): string[] {
   const doc = frame.contentDocument!;
   doc.open(); doc.write(html); doc.close();
   const bad: string[] = [];
@@ -70,7 +74,8 @@ function measure(frame: HTMLIFrameElement, html: string): string[] {
   // shrinking carries too many columns — trim its receiptColumns instead.
   const th = doc.querySelector('thead th');
   const hpx = th ? parseFloat(frame.contentWindow!.getComputedStyle(th).fontSize) : 9.5;
-  if (px < 10 || hpx < 9.5) bad.push(`type stepped down to ${px}px (headers ${hpx}px)`);
+  if (!smallOk && (px < 10 || hpx < 9.5)) bad.push(`type stepped down to ${px}px (headers ${hpx}px)`);
+  if (smallOk && (px < 7 || hpx < 7)) bad.push(`type below 7px (${px}px, headers ${hpx}px)`);
   if (px < 10) shrunk.push(`${px}px`);
   return bad;
 }
@@ -105,7 +110,7 @@ describe('Flash / POS roll layout, every report', () => {
             value: (r: Row) => String(r[c.key] ?? ''),
           }));
           shrunk = [];
-          for (const what of measure(frame, rollHtml(svc, exp, rows, ar, paper))) {
+          for (const what of measure(frame, rollHtml(svc, exp, rows, ar, paper), SMALL_TYPE_OK.has(`${def.id}/${paper}`))) {
             problems.push({ report: def.id, lang: ar ? 'ar' : 'en', paper, what });
           }
           if (shrunk.length) console.log(`SMALL ${def.id} ${ar ? 'ar' : 'en'} ${paper} ${cols.length} cols: ${shrunk[0]}`);
