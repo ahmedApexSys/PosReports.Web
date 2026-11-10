@@ -66,7 +66,11 @@ function measure(frame: HTMLIFrameElement, html: string): string[] {
   }
   const td = doc.querySelector('tbody td');
   const px = td ? parseFloat(frame.contentWindow!.getComputedStyle(td).fontSize) : 10;
-  if (px < 7) bad.push(`type stepped down to ${px}px`);
+  // Every roll prints at the normal type size (owner, 2026-11-10): a roll that only fits by
+  // shrinking carries too many columns — trim its receiptColumns instead.
+  const th = doc.querySelector('thead th');
+  const hpx = th ? parseFloat(frame.contentWindow!.getComputedStyle(th).fontSize) : 9.5;
+  if (px < 10 || hpx < 9.5) bad.push(`type stepped down to ${px}px (headers ${hpx}px)`);
   if (px < 10) shrunk.push(`${px}px`);
   return bad;
 }

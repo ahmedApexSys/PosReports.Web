@@ -50,13 +50,11 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
         { key: "other", labelEn: "Other", labelAr: "دفع آخر", totalKey: "otherPayment" },
       ],
     },
-    // Legacy receipt: Date · Sub Total · Service · Tax · Discount · Net.
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
       { key: "orderDate", en: "Date", ar: "التاريخ" },
-      { key: "totalSales", en: "Sub Total", ar: "الإجمالي" },
-      { key: "services", en: "Service", ar: "خدمة" },
-      { key: "totalTax", en: "Tax", ar: "ضريبة" },
-      { key: "totalCommercialDiscount", en: "Discount", ar: "خصم" },
+      { key: "ordersCount", en: "Orders", ar: "الطلبات" },
       { key: "net", en: "Net", ar: "الصافي" },
     ],
   },
@@ -86,6 +84,14 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "otherPayment", labelEn: "Other Payment", labelAr: "دفع آخر", type: "money", totalKey: "otherPayment" },
       { key: "net", labelEn: "Net", labelAr: "الصافي", type: "money", totalKey: "net" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "orderDate", en: "Date", ar: "التاريخ" },
+      { key: "transaction", en: "Type", ar: "النوع" },
+      { key: "ordersCount", en: "Orders", ar: "الطلبات" },
+      { key: "net", en: "Net", ar: "الصافي" },
+    ],
   },
   "sales-period-by-payment": {
     id: "sales-period-by-payment",
@@ -113,6 +119,14 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "otherPayment", labelEn: "Other Payment", labelAr: "دفع آخر", type: "money", totalKey: "otherPayment" },
       { key: "net", labelEn: "Net", labelAr: "الصافي", type: "money", totalKey: "net" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "orderDate", en: "Date", ar: "التاريخ" },
+      { key: "paymentStatus", en: "Payment", ar: "الدفع" },
+      { key: "ordersCount", en: "Orders", ar: "الطلبات" },
+      { key: "net", en: "Net", ar: "الصافي" },
+    ],
   },
   "sold-items": {
     id: "sold-items",
@@ -138,13 +152,11 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "totalAmount", labelEn: "Total Amount", labelAr: "إجمالي المبلغ", type: "money", totalKey: "totalAmount" },
       { key: "netAmount", labelEn: "Net Amount", labelAr: "صافي المبلغ", type: "money", totalKey: "netAmount" },
     ],
-    // Grouped roll (owner, 2026-11-10): category / sub-category headings carry the names, so the
-    // Item # column went — it printed "0" on every group line and took the width the item name
-    // needs on 80 mm. Item · Qty · Sub Total · Net.
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
       { key: "itemName", en: "Item", ar: "الصنف" },
       { key: "quantity", en: "Qty", ar: "كمية" },
-      { key: "totalSales", en: "Sub Total", ar: "الإجمالي" },
       { key: "netAmount", en: "Net", ar: "الصافي" },
     ],
   },
@@ -175,12 +187,10 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "totalAmount", labelEn: "Total Amount", labelAr: "إجمالي المبلغ", type: "money", totalKey: "totalAmount" },
       { key: "netAmount", labelEn: "Net Amount", labelAr: "صافي المبلغ", type: "money", totalKey: "netAmount" },
     ],
-    // Legacy receipt: Item # · Item · Waiter · Sub Total · Qty · Net.
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
-      { key: "itemId", en: "Item #", ar: "رقم" },
-      { key: "itemName", en: "Item", ar: "الصنف" },
       { key: "waiterName", en: "Waiter", ar: "الويتر" },
-      { key: "totalSales", en: "Sub Total", ar: "الإجمالي" },
       { key: "quantity", en: "Qty", ar: "كمية" },
       { key: "netAmount", en: "Net", ar: "الصافي" },
     ],
@@ -202,6 +212,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number" },
       { key: "totalSales", labelEn: "Total Sales", labelAr: "إجمالي المبيعات", type: "money" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "subCategoryName", en: "Sub-category", ar: "القسم" },
+      { key: "quantity", en: "Qty", ar: "كمية" },
+      { key: "totalSales", en: "Sales", ar: "المبيعات" },
+    ],
   },
   "SoldItemsSummary": {
     id: "SoldItemsSummary",
@@ -215,6 +232,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "categoryName", labelEn: "Category", labelAr: "الفئة", type: "text" },
       { key: "totalQuantity", labelEn: "Quantity", labelAr: "الكمية", type: "number", totalKey: "totalQuantity" },
       { key: "totalSales", labelEn: "Total Sales", labelAr: "إجمالي المبيعات", type: "money", totalKey: "total" },
+    ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "categoryName", en: "Name", ar: "الاسم" },
+      { key: "totalQuantity", en: "Qty", ar: "كمية" },
+      { key: "totalSales", en: "Sales", ar: "المبيعات" },
     ],
   },
   "TopItems": {
@@ -292,6 +316,14 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "net", labelEn: "Net", labelAr: "الصافي", type: "money", totalKey: "net" },
       { key: "printNo", labelEn: "Prints", labelAr: "مرات الطباعة", type: "int", defaultHidden: true },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "orderId", en: "Order", ar: "الطلب" },
+      { key: "kitchenMinutes", en: "Kitchen", ar: "المطبخ" },
+      { key: "deliveryMinutes", en: "Delivery", ar: "التوصيل" },
+      { key: "net", en: "Net", ar: "الصافي" },
+    ],
   },
   "wasted-report": {
     id: "wasted-report",
@@ -327,6 +359,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "total", labelEn: "Total", labelAr: "الإجمالي", type: "money", totalKey: "total" },
       { key: "net", labelEn: "Net (cost of the giveaway)", labelAr: "الصافي (قيمة المجاني)", type: "money", totalKey: "net" },
       { key: "remarks", labelEn: "Remarks", labelAr: "ملاحظات", type: "text" },
+    ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "shiftOrderId", en: "Order", ar: "الطلب" },
+      { key: "wastedOfficerName", en: "Officer", ar: "الضابط" },
+      { key: "net", en: "Net", ar: "الصافي" },
     ],
   },
   "cancelled-order-report": {
@@ -382,6 +421,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "mobilePhone", labelEn: "Mobile Phone", labelAr: "رقم الهاتف", type: "text" },
       { key: "tableName", labelEn: "Table", labelAr: "الطاولة", type: "text" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "orderDate", en: "Date", ar: "التاريخ" },
+      { key: "cancelReason", en: "Reason", ar: "السبب" },
+      { key: "net", en: "Net", ar: "الصافي" },
+    ],
   },
   "void-items-report": {
     id: "void-items-report",
@@ -420,6 +466,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "shiftId", labelEn: "Shift", labelAr: "الوردية", type: "int", defaultHidden: true },
       { key: "createdBy", labelEn: "Created By", labelAr: "أنشئ بواسطة", type: "text" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "itemName", en: "Item", ar: "الصنف" },
+      { key: "quantity", en: "Qty", ar: "كمية" },
+      { key: "netAmount", en: "Value", ar: "القيمة" },
+    ],
   },
   "total-pos": {
     id: "total-pos",
@@ -441,14 +494,12 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "otherPayments", labelEn: "Other Payments", labelAr: "مدفوعات أخرى", type: "money" },
       { key: "orderNo", labelEn: "Order No", labelAr: "رقم الطلب", type: "id", defaultHidden: true },
     ],
-    // Legacy Total POS receipt: ID · Shift · Trans · Cash · Visa · Orders.
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
-      { key: "posName", en: "POS", ar: "نقطة", maxLen: 4 },
-      { key: "shiftName", en: "Shift", ar: "وردية" },
-      { key: "transactionName", en: "Trans", ar: "معاملة" },
-      { key: "cash", en: "Cash", ar: "نقدي" },
-      { key: "visa", en: "Visa", ar: "فيزا" },
-      { key: "orderNo", en: "Orders", ar: "طلبات" },
+      { key: "posName", en: "POS", ar: "الكاشير" },
+      { key: "totalOrderNum", en: "Orders", ar: "الطلبات" },
+      { key: "net", en: "Net", ar: "الصافي" },
     ],
   },
   "total-discount": {
@@ -485,6 +536,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "userName", labelEn: "User", labelAr: "المستخدم", type: "text" },
       { key: "payWay", labelEn: "Payment Method", labelAr: "طريقة الدفع", type: "text" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "discountName", en: "Discount", ar: "الخصم" },
+      { key: "orderNo", en: "Order", ar: "الطلب" },
+      { key: "total", en: "Amount", ar: "القيمة" },
+    ],
   },
   "promo-code-details": {
     id: "promo-code-details",
@@ -513,15 +571,12 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "visa", labelEn: "Visa", labelAr: "فيزا", type: "money", totalKey: "visa" },
       { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
     ],
-    // Legacy receipt: Date · Name · Value · Cash · Visa · Ledge (+ the burned Order #s).
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
-      { key: "day", en: "Date", ar: "التاريخ" },
-      { key: "promoCodeName", en: "Name", ar: "الكود" },
-      { key: "total", en: "Value", ar: "القيمة" },
-      { key: "cash", en: "Cash", ar: "نقدي" },
-      { key: "visa", en: "Visa", ar: "فيزا" },
-      { key: "ledge", en: "Ledge", ar: "آجل" },
-      { key: "orderIds", en: "Order #", ar: "الأوردرات" },
+      { key: "promoCodeName", en: "Name", ar: "الاسم" },
+      { key: "ordersCount", en: "Uses", ar: "مرات" },
+      { key: "total", en: "Amount", ar: "القيمة" },
     ],
   },
   "vouchers-details": {
@@ -551,23 +606,19 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "visa", labelEn: "Visa", labelAr: "فيزا", type: "money", totalKey: "visa" },
       { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
     ],
-    // Legacy cashier voucher receipt: Date · Code · Value · Cash · Visa · Ledge
-    // (+ the burned Order #s), with a Count / Amount / Cash / Visa / Ledge totals block.
-    receiptColumns: [
-      { key: "day", en: "Date", ar: "التاريخ" },
-      { key: "voucherCode", en: "Code", ar: "الكود" },
-      { key: "totalVoucherAmount", en: "Value", ar: "القيمة" },
-      { key: "cash", en: "Cash", ar: "نقدي" },
-      { key: "visa", en: "Visa", ar: "فيزا" },
-      { key: "ledge", en: "Ledge", ar: "آجل" },
-      { key: "orderIds", en: "Order #", ar: "الأوردرات" },
-    ],
     receiptTotals: [
       { key: "vouchersCount", en: "Count", ar: "العدد" },
       { key: "totalVoucherAmount", en: "Amount", ar: "الإجمالي", emphasize: true },
       { key: "cash", en: "Cash", ar: "نقدي" },
       { key: "visa", en: "Visa", ar: "فيزا" },
       { key: "ledge", en: "Ledge", ar: "آجل" },
+    ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "voucherCode", en: "Code", ar: "الكود" },
+      { key: "vouchersCount", en: "Uses", ar: "مرات" },
+      { key: "totalVoucherAmount", en: "Amount", ar: "القيمة" },
     ],
   },
   "sales-expenses": {
@@ -589,6 +640,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "branchName", labelEn: "Branch Name", labelAr: "اسم الفرع", type: "text" },
       { key: "createdBy", labelEn: "Created By", labelAr: "أنشئ بواسطة", type: "text" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "date", en: "Date", ar: "التاريخ" },
+      { key: "description", en: "Description", ar: "البيان" },
+      { key: "amount", en: "Amount", ar: "المبلغ" },
+    ],
   },
   "total-expenses": {
     id: "total-expenses",
@@ -600,6 +658,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "date", labelEn: "Date", labelAr: "التاريخ", type: "date" },
       { key: "totalAmount", labelEn: "Total Amount", labelAr: "إجمالي المبلغ", type: "money", totalKey: "totalAmount" },
       { key: "count", labelEn: "Count", labelAr: "العدد", type: "int", totalKey: "count" },
+    ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "date", en: "Date", ar: "التاريخ" },
+      { key: "count", en: "Count", ar: "العدد" },
+      { key: "totalAmount", en: "Amount", ar: "المبلغ" },
     ],
   },
   "sales-reservations": {
@@ -628,6 +693,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "transactionId", labelEn: "Transaction ID", labelAr: "معرّف المعاملة", type: "int", defaultHidden: true },
       { key: "transactionName", labelEn: "Transaction", labelAr: "المعاملة", type: "text" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "reservationDate", en: "Date", ar: "التاريخ" },
+      { key: "payway", en: "Payment", ar: "الدفع" },
+      { key: "paymentAmount", en: "Amount", ar: "المبلغ" },
+    ],
   },
   "total-reservations": {
     id: "total-reservations",
@@ -643,6 +715,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "visaSum", labelEn: "Visa", labelAr: "فيزا", type: "money", totalKey: "visaSum" },
       { key: "clSum", labelEn: "CLedge", labelAr: "آجل", type: "money", totalKey: "clSum" },
       { key: "otherPaymentSum", labelEn: "Other Payment", labelAr: "دفعات أخرى", type: "money", shortEn: "Other", shortAr: "أخرى", totalKey: "otherPaymentSum" },
+    ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "reservationDate", en: "Date", ar: "التاريخ" },
+      { key: "count", en: "Count", ar: "العدد" },
+      { key: "totalReservationAmount", en: "Total", ar: "الإجمالي" },
     ],
   },
   "sales-deferred": {
@@ -664,6 +743,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "exGroupName", labelEn: "Group", labelAr: "المجموعة", type: "text" },
       { key: "exSubGroupName", labelEn: "Sub Group", labelAr: "المجموعة الفرعية", type: "text" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "payDate", en: "Date", ar: "التاريخ" },
+      { key: "customerName", en: "Customer", ar: "العميل" },
+      { key: "amount", en: "Amount", ar: "المبلغ" },
+    ],
   },
   "total-deferred": {
     id: "total-deferred",
@@ -675,6 +761,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "payDate", labelEn: "Pay Date", labelAr: "تاريخ الدفع", type: "date" },
       { key: "totalAmount", labelEn: "Total Amount", labelAr: "إجمالي المبلغ", type: "money", totalKey: "totalAmount" },
       { key: "count", labelEn: "Count", labelAr: "العدد", type: "int", totalKey: "count" },
+    ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    receiptColumns: [
+      { key: "payDate", en: "Date", ar: "التاريخ" },
+      { key: "count", en: "Count", ar: "العدد" },
+      { key: "totalAmount", en: "Amount", ar: "المبلغ" },
     ],
   },
 
@@ -711,13 +804,12 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
       { key: "total", labelEn: "Total Discount", labelAr: "إجمالي الخصم", type: "money", totalKey: "totalDiscount" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
       { key: "day", en: "Date", ar: "التاريخ" },
       { key: "discountName", en: "Discount", ar: "الخصم" },
-      { key: "total", en: "Total", ar: "الإجمالي" },
-      { key: "cash", en: "Cash", ar: "نقدي" },
-      { key: "visa", en: "Visa", ar: "فيزا" },
-      { key: "ledge", en: "Ledge", ar: "آجل" },
+      { key: "total", en: "Amount", ar: "القيمة" },
     ],
   },
   "daily-promo": {
@@ -747,14 +839,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
       { key: "total", labelEn: "Promo Value", labelAr: "قيمة الخصم", type: "money", totalKey: "total" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
       { key: "day", en: "Date", ar: "التاريخ" },
-      { key: "promoCodeName", en: "Code", ar: "الكود" },
-      { key: "total", en: "Value", ar: "القيمة" },
-      { key: "cash", en: "Cash", ar: "نقدي" },
-      { key: "visa", en: "Visa", ar: "فيزا" },
-      { key: "ledge", en: "Ledge", ar: "آجل" },
-      { key: "orderIds", en: "Order #", ar: "الأوردرات" },
+      { key: "promoCodeName", en: "Name", ar: "الاسم" },
+      { key: "ordersCount", en: "Uses", ar: "مرات" },
+      { key: "total", en: "Amount", ar: "القيمة" },
     ],
   },
   "daily-vouchers": {
@@ -785,14 +876,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "ledge", labelEn: "Ledge", labelAr: "آجل", type: "money", totalKey: "ledge" },
       { key: "totalVoucherAmount", labelEn: "Voucher Amount", labelAr: "قيمة القسائم", type: "money", totalKey: "totalVoucherAmount" },
     ],
+    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
+    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [
       { key: "day", en: "Date", ar: "التاريخ" },
       { key: "voucherCode", en: "Code", ar: "الكود" },
-      { key: "totalVoucherAmount", en: "Value", ar: "القيمة" },
-      { key: "cash", en: "Cash", ar: "نقدي" },
-      { key: "visa", en: "Visa", ar: "فيزا" },
-      { key: "ledge", en: "Ledge", ar: "آجل" },
-      { key: "orderIds", en: "Order #", ar: "الأوردرات" },
+      { key: "vouchersCount", en: "Uses", ar: "مرات" },
+      { key: "totalVoucherAmount", en: "Amount", ar: "القيمة" },
     ],
   },
 };
