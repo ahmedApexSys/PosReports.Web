@@ -24,7 +24,7 @@ import { ReportFilterBarComponent } from '../report-filter-bar/report-filter-bar
 import { ColumnCustomizerComponent } from '../column-customizer/column-customizer.component';
 import { PagerComponent } from '../pager/pager.component';
 import { PaymentSummaryBarComponent } from '../payment-summary-bar/payment-summary-bar.component';
-import { receiptColumnsFor } from './receipt-columns';
+import { receiptColumnsFor, pdfColumnsFor } from './receipt-columns';
 
 type Row = Record<string, unknown>;
 
@@ -668,10 +668,13 @@ export class TabularReportPageComponent implements OnInit {
    * Columns for a given paper. A4 / Excel → every visible column. The thermal
    * receipt → the report's curated `receiptColumns` (the short legacy layout)
    * when defined, else the visible columns auto-capped to what fits the roll
-   * (leading identity columns + the Net/Total column).
+   * (leading identity columns + the Net/Total column). The A4 PDF / print of a
+   * report too wide for the sheet keeps its curated `pdfColumns`; Excel asks for
+   * 'excel' and keeps every visible column.
    */
-  private colsForPaper(paper: ExportPaper): ReportColumn[] {
-    if (!this.isReceipt(paper)) return this.visibleColumns();
+  private colsForPaper(paper: ExportPaper | 'excel'): ReportColumn[] {
+    if (paper === 'excel') return this.visibleColumns();
+    if (!this.isReceipt(paper)) return pdfColumnsFor(this.def, this.visibleColumns());
     return receiptColumnsFor(this.def, this.visibleColumns(), paper as 'pos72' | 'pos80' | 'flash');
   }
   private exportColsFrom(cols: ReportColumn[]): ExportColumn<Row>[] {
@@ -804,7 +807,7 @@ export class TabularReportPageComponent implements OnInit {
   exportExcel(): void {
     this.menu.set(null);
     if (!this.rows().length) return;
-    const cols = this.colsForPaper('a4');
+    const cols = this.colsForPaper('excel');
     this.exp.excel(this.rows() as Row[], this.exportColsFrom(cols), this.exportMeta('a4', cols));
   }
   /** Direct one-click PDF *file* download (no print dialog). */
