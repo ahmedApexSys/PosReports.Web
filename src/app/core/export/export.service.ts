@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { TotalBlock } from '../reports/total-report.model';
 import type { jsPDF } from 'jspdf';
+import { rollLayout, rollWidthPx, isDateText, compactDate } from './roll-layout';
 
 /**
  * Zero-dependency, bilingual, *styled* export for tabular report data.
@@ -726,20 +727,43 @@ export class ExportService {
     const records = groupOf ? rows.filter((r) => !groupOf(r)).length : rows.length;
     metaRows.push(`<div class="m-row"><span>${L('Records', 'عدد السجلات')}</span><b>${records}</b></div>`);
 
-    const head = cols.map((c) => `<th class="${c.numeric ? 'num' : ''}">${esc(ar ? c.headerAr : c.headerEn)}</th>`).join('');
     // Only transaction/payment columns get the short-code; every other column
     // (item / category names) renders its raw value so e.g. a product literally
     // called "Pickup" or "Delivery" is never silently rewritten.
     const shortable = cols.map((c) => isShortableColumn(c));
     const firstText = cols.findIndex((c) => !c.numeric);
-    const cellOf = (r: T, c: ExportColumn<T>, ci: number) =>
-      esc(shortable[ci] ? this.receiptShort(c.value(r, meta.lang)) : c.value(r, meta.lang));
+    const rawOf = (r: T, c: ExportColumn<T>, ci: number): string => {
+      const v = c.value(r, meta.lang);
+      return String((shortable[ci] ? this.receiptShort(v) : v) ?? '');
+    };
+    // A column of dates prints them compact and unbroken ("01/11"); the period with its year is
+    // in the header. The year stays when the period spans two years.
+    const itemRows = groupOf ? rows.filter((r) => !groupOf(r)) : rows;
+    const dateCol = cols.map((c, ci) => {
+      const vals = itemRows.map((r) => rawOf(r, c, ci).trim()).filter((v) => v !== '');
+      return vals.length > 0 && vals.every(isDateText);
+    });
+    const yearOf = (v: string | null | undefined) => (v || '').slice(0, 4);
+    const withYear = !!meta.fromDate && !!meta.toDate && yearOf(meta.fromDate) !== yearOf(meta.toDate);
+    const textOf = (r: T, c: ExportColumn<T>, ci: number): string => {
+      const v = rawOf(r, c, ci);
+      return dateCol[ci] && isDateText(v.trim()) ? compactDate(v.trim(), withYear) : v;
+    };
+    const cellOf = (r: T, c: ExportColumn<T>, ci: number) => esc(textOf(r, c, ci));
+    // Widths from content: no header runs into its neighbour, no figure or date breaks.
+    const headers = cols.map((c) => (ar ? c.headerAr : c.headerEn) || '');
+    const layout = rollLayout(cols.map((c, ci) => ({
+      header: headers[ci],
+      cells: rows.map((r) => textOf(r, c, ci)), // group rows too: their sums are the widest figures
+      nowrap: !!c.numeric || dateCol[ci],
+    })), rollWidthPx(paper === 'pos72' ? 'pos72' : 'pos80'), false);
+    const head = cols.map((c, ci) => `<th class="${c.numeric ? 'num' : ''}">${esc(headers[ci])}</th>`).join('');
     // An ordinary row; with an outline depth its name cell is indented and weighted by level.
     const itemRow = (r: T): string => {
       const lv = groupOf ? null : meta.levelOf?.(r);
       return `<tr${groupOf ? ' class="it"' : ''}>${cols.map((c, ci) => {
         const isName = ci === firstText && (!!groupOf || lv != null);
-        const cls = [c.numeric ? 'num' : '', isName ? 'name' : '', isName && lv != null ? `l${Math.min(lv, 3)}` : '']
+        const cls = [c.numeric ? 'num' : '', dateCol[ci] ? 'nw' : '', isName ? 'name' : '', isName && lv != null ? `l${Math.min(lv, 3)}` : '']
           .filter(Boolean).join(' ');
         return `<td class="${cls}">${cellOf(r, c, ci)}</td>`;
       }).join('')}</tr>`;
@@ -768,12 +792,7 @@ export class ExportService {
       close(0);
       return out.join('');
     };
-    // The name column gets the room on a grouped roll; the figures share the rest.
-    const nText = cols.filter((c) => !c.numeric).length;
-    const nNum = cols.length - nText;
-    const colgroup = groupOf && nText && nNum
-      ? `<colgroup>${cols.map((c) => `<col style="width:${(c.numeric ? 58 / nNum : 42 / nText).toFixed(2)}%">`).join('')}</colgroup>`
-      : '';
+    const colgroup = `<colgroup>${layout.widths.map((w) => `<col style="width:${w.toFixed(2)}%">`).join('')}</colgroup>`;
     const body = rows.length
       ? (groupOf ? groupedBody() : rows.map(itemRow).join(''))
       : `<tr><td colspan="${cols.length}" style="text-align:center;color:#000;padding:14px 0">${L('No data.', 'لا توجد بيانات.')}</td></tr>`;
@@ -824,12 +843,15 @@ export class ExportService {
   .m-row b { color:#000; font-weight:800; text-align:${ar ? 'left' : 'right'}; }
   .rule { border:0; border-top:2px solid #000; margin:6px 0; }
   table { width:100%; border-collapse:collapse; table-layout:fixed; }
-  thead th { font-size:9.5px; text-transform:uppercase; letter-spacing:.2px; color:#000; font-weight:800;
-             padding:4px 2px; border-bottom:2px solid #000; text-align:center;
-             white-space:normal; overflow-wrap:anywhere; }
-  tbody td { padding:5px 2px; border-bottom:1px dashed #000; vertical-align:middle; font-size:10px; font-weight:700;
+  /* Headers wrap between words inside their own column (each column is at least as wide as its
+     longest header word, see roll-layout.ts); figures and dates never break. */
+  thead th { font-size:${layout.headPx}px; color:#000; font-weight:800; /* no upper-case: it is a sixth wider */
+             padding:4px 2px; border-bottom:2px solid #000; text-align:center; vertical-align:bottom;
+             white-space:normal; overflow-wrap:normal; word-break:normal; hyphens:manual; }
+  tbody td { padding:5px 2px; border-bottom:1px dashed #000; vertical-align:middle; font-size:${layout.cellPx}px; font-weight:700;
              color:#000; text-align:center; white-space:normal; overflow-wrap:anywhere; }
-  .num { font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
+  .num { font-variant-numeric:tabular-nums; text-align:end; }
+  td.num, td.nw { white-space:nowrap; overflow-wrap:normal; }
   /* Outline + grouped roll. Depth is indentation and weight on the logical start side, so it
      reads the same in RTL and LTR (never box-drawing characters). */
   td.name { text-align:start; }

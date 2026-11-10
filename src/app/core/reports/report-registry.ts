@@ -636,13 +636,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     rowsKey: "totals", totalsKey: "grand",
     filters: ["payment", "shift", "transaction", "user"],
     columns: [
-      { key: "reservationDate", labelEn: "Reservation Date", labelAr: "تاريخ الحجز", type: "date" },
-      { key: "totalReservationAmount", labelEn: "Total Reservation Amount", labelAr: "إجمالي قيمة الحجوزات", type: "money", totalKey: "totalReservationAmount" },
+      { key: "reservationDate", labelEn: "Reservation Date", labelAr: "تاريخ الحجز", type: "date", shortEn: "Date", shortAr: "التاريخ" },
+      { key: "totalReservationAmount", labelEn: "Total Reservation Amount", labelAr: "إجمالي قيمة الحجوزات", type: "money", shortEn: "Total", shortAr: "الإجمالي", totalKey: "totalReservationAmount" },
       { key: "count", labelEn: "Count", labelAr: "العدد", type: "int", totalKey: "count" },
       { key: "cashSum", labelEn: "Cash", labelAr: "نقدي", type: "money", totalKey: "cashSum" },
       { key: "visaSum", labelEn: "Visa", labelAr: "فيزا", type: "money", totalKey: "visaSum" },
       { key: "clSum", labelEn: "CLedge", labelAr: "آجل", type: "money", totalKey: "clSum" },
-      { key: "otherPaymentSum", labelEn: "Other Payment", labelAr: "دفعات أخرى", type: "money", totalKey: "otherPaymentSum" },
+      { key: "otherPaymentSum", labelEn: "Other Payment", labelAr: "دفعات أخرى", type: "money", shortEn: "Other", shortAr: "أخرى", totalKey: "otherPaymentSum" },
     ],
   },
   "sales-deferred": {
