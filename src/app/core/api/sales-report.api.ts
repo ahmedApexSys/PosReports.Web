@@ -30,6 +30,9 @@ interface TransformCtx {
   /** Arabic display — lets a transform label the rows it invents (tree branches, buckets) in the
    *  reader's language instead of hard-coding English into the data. */
   ar?: boolean;
+  /** Re-order a category tree for reading: categories and sub-categories by name, items by net
+   *  sales (highest first). Off → the server's order is kept (the rankings depend on it). */
+  sortTree?: boolean;
 }
 
 /** Numeric fields summed when aggregating Sales-Period rows into group totals. */
@@ -128,11 +131,9 @@ function sortOrders(d: Obj, keyField: string, ctx?: TransformCtx): SalesReportRe
   return { rows: sorted, totals: (totals && typeof totals === 'object' ? totals : {}) as Obj };
 }
 
-/** Indent prefix for a flattened tree level (depth 0 = no indent). A leading
- *  glyph (no leading whitespace) keeps the depth marker intact through any
- *  downstream label trimming / i18n. */
-const indent = (depth: number, name: unknown): string =>
-  (depth > 0 ? '└' + '─'.repeat(depth - 1) + ' ' : '') + String(name ?? '');
+/* Depth is carried as `__level` on each flattened row, never as drawn characters in the name:
+ * box-drawing prefixes ("└─") sat on the wrong side of an Arabic name and garbled it in RTL
+ * (owner, 2026-11-10). The page and the prints indent and weight by `__level` instead. */
 
 /**
  * Flatten TotalPOS/GetTotalPosSales into indented rows. The flat engine already
@@ -147,14 +148,16 @@ function totalPosTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
   const rows: Obj[] = [...posRows];
   for (const c of asArr(pick(d, 'categorySales', 'CategorySales'))) {
     rows.push({
-      transactionName: indent(0, pick(c, 'categoryName', 'CategoryName')),
+      __level: 0,
+      transactionName: String(pick(c, 'categoryName', 'CategoryName') ?? ''),
       totalOrderNum: Number(pick(c, 'count', 'Count')) || 0,
       totalSales: Number(pick(c, 'categoryTotalSales', 'CategoryTotalSales')) || 0,
       net: Number(pick(c, 'categoryTotalSales', 'CategoryTotalSales')) || 0,
     });
     for (const s of asArr(pick(c, 'subCategorySales', 'SubCategorySales'))) {
       rows.push({
-        transactionName: indent(1, pick(s, 'subCategoryName', 'SubCategoryName')),
+        __level: 1,
+        transactionName: String(pick(s, 'subCategoryName', 'SubCategoryName') ?? ''),
         totalOrderNum: Number(pick(s, 'count', 'Count')) || 0,
         totalSales: Number(pick(s, 'subCategoryTotalSales', 'SubCategoryTotalSales')) || 0,
         net: Number(pick(s, 'subCategoryTotalSales', 'SubCategoryTotalSales')) || 0,
@@ -169,24 +172,30 @@ function totalPosTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
  * Flatten SoldItem/GetSoldItemsSummary's category → subCategory → item → variant
  * tree into indented rows mapped onto the report's existing columns
  * (categoryName / totalQuantity / totalSales). Each level carries its own
- * qty + sales; deeper levels are prefixed so the hierarchy reads top-down. If a
- * level's array is absent it's simply skipped (graceful for partial responses).
+ * qty + sales and its depth as `__level` (0 category … 3 variant). If a level's
+ * array is absent it's simply skipped (graceful for partial responses). Names are
+ * the Arabic ones when the reader is Arabic and the server sends them.
  */
 function soldItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
   const cats = filterByBranch(asArr(pick(d, 'categories', 'Categories')), ctx);
   const rows: Obj[] = [];
+  const ar = ctx?.ar === true;
+  const name = (o: Obj, en: string, ...more: string[]): unknown => {
+    const arName = ar ? pick(o, en + 'Ar', cap(en) + 'Ar') : null;
+    return (arName != null && String(arName).trim() !== '') ? arName : pick(o, en, cap(en), ...more);
+  };
   const qty = (o: Obj) => Number(pick(o, 'totalQuantity', 'TotalQuantity', 'quantity', 'Quantity', 'qty', 'Qty')) || 0;
   const sales = (o: Obj) => Number(pick(o, 'totalSales', 'TotalSales', 'total', 'Total')) || 0;
-  const push = (depth: number, name: unknown, o: Obj) =>
-    rows.push({ categoryName: indent(depth, name), totalQuantity: qty(o), totalSales: sales(o) });
+  const push = (depth: number, label: unknown, o: Obj) =>
+    rows.push({ __level: depth, categoryName: String(label ?? ''), totalQuantity: qty(o), totalSales: sales(o) });
   for (const c of cats) {
-    push(0, pick(c, 'categoryName', 'CategoryName'), c);
+    push(0, name(c, 'categoryName'), c);
     for (const sc of asArr(pick(c, 'subCategories', 'SubCategories'))) {
-      push(1, pick(sc, 'subCategoryName', 'SubCategoryName'), sc);
+      push(1, name(sc, 'subCategoryName'), sc);
       for (const it of asArr(pick(sc, 'items', 'Items'))) {
-        push(2, pick(it, 'itemName', 'ItemName'), it);
+        push(2, name(it, 'itemName'), it);
         for (const v of asArr(pick(it, 'variants', 'Variants'))) {
-          push(3, pick(v, 'variantName', 'VariantName', 'name', 'Name'), v);
+          push(3, name(v, 'variantName', 'name', 'Name'), v);
         }
       }
     }
@@ -241,11 +250,13 @@ function categoryItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
 
   for (const r of rows) {
     const catId = pick(r, 'categoryId', 'CategoryId');
-    const catName = (ar ? pick(r, 'categoryNameAr', 'CategoryNameAr') : null)
-      ?? pick(r, 'categoryName', 'CategoryName');
+    // A blank Arabic name falls back to the English one rather than printing an empty heading.
+    const filled = (v: unknown) => (v != null && String(v).trim() !== '' ? v : null);
+    const catName = (ar ? filled(pick(r, 'categoryNameAr', 'CategoryNameAr')) : null)
+      ?? filled(pick(r, 'categoryName', 'CategoryName'));
     const subId = pick(r, 'subCategoryId', 'SubCategoryId');
-    const subName = (ar ? pick(r, 'subCategoryNameAr', 'SubCategoryNameAr') : null)
-      ?? pick(r, 'subCategoryName', 'SubCategoryName');
+    const subName = (ar ? filled(pick(r, 'subCategoryNameAr', 'SubCategoryNameAr')) : null)
+      ?? filled(pick(r, 'subCategoryName', 'SubCategoryName'));
 
     const ck = catId != null ? 'c' + String(catId) : 'c?';
     const sk = ck + (subId != null ? '|s' + String(subId) : '|s?');
@@ -260,15 +271,30 @@ function categoryItemsTree(d: Obj, ctx?: TransformCtx): SalesReportResult {
     sub.items.push(r);
   }
 
+  // Sold Items reads as a catalogue: categories and sub-categories A→Z (Arabic collation when
+  // Arabic), and within a sub-category the best sellers first (net, then gross sales) — the
+  // same order Top Items ranks by. The rankings themselves keep the server's order.
+  const locale = ar ? 'ar' : 'en';
+  const byName = <T extends { label: string }>(a: T, b: T) => a.label.localeCompare(b.label, locale);
+  const salesOf = (r: Obj) => Number(r['netAmount'] ?? r['totalSales'] ?? 0) || 0;
+  const catList = [...cats.entries()];
+  if (ctx?.sortTree) catList.sort((a, b) => byName(a[1], b[1]));
+
   const out: Obj[] = [];
-  for (const [ck, cat] of cats) {
+  for (const [ck, cat] of catList) {
     out.push({ __level: 0, __key: ck, __expandable: true, categoryName: cat.label, ...cat.sums });
-    for (const [sk, sub] of cat.subs) {
+    const subList = [...cat.subs.entries()];
+    if (ctx?.sortTree) subList.sort((a, b) => byName(a[1], b[1]));
+    for (const [sk, sub] of subList) {
       out.push({
         __level: 1, __key: sk, __parent: ck, __expandable: true,
         categoryName: '', subCategoryName: sub.label, ...sub.sums,
       });
-      for (const it of sub.items) {
+      const items = ctx?.sortTree
+        ? [...sub.items].sort((a, b) => salesOf(b) - salesOf(a)
+            || String(pick(a, 'itemName', 'ItemName') ?? '').localeCompare(String(pick(b, 'itemName', 'ItemName') ?? ''), locale))
+        : sub.items;
+      for (const it of items) {
         out.push({ __level: 2, __parent: sk, ...it, categoryName: '', subCategoryName: '' });
       }
     }
@@ -671,6 +697,8 @@ export class SalesReportApi {
       branchId?: number | null;
       /** Arabic display — see TransformCtx.ar. */
       ar?: boolean;
+      /** See TransformCtx.sortTree. */
+      sortTree?: boolean;
       /** Fetch a second per-date endpoint and merge one numeric value onto each row by date. */
       mergeByDate?: {
         endpoint: string; rowsKey: string;
@@ -694,7 +722,7 @@ export class SalesReportApi {
         const d = ((data != null && typeof data === 'object' ? data : res) ?? {}) as Record<string, unknown>;
         const at = (obj: Record<string, unknown>, key: string) => obj[key] ?? obj[cap(key)];
 
-        const ctx: TransformCtx = { branchNames: opts?.branchNames, branchId: opts?.branchId, ar: opts?.ar };
+        const ctx: TransformCtx = { branchNames: opts?.branchNames, branchId: opts?.branchId, ar: opts?.ar, sortTree: opts?.sortTree };
 
         // Nested responses (promo / vouchers group days[] → codes[]) or
         // aggregations (groupBy*) that the flat rowsKey/totalsKey can't express

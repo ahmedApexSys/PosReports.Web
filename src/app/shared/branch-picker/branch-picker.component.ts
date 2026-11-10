@@ -37,13 +37,15 @@ import { EMBEDDED } from '../../core/embed/embed';
                      hover:bg-slate-50 dark:hover:bg-surface-dark-muted
                      transition-colors duration-180
                      min-w-[180px] justify-between"
-              [ngClass]="!selected() ? 'ring-2 ring-warning ring-warning/40' : ''">
+              [ngClass]="!selected() && !filter.allBranchesActive() ? 'ring-2 ring-warning ring-warning/40' : ''"
+              data-test="branch-trigger">
         <span class="flex items-center gap-2 truncate">
           <lucide-icon [img]="BuildingIcon" class="h-4 w-4 shrink-0"
-                       [class.text-warning]="!selected()"
-                       [class.text-brand-700]="selected()"></lucide-icon>
-          <span *ngIf="selected() as b" class="truncate">{{ branchLabel(b) }}</span>
-          <span *ngIf="!selected()" class="truncate text-warning font-semibold">
+                       [class.text-warning]="!selected() && !filter.allBranchesActive()"
+                       [class.text-brand-700]="selected() || filter.allBranchesActive()"></lucide-icon>
+          <span *ngIf="filter.allBranchesActive()" class="truncate">{{ allLabel() }}</span>
+          <span *ngIf="!filter.allBranchesActive() && selected() as b" class="truncate">{{ branchLabel(b) }}</span>
+          <span *ngIf="!filter.allBranchesActive() && !selected()" class="truncate text-warning font-semibold">
             {{ lang.language() === 'ar' ? 'اختر فرع' : 'Select a branch' }}
           </span>
         </span>
@@ -54,11 +56,13 @@ import { EMBEDDED } from '../../core/embed/embed';
 
       <!-- Dropdown -->
       <!-- Inside the till the picker sits at the frame's start edge, so the list
-           opens toward the page; anchored to its end it ran off the frame. -->
+           opens toward the page; anchored to its end it ran off the frame.
+           On a phone it spans the screen under the header (16px gutters): anchored to the
+           trigger it ran past the edge in RTL and cut the names off. -->
       <div *ngIf="open()"
            [class.end-0]="!embedded" [class.start-0]="embedded"
            class="absolute top-full mt-1 z-50
-                  w-80 max-w-[90vw]
+                  w-80 max-w-[90vw] bp-menu
                   rounded-card bg-white dark:bg-surface-dark-subtle
                   shadow-card-dk ring-1 ring-slate-200 dark:ring-slate-700
                   overflow-hidden">
@@ -100,6 +104,16 @@ import { EMBEDDED } from '../../core/embed/embed';
         <!-- List -->
         <div *ngIf="!branchService.loading() && !branchService.error()"
              class="max-h-72 overflow-y-auto py-1">
+          <!-- Only on a page that reports every branch (e.g. Call centre by agent). -->
+          <button *ngIf="filter.allBranchesOffered() && !searchText" type="button" (click)="selectAll()"
+                  data-test="branch-all"
+                  class="w-full px-3 py-2 text-sm text-start font-semibold
+                         text-brand-700 dark:text-brand-300
+                         hover:bg-brand-50 dark:hover:bg-brand-900/20
+                         transition-colors duration-120"
+                  [ngClass]="filter.allBranchesActive() ? 'bg-brand-50 dark:bg-brand-900/20' : ''">
+            {{ allLabel() }}
+          </button>
           <div *ngIf="filteredBranches().length === 0"
                class="p-4 text-center text-sm text-slate-500">
             {{ lang.language() === 'ar' ? 'مفيش فروع متاحة' : 'No branches available' }}
@@ -112,7 +126,7 @@ import { EMBEDDED } from '../../core/embed/embed';
                          flex items-center justify-between gap-2
                          hover:bg-slate-50 dark:hover:bg-surface-dark-muted
                          transition-colors duration-120"
-                  [class.bg-brand-50]="selected()?.id === b.id"
+                  [class.bg-brand-50]="!filter.allBranchesActive() && selected()?.id === b.id"
                   [class.dark:bg-brand-900\\\\/20]="selected()?.id === b.id">
             <span class="truncate">
               <span class="font-medium text-slate-900 dark:text-slate-100">
@@ -128,6 +142,13 @@ import { EMBEDDED } from '../../core/embed/embed';
       </div>
     </div>
   `,
+  // Tailwind's max-sm: variant is off here (the custom xs screen breaks its ordering), so the
+  // phone layout is a plain media query.
+  styles: [`
+    @media (max-width: 639.98px) {
+      .bp-menu { position: fixed; top: 4rem; left: 1rem; right: 1rem; width: auto; max-width: none; }
+    }
+  `],
 })
 export class BranchPickerComponent implements OnInit {
   readonly branchService = inject(BranchService);
@@ -170,6 +191,15 @@ export class BranchPickerComponent implements OnInit {
     this.filter.setBranch(b.id);
     this.open.set(false);
     this.searchText = '';
+  }
+
+  selectAll(): void {
+    this.filter.pickAllBranches();
+    this.open.set(false);
+  }
+
+  allLabel(): string {
+    return this.lang.language() === 'ar' ? 'كل الفروع' : 'All branches';
   }
 
   reload(): void {

@@ -59,6 +59,39 @@ export class FilterService {
     return true;
   });
 
+  /**
+   * "All branches" in the header picker. Only a page that can report across every
+   * branch offers it (it calls `offerAllBranches()` and keeps the returned release);
+   * on every other page the picker stays single-branch and `branchId` is untouched,
+   * so choosing "All" here never empties another report's required branch.
+   */
+  private readonly _allOffers = signal(0);
+  private readonly _allPicked = signal(false);
+  readonly allBranchesOffered = computed(() => this._allOffers() > 0);
+  /** True when the current page reports every branch: "All" was picked, or no branch is set. */
+  readonly allBranchesActive = computed(() =>
+    this.allBranchesOffered() && (this._allPicked() || !this.hasBranch()));
+  /** The branch an all-branches-capable page should send: null means every branch. */
+  readonly scopedBranchId = computed<number | null>(() =>
+    this.allBranchesActive() ? null : this._state().branchId);
+
+  /** A page that can report every branch calls this on create; call the result on destroy. */
+  offerAllBranches(): () => void {
+    this._allOffers.update((n) => n + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this._allOffers.update((n) => Math.max(0, n - 1));
+      if (this._allOffers() === 0) this._allPicked.set(false);
+    };
+  }
+
+  /** Pick "All branches" in the header (only while a page offers it). */
+  pickAllBranches(): void {
+    if (this.allBranchesOffered()) this._allPicked.set(true);
+  }
+
   /** Aggregate readiness — used by every report page to gate fetches. */
   readonly canFetch = computed(() => this.hasBranch() && this.hasValidDates());
 
@@ -115,6 +148,7 @@ export class FilterService {
   }
 
   setBranch(id: number | null): void {
+    this._allPicked.set(false);
     this._state.update((s) => ({ ...s, branchId: id }));
     this.persist();
   }

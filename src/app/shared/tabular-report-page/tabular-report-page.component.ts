@@ -188,7 +188,10 @@ interface AppliedFilter { label: string; value: string; }
                     class="hover:bg-slate-50 dark:hover:bg-surface-dark-muted/50"
                     [class.row-group]="hasMerge() && isMergeStart(ri)"
                     [class.tree-parent]="isTree() && isBranch(r)"
-                    [class.tree-child]="isTree() && !isBranch(r) && lvl(r) > 0">
+                    [class.tree-child]="isTree() && !isBranch(r) && lvl(r) > 0"
+                    [class.lvl-0]="hasLevels() && lvl(r) === 0"
+                    [class.lvl-1]="hasLevels() && lvl(r) === 1"
+                    [class.lvl-leaf]="hasLevels() && lvl(r) > 1">
                   <!-- Chevron sits at the row's own depth, so a sub-category reads as nested
                        under its category rather than level with it. -->
                   <td *ngIf="isTree()" class="px-2 py-2 text-center align-middle">
@@ -204,8 +207,8 @@ interface AppliedFilter { label: string; value: string; }
                         [class.tabular]="isNumeric(c)"
                         [class.font-medium]="c.key === firstCol()"
                         [class.merge-cell]="c.key === mergeColKey()"
-                        [style.padding-inline-start.rem]="c.key === firstCol() && isTree() ? 0.75 + lvl(r) * 0.9 : null">
-                      <bdi>{{ fmt(r[c.key], c) }}</bdi>
+                        [style.padding-inline-start.rem]="c.key === firstCol() && hasLevels() ? 0.75 + lvl(r) * 0.9 : null">
+                      <bdi>{{ cell(r, c) }}</bdi>
                     </td>
                   </ng-container>
                 </tr>
@@ -274,7 +277,12 @@ interface AppliedFilter { label: string; value: string; }
     /* Expandable per-day tree: bold tinted day rows (clickable), muted detail rows. */
     .tree-parent { cursor: pointer; }
     .tree-parent > td { @apply bg-slate-50 dark:bg-surface-dark-muted/40 font-semibold border-t border-slate-200 dark:border-slate-700; }
-    .tree-child > td { @apply text-slate-500 dark:text-slate-400 bg-white dark:bg-transparent; }
+    .tree-child > td { @apply bg-white dark:bg-transparent; }
+    /* Outline weight (category bold, sub-category semi-bold, items normal). After the tree rules,
+       same specificity, so it wins; indentation is padding-inline-start, correct in RTL and LTR. */
+    .lvl-0 > td { font-weight: 700; }
+    .lvl-1 > td { font-weight: 600; }
+    .lvl-leaf > td { font-weight: 400; }
   `],
 })
 export class TabularReportPageComponent implements OnInit {
@@ -332,6 +340,8 @@ export class TabularReportPageComponent implements OnInit {
   //    depth-1 case of exactly this; Sold Items adds category → sub-category → item at depth 2. ──
   readonly expanded = signal<Set<string>>(new Set());
   readonly isTree = computed(() => !!this.def.expandable && this.rows().some((r) => (r as Row)['__level'] != null));
+  /** Rows carry an outline depth (an expandable tree, or a flat outline such as Sold Items Summary). */
+  readonly hasLevels = computed(() => this.rows().some((r) => (r as Row)['__level'] != null));
   /**
    * Rows actually shown: roots always, and any deeper row whose WHOLE ancestor chain is open.
    * One forward pass is enough because a transform always emits a parent before its children —
@@ -603,6 +613,7 @@ export class TabularReportPageComponent implements OnInit {
       // Lets a transform name the rows it invents (tree branches, "uncategorised") in the reader's
       // language rather than baking English into the data.
       ar: this.ar(),
+      sortTree: !!this.def.treeSort,
     }).pipe(
       catchError((err) => {
         this.error.set(err?.error?.message || err?.message || 'Failed to load report.');
@@ -610,6 +621,18 @@ export class TabularReportPageComponent implements OnInit {
       }),
       finalize(() => this.loading.set(false)),
     ).subscribe((res) => this.result.set(res));
+  }
+
+  /**
+   * One cell of the table and of every export. In an outline a row only fills the columns that
+   * belong to its level: a category row has no item, an item row repeats no category, and a
+   * group row has no item id or unit price. Those cells are left empty instead of "—" or "0".
+   */
+  cell(r: Row, c: ReportColumn): string {
+    const v = r[c.key];
+    const empty = v === null || v === undefined || v === '';
+    if (empty && r['__level'] != null && (!this.isNumeric(c) || r['__key'] != null)) return '';
+    return this.fmt(v, c);
   }
 
   fmt(v: unknown, c: ReportColumn): string {
@@ -674,7 +697,7 @@ export class TabularReportPageComponent implements OnInit {
       numeric: this.isNumeric(c),
       width: c.width ?? (this.isNumeric(c) ? 12 : 16),
       key: c.key,
-      value: (r: Row) => this.clampLen(this.fmt(r[c.key], c), c.maxLen),
+      value: (r: Row) => this.clampLen(this.cell(r, c), c.maxLen),
     }));
   }
   /** Truncate long text to `n` chars + "…" (used on the narrow receipt columns). */
@@ -683,8 +706,16 @@ export class TabularReportPageComponent implements OnInit {
     const s = v.trim();
     return s.length > n ? `${s.slice(0, n)}…` : s;
   }
-  private exportFooterFrom(cols: ReportColumn[]): (string | number | null)[] | undefined {
-    if (!this.hasTotals()) return undefined;
+  private exportFooterFrom(cols: ReportColumn[], paper?: ExportPaper): (string | number | null)[] | undefined {
+    if (!this.hasTotals()) {
+      // A grouped roll still ends on a grand total when the server sends none (the rankings):
+      // the sum of the top-level groups, which already carry everything beneath them.
+      if (!paper || !this.groupedReceipt(paper)) return undefined;
+      const tops = (this.rows() as Row[]).filter((r) => r['__key'] != null && this.lvl(r) === 0);
+      return cols.map((c, i) => this.isNumeric(c) && c.key !== 'unitPrice' && c.key !== 'itemId'
+        ? this.fmt(tops.reduce((a, r) => a + (Number(r[c.key]) || 0), 0), c)
+        : (i === 0 ? (this.ar() ? 'الإجمالي' : 'Total') : ''));
+    }
     return cols.map((c, i) =>
       c.totalKey ? this.fmt(this.totals()[c.totalKey], c) : (i === 0 ? (this.ar() ? 'الإجمالي' : 'Total') : ''));
   }
@@ -721,8 +752,24 @@ export class TabularReportPageComponent implements OnInit {
     if (this.def.receiptColumns?.length) return [];
     return this.receiptPaymentTotals();
   }
+  /** Flash / POS roll of a category tree printed as headings + subtotals (see ReportDef.receiptGroups). */
+  private groupedReceipt(paper: ExportPaper): boolean {
+    return this.isReceipt(paper) && !!this.def.receiptGroups && this.isTree();
+  }
+  /** A group row's own name: the first text column it fills (category, then sub-category). */
+  private groupLabel(r: Row): string {
+    for (const c of this.def.columns) {
+      if (this.isNumeric(c)) continue;
+      const v = r[c.key];
+      if (v != null && String(v).trim() !== '') return this.fmt(v, c);
+    }
+    return '';
+  }
   private exportMeta(paper: ExportPaper, cols: ReportColumn[]): ExportMeta {
     const b = this.branches.findById(this.filter.branchId());
+    const grouped = this.groupedReceipt(paper);
+    // A flat outline (Sold Items Summary) prints its depth as indentation + weight.
+    const outline = !this.def.expandable && this.hasLevels();
     return {
       titleEn: this.def.titleEn, titleAr: this.def.titleAr,
       subtitleEn: this.def.subtitleEn, subtitleAr: this.def.subtitleAr,
@@ -731,10 +778,14 @@ export class TabularReportPageComponent implements OnInit {
       lang: this.ar() ? 'ar' : 'en',
       fileBase: this.def.id,
       paper,
-      footer: this.exportFooterFrom(cols),
+      footer: this.exportFooterFrom(cols, paper),
       appliedFilters: this.appliedFilters(),
       paymentTotals: this.receiptTotalsFor(paper),
       summary: this.buildSummary(),
+      groupOf: grouped
+        ? (r: Row) => (this.isBranch(r) ? { level: this.lvl(r), label: this.groupLabel(r) } : null)
+        : undefined,
+      levelOf: outline ? (r: Row) => (r['__level'] != null ? this.lvl(r) : null) : undefined,
     };
   }
 
