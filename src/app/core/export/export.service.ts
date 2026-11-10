@@ -68,6 +68,20 @@ export interface ExportMeta {
     figures: { label: string; value: string; emphasize?: boolean }[];
     payways: { payway: string; total: string; net: string }[];
   };
+  /**
+   * Outline depth of a row (0 = top). The first text column is indented by it and weighted
+   * (0 bold, 1 semi-bold, deeper normal) on the roll, A4 and Excel. Hierarchy is never drawn
+   * with box characters, which garble Arabic names in RTL.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  levelOf?: (row: any) => number | null;
+  /**
+   * Grouped roll (Flash / POS): a row for which this returns a group is printed as a heading
+   * line before its children and as a subtotal line after them, never as an item row. The
+   * totals block below the table is then titled as the grand total.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  groupOf?: (row: any) => { level: number; label: string } | null;
 }
 
 /** One table of a multi-table export (`ExportService.sections`). */
@@ -496,9 +510,11 @@ export class ExportService {
       return `<th style="background:${headBg};color:${headTx};border:1px solid ${forExcel ? BRAND : BORDER};border-bottom:2px solid ${BRAND};padding:${pad};text-align:center;font-weight:700;white-space:${wrap};${cellExtra}${w}">${esc(h1)}${sub}</th>`;
     }).join('');
 
+    const firstText = cols.findIndex((c) => !c.numeric);
     const body = rows.map((r, i) => {
       const zebra = i % 2 ? ` background:${ZEBRA};` : '';
-      const tds = cols.map(c => {
+      const lv = meta.levelOf?.(r);
+      const tds = cols.map((c, ci) => {
         const raw = c.value(r, meta.lang);
         const t = c.tone?.(r);
         let cell = '';
@@ -506,7 +522,9 @@ export class ExportService {
         else if (t === 'bad') cell = `background:${BAD_BG};color:${BAD_TX};font-weight:600;`;
         else if (t === 'muted') cell = `color:${MUTE};`;
         const align = c.numeric ? 'right' : (ar ? 'right' : 'left');
-        return `<td style="border:1px solid ${BORDER};padding:${pad};text-align:${align};vertical-align:top;white-space:${wrap};${cellExtra}${exTextFmt(c)}${zebra}${cell}">${esc(raw)}</td>`;
+        const outline = lv != null && ci === firstText
+          ? `padding-${ar ? 'right' : 'left'}:${6 + lv * 14}px;font-weight:${lv === 0 ? 800 : lv === 1 ? 700 : 400};` : '';
+        return `<td style="border:1px solid ${BORDER};padding:${pad};text-align:${align};vertical-align:top;white-space:${wrap};${cellExtra}${exTextFmt(c)}${zebra}${cell}${outline}">${esc(raw)}</td>`;
       }).join('');
       return `<tr>${tds}</tr>`;
     }).join('');
@@ -630,16 +648,61 @@ export class ExportService {
     for (const f of (meta.appliedFilters ?? [])) {
       if (f && f.value && String(f.value).trim() !== '') metaRows.push(`<div class="m-row"><span>${esc(f.label)}</span><b>${esc(f.value)}</b></div>`);
     }
-    metaRows.push(`<div class="m-row"><span>${L('Records', 'عدد السجلات')}</span><b>${rows.length}</b></div>`);
+    const groupOf = meta.groupOf;
+    const records = groupOf ? rows.filter((r) => !groupOf(r)).length : rows.length;
+    metaRows.push(`<div class="m-row"><span>${L('Records', 'عدد السجلات')}</span><b>${records}</b></div>`);
 
     const head = cols.map((c) => `<th class="${c.numeric ? 'num' : ''}">${esc(ar ? c.headerAr : c.headerEn)}</th>`).join('');
     // Only transaction/payment columns get the short-code; every other column
     // (item / category names) renders its raw value so e.g. a product literally
     // called "Pickup" or "Delivery" is never silently rewritten.
     const shortable = cols.map((c) => isShortableColumn(c));
+    const firstText = cols.findIndex((c) => !c.numeric);
+    const cellOf = (r: T, c: ExportColumn<T>, ci: number) =>
+      esc(shortable[ci] ? this.receiptShort(c.value(r, meta.lang)) : c.value(r, meta.lang));
+    // An ordinary row; with an outline depth its name cell is indented and weighted by level.
+    const itemRow = (r: T): string => {
+      const lv = groupOf ? null : meta.levelOf?.(r);
+      return `<tr${groupOf ? ' class="it"' : ''}>${cols.map((c, ci) => {
+        const isName = ci === firstText && (!!groupOf || lv != null);
+        const cls = [c.numeric ? 'num' : '', isName ? 'name' : '', isName && lv != null ? `l${Math.min(lv, 3)}` : '']
+          .filter(Boolean).join(' ');
+        return `<td class="${cls}">${cellOf(r, c, ci)}</td>`;
+      }).join('')}</tr>`;
+    };
+    // Grouped: heading before the children, subtotal after them (deepest first), grand total
+    // below the table. A group row is never printed as an item, so no "0" / "-" item cells.
+    const groupedBody = (): string => {
+      const out: string[] = [];
+      const open: { level: number; label: string; row: T }[] = [];
+      const close = (downTo: number) => {
+        while (open.length && open[open.length - 1].level >= downTo) {
+          const g = open.pop()!;
+          out.push(`<tr class="st st${Math.min(g.level, 1)}">${cols.map((c, ci) => {
+            if (c.numeric) return `<td class="num">${cellOf(g.row, c, ci)}</td>`;
+            return ci === firstText ? `<td class="name">${esc(L('Total', 'إجمالي'))} ${esc(g.label)}</td>` : '<td></td>';
+          }).join('')}</tr>`);
+        }
+      };
+      for (const r of rows) {
+        const g = groupOf!(r);
+        if (!g) { out.push(itemRow(r)); continue; }
+        close(g.level);
+        out.push(`<tr class="g g${Math.min(g.level, 1)}"><td colspan="${cols.length}">${esc(g.label)}</td></tr>`);
+        open.push({ level: g.level, label: g.label, row: r });
+      }
+      close(0);
+      return out.join('');
+    };
+    // The name column gets the room on a grouped roll; the figures share the rest.
+    const nText = cols.filter((c) => !c.numeric).length;
+    const nNum = cols.length - nText;
+    const colgroup = groupOf && nText && nNum
+      ? `<colgroup>${cols.map((c) => `<col style="width:${(c.numeric ? 58 / nNum : 42 / nText).toFixed(2)}%">`).join('')}</colgroup>`
+      : '';
     const body = rows.length
-      ? rows.map((r) => `<tr>${cols.map((c, ci) => `<td class="${c.numeric ? 'num' : ''}">${esc(shortable[ci] ? this.receiptShort(c.value(r, meta.lang)) : c.value(r, meta.lang))}</td>`).join('')}</tr>`).join('')
-      : `<tr><td colspan="${cols.length}" style="text-align:center;color:#999;padding:14px 0">${L('No data.', 'لا توجد بيانات.')}</td></tr>`;
+      ? (groupOf ? groupedBody() : rows.map(itemRow).join(''))
+      : `<tr><td colspan="${cols.length}" style="text-align:center;color:#000;padding:14px 0">${L('No data.', 'لا توجد بيانات.')}</td></tr>`;
 
     // Totals block: the curated `paymentTotals` the caller built (e.g.
     // Cash/Visa/Ledge/Net on the cashier daily report). When none, sum this
@@ -651,9 +714,10 @@ export class ExportService {
         .filter((x) => x.c.numeric && x.v != null && String(x.v).trim() !== '')
         .map((x) => ({ label: ar ? x.c.headerAr : x.c.headerEn, value: String(x.v), emphasize: /net|الصافي/i.test(`${x.c.headerEn}${x.c.headerAr}`) }));
     }
-    const totalsHtml = totals
-      .map((t) => `<div class="t-row ${t.emphasize ? 'net' : ''}"><span>${esc(t.label)}</span><span>${esc(t.value)}</span></div>`)
-      .join('');
+    const totalsHtml = (groupOf && totals.length ? `<div class="t-title">${esc(L('Grand total', 'الإجمالي العام'))}</div>` : '')
+      + totals
+        .map((t) => `<div class="t-row ${t.emphasize ? 'net' : ''}"><span>${esc(t.label)}</span><span>${esc(t.value)}</span></div>`)
+        .join('');
 
     return `<!doctype html>
 <html dir="${dir}" lang="${meta.lang}">
@@ -692,6 +756,22 @@ export class ExportService {
   tbody td { padding:5px 2px; border-bottom:1px dashed #000; vertical-align:middle; font-size:10px; font-weight:700;
              color:#000; text-align:center; white-space:normal; overflow-wrap:anywhere; }
   .num { font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
+  /* Outline + grouped roll. Depth is indentation and weight on the logical start side, so it
+     reads the same in RTL and LTR (never box-drawing characters). */
+  td.name { text-align:start; }
+  td.name.l0 { font-weight:800; font-size:11px; }
+  td.name.l1 { font-weight:700; padding-inline-start:8px; }
+  td.name.l2 { font-weight:500; padding-inline-start:16px; }
+  td.name.l3 { font-weight:500; padding-inline-start:24px; }
+  tr.g td { text-align:start; border-bottom:0; padding-bottom:2px; }
+  tr.g0 td { font-size:12.5px; font-weight:800; border-top:2px solid #000; padding-top:8px; }
+  tr.g1 td { font-size:11px; font-weight:800; padding-top:5px; padding-inline-start:8px; text-decoration:underline; }
+  tr.it td { border-bottom:1px dotted #000; }
+  tr.it td.name { padding-inline-start:14px; font-weight:600; }
+  tr.st td { font-weight:800; border-bottom:1px solid #000; }
+  tr.st1 td.name { padding-inline-start:8px; }
+  tr.st0 td { font-size:11px; border-bottom:2px solid #000; }
+  .t-title { font-size:13px; font-weight:800; text-align:center; margin-bottom:2px; }
   .r-totals { margin-top:8px; border-top:2px solid #000; padding-top:6px; }
   .t-row { display:flex; justify-content:space-between; padding:3.5px 2px; font-size:13px; font-weight:700; color:#000; }
   .t-row span:last-child { font-variant-numeric:tabular-nums; color:#000; font-weight:800; }
@@ -712,6 +792,7 @@ export class ExportService {
   <hr class="rule">
   <div class="hint noprint">${L('Print → "Save as PDF" or send to the receipt printer.', 'اطبع ← "حفظ كـ PDF" أو أرسل لطابعة الإيصالات.')}</div>
   <table>
+    ${colgroup}
     <thead><tr>${head}</tr></thead>
     <tbody>${body}</tbody>
   </table>

@@ -187,6 +187,14 @@ export interface ReportDef {
    * The table shows day rows collapsed; clicking a day row reveals its details.
    */
   expandable?: boolean;
+  /** Category tree read A→Z, items by net sales (Sold Items). Off → server order. */
+  treeSort?: boolean;
+  /**
+   * Flash / POS roll prints the category tree as a grouped receipt: a category heading, each
+   * sub-category heading, its items, the sub-category subtotal, the category subtotal, and the
+   * grand total last — instead of printing the group rows as items ("ITEM # 0 / —").
+   */
+  receiptGroups?: boolean;
   /**
    * Makes each row clickable, opening a detail page for that row. Used to go
    * from a per-order report straight into that order's journey.

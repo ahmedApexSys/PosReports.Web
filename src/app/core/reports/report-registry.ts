@@ -122,7 +122,7 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     defaultOrdersFilter: "Paid",
     // Category → Sub-category → Item. Branches carry the totals beneath them, so collapsed the
     // report reads as a category summary and opens down to the individual items.
-    transform: "categoryItemsTree", expandable: true,
+    transform: "categoryItemsTree", expandable: true, treeSort: true, receiptGroups: true,
     filters: ["payment", "transaction", "shift"],
     columns: [
       { key: "itemId", labelEn: "Item ID", labelAr: "رقم الصنف", type: "int", defaultHidden: true },
@@ -138,12 +138,13 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "totalAmount", labelEn: "Total Amount", labelAr: "إجمالي المبلغ", type: "money", totalKey: "totalAmount" },
       { key: "netAmount", labelEn: "Net Amount", labelAr: "صافي المبلغ", type: "money", totalKey: "netAmount" },
     ],
-    // Legacy receipt: Item # · Item · Sub Total · Qty · Net.
+    // Grouped roll (owner, 2026-11-10): category / sub-category headings carry the names, so the
+    // Item # column went — it printed "0" on every group line and took the width the item name
+    // needs on 80 mm. Item · Qty · Sub Total · Net.
     receiptColumns: [
-      { key: "itemId", en: "Item #", ar: "رقم" },
       { key: "itemName", en: "Item", ar: "الصنف" },
-      { key: "totalSales", en: "Sub Total", ar: "الإجمالي" },
       { key: "quantity", en: "Qty", ar: "كمية" },
+      { key: "totalSales", en: "Sub Total", ar: "الإجمالي" },
       { key: "netAmount", en: "Net", ar: "الصافي" },
     ],
   },
@@ -223,7 +224,7 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     rowsKey: "", totalsKey: null,
     requestExtra: { with: true, topCount: 0, sortByQuantity: false },
     defaultOrdersFilter: "Paid",
-    transform: "categoryItemsTree", expandable: true,
+    transform: "categoryItemsTree", expandable: true, receiptGroups: true,
     filters: ["payment", "transaction", "shift"],
     columns: [
       { key: "itemId", labelEn: "Item ID", labelAr: "معرّف الصنف", type: "int", defaultHidden: true },
@@ -233,6 +234,11 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number" },
       { key: "totalSales", labelEn: "Total Sales", labelAr: "إجمالي المبيعات", type: "money" },
     ],
+    receiptColumns: [
+      { key: "itemName", en: "Item", ar: "الصنف" },
+      { key: "quantity", en: "Qty", ar: "كمية" },
+      { key: "totalSales", en: "Sales", ar: "المبيعات" },
+    ],
   },
   "worst-Items": {
     id: "worst-Items",
@@ -241,7 +247,7 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
     rowsKey: "", totalsKey: null,
     requestExtra: { with: true, topCount: 0, sortByQuantity: false },
     defaultOrdersFilter: "Paid",
-    transform: "categoryItemsTree", expandable: true,
+    transform: "categoryItemsTree", expandable: true, receiptGroups: true,
     filters: ["payment", "transaction", "shift"],
     columns: [
       { key: "itemId", labelEn: "Item ID", labelAr: "معرّف الصنف", type: "int", defaultHidden: true },
@@ -250,6 +256,11 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "itemName", labelEn: "Item", labelAr: "الصنف", type: "text" },
       { key: "quantity", labelEn: "Quantity", labelAr: "الكمية", type: "number" },
       { key: "totalSales", labelEn: "Total Sales", labelAr: "إجمالي المبيعات", type: "money" },
+    ],
+    receiptColumns: [
+      { key: "itemName", en: "Item", ar: "الصنف" },
+      { key: "quantity", en: "Qty", ar: "كمية" },
+      { key: "totalSales", en: "Sales", ar: "المبيعات" },
     ],
   },
   "order-prep-time": {
