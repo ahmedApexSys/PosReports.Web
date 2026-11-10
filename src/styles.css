@@ -13,6 +13,12 @@
 @layer base {
   :root {
     color-scheme: light;
+    /* Safe-area insets: viewport-fit=cover is set, so the page draws under the
+       notch / home bar. 0px on every screen without one. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
   }
   :root.dark {
     color-scheme: dark;
@@ -190,3 +196,14 @@ app-journey .jr-faint, app-live-feed .jr-faint{color:var(--faint)}
 app-journey .jr-neg{color:var(--bad)}
 app-journey .jr-pos{color:var(--good)}
 app-journey .jr-warn-text{color:var(--warn)}
+
+/* ── Fit: a finger or a narrow screen. Keep this block LAST in the file. ──
+   iOS zooms the page into any field under 16px (the filters are text-xs /
+   text-sm). No field in this app is larger than 16px, so raising them here
+   never shrinks one; :root lifts the rule above the Tailwind text-* classes. */
+@media (pointer: coarse), (max-width: 1023px) {
+  :root :is(input, select, textarea) {
+    font-size: max(16px, 1em);
+  }
+}
+

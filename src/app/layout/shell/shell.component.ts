@@ -57,7 +57,7 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
          it pins while the main column scrolls. The previous version
          used flex-col which made the sticky sidebar stack ABOVE the
          main content — the layout corruption under scroll. -->
-    <div class="min-h-screen flex bg-surface dark:bg-surface-dark">
+    <div class="min-h-screen supports-[height:100dvh]:min-h-dvh flex bg-surface dark:bg-surface-dark">
       <!-- Mobile drawer overlay -->
       <div *ngIf="mobileNavOpen()"
            (click)="mobileNavOpen.set(false)"
@@ -70,7 +70,7 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
 
       <!-- ── Sidebar ────────────────────────────────────────────── -->
       <!-- Inside the till (core/embed) the till's own sidebar is the menu. -->
-      <aside *ngIf="!embedded" class="fixed lg:sticky top-0 z-40 h-screen lg:shrink-0
+      <aside *ngIf="!embedded" class="shell-aside fixed lg:sticky top-0 z-40 h-screen supports-[height:100dvh]:h-dvh lg:shrink-0
                     bg-white dark:bg-surface-dark-subtle
                     border-e border-slate-200 dark:border-slate-800
                     transition-transform duration-220
@@ -170,20 +170,20 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
       </aside>
 
       <!-- ── Main content ──────────────────────────────────────── -->
-      <div class="flex-1 flex flex-col min-h-screen min-w-0"
+      <div class="flex-1 flex flex-col min-h-screen supports-[height:100dvh]:min-h-dvh min-w-0"
            [class]="mainOffsetClass()">
 
         <!-- Header -->
-        <header class="sticky top-0 z-20 h-16 glass
+        <header class="shell-header sticky top-0 z-20 h-16 glass
                        border-b border-slate-200 dark:border-slate-800
                        flex items-center gap-3 px-4 md:px-6">
           <button *ngIf="!embedded" (click)="mobileNavOpen.set(!mobileNavOpen())"
-                  class="btn-ghost lg:hidden p-1.5"
+                  class="btn-ghost lg:hidden p-1.5 coarse:min-h-11 coarse:min-w-11"
                   aria-label="Toggle navigation">
             <lucide-icon [img]="mobileNavOpen() ? CloseIcon : MenuIcon" class="h-5 w-5"></lucide-icon>
           </button>
           <button *ngIf="!embedded" (click)="collapsed.set(!collapsed())"
-                  class="btn-ghost hidden lg:inline-flex p-1.5"
+                  class="btn-ghost hidden lg:inline-flex p-1.5 coarse:min-h-11 coarse:min-w-11"
                   aria-label="Collapse sidebar">
             <lucide-icon [img]="MenuIcon" class="h-5 w-5"></lucide-icon>
           </button>
@@ -191,7 +191,7 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
           <!-- Inside the till the frame has no browser Back and no sidebar, so a
                report opened from another (an order's journey) had no way out. -->
           <button *ngIf="embedded && backDepth() > 1" (click)="goBack()"
-                  class="btn-ghost p-1.5" [attr.aria-label]="'Back'">
+                  class="btn-ghost p-1.5 coarse:min-h-11 coarse:min-w-11" [attr.aria-label]="'Back'">
             <lucide-icon [img]="BackIcon" class="h-5 w-5 rtl:rotate-180"></lucide-icon>
           </button>
 
@@ -204,7 +204,7 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
           <!-- Notifications and the account menu: the till's, while framed. -->
           <div class="flex items-center gap-1.5" *ngIf="!embedded">
             <!-- Notifications bell -->
-            <a routerLink="/notifications" class="relative btn-ghost p-2"
+            <a routerLink="/notifications" class="relative btn-ghost p-2 coarse:min-h-11 coarse:min-w-11"
                [attr.aria-label]="lang.language() === 'ar' ? 'الإشعارات' : 'Notifications'">
               <lucide-icon [img]="BellIcon" class="h-5 w-5"></lucide-icon>
               <span *ngIf="notif.unreadCount() > 0"
@@ -262,14 +262,14 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
         </header>
 
         <!-- Content -->
-        <main id="main" class="flex-1 p-4 md:p-6 max-w-screen-3xl mx-auto w-full min-w-0 animate-fade-in">
+        <main id="main" class="shell-main flex-1 p-4 md:p-6 max-w-screen-3xl mx-auto w-full min-w-0 animate-fade-in">
           <router-outlet></router-outlet>
         </main>
       </div>
     </div>
   `,
   styles: [`
-    .foot-btn { @apply flex-1 inline-flex items-center justify-center h-9 rounded-card-sm
+    .foot-btn { @apply flex-1 inline-flex items-center justify-center h-9 coarse:min-h-11 rounded-card-sm
                 text-slate-500 dark:text-slate-400
                 hover:bg-surface-muted dark:hover:bg-surface-dark-muted transition-colors; }
     .nav-group { @apply w-full flex items-center gap-3 px-2.5 py-2 rounded-card-sm text-sm font-medium
@@ -280,6 +280,24 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
     .cdk-drag-placeholder { @apply opacity-40; }
     .cdk-drag-animating { transition: transform 200ms cubic-bezier(0,0,0.2,1); }
     .cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-dragging) { transition: transform 200ms cubic-bezier(0,0,0.2,1); }
+
+    /* R1: safe area (viewport-fit=cover is set in index.html). Physical
+       left/right on the header and page, so they hold in RTL and LTR; the
+       drawer clears the notch on its own (start) side only. */
+    .shell-aside { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+                   padding-inline-start: var(--safe-left); }
+    :host-context([dir="rtl"]) .shell-aside { padding-inline-start: var(--safe-right); }
+    .shell-header { height: auto; min-height: calc(4rem + var(--safe-top)); padding-top: var(--safe-top);
+                    padding-left: calc(1rem + var(--safe-left)); padding-right: calc(1rem + var(--safe-right)); }
+    .shell-main { padding-left: calc(1rem + var(--safe-left)); padding-right: calc(1rem + var(--safe-right));
+                  padding-bottom: calc(1rem + var(--safe-bottom)); }
+
+    /* Responsive blocks last. */
+    @media (min-width: 768px) {
+      .shell-header { padding-left: calc(1.5rem + var(--safe-left)); padding-right: calc(1.5rem + var(--safe-right)); }
+      .shell-main { padding-left: calc(1.5rem + var(--safe-left)); padding-right: calc(1.5rem + var(--safe-right));
+                    padding-bottom: calc(1.5rem + var(--safe-bottom)); }
+    }
   `],
 })
 export class ShellComponent {

@@ -63,6 +63,8 @@ module.exports = {
     "./src/**/*.{html,ts}",
   ],
   darkMode: 'class',
+  // A finger has no hover: hover: utilities only apply where a real pointer can hover.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       // ── Severity palette (mapped to API insight severity 0..4) ───────────
@@ -146,6 +148,8 @@ module.exports = {
         '2xl': '1536px',
         '3xl': '1920px',  // 1080p Full HD
         '4xl': '2560px',  // QHD
+        // coarse: a finger (phone / tablet). Used for 44px tap targets.
+        'coarse': { raw: '(pointer: coarse)' },
       },
     },
   },
