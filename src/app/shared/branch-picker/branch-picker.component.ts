@@ -56,11 +56,13 @@ import { EMBEDDED } from '../../core/embed/embed';
 
       <!-- Dropdown -->
       <!-- Inside the till the picker sits at the frame's start edge, so the list
-           opens toward the page; anchored to its end it ran off the frame. -->
+           opens toward the page; anchored to its end it ran off the frame.
+           On a phone it spans the screen under the header (16px gutters): anchored to the
+           trigger it ran past the edge in RTL and cut the names off. -->
       <div *ngIf="open()"
            [class.end-0]="!embedded" [class.start-0]="embedded"
            class="absolute top-full mt-1 z-50
-                  w-80 max-w-[90vw]
+                  w-80 max-w-[90vw] bp-menu
                   rounded-card bg-white dark:bg-surface-dark-subtle
                   shadow-card-dk ring-1 ring-slate-200 dark:ring-slate-700
                   overflow-hidden">
@@ -140,6 +142,13 @@ import { EMBEDDED } from '../../core/embed/embed';
       </div>
     </div>
   `,
+  // Tailwind's max-sm: variant is off here (the custom xs screen breaks its ordering), so the
+  // phone layout is a plain media query.
+  styles: [`
+    @media (max-width: 639.98px) {
+      .bp-menu { position: fixed; top: 4rem; left: 1rem; right: 1rem; width: auto; max-width: none; }
+    }
+  `],
 })
 export class BranchPickerComponent implements OnInit {
   readonly branchService = inject(BranchService);
