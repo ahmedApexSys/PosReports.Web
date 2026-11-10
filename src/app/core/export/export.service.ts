@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { TotalBlock } from '../reports/total-report.model';
+import type { jsPDF } from 'jspdf';
 
 /**
  * Zero-dependency, bilingual, *styled* export for tabular report data.
@@ -345,95 +346,168 @@ export class ExportService {
    * multi-MB files for wide reports). Libraries are dynamically imported so
    * they stay out of the main bundle.
    *
-   * Arabic UI: jsPDF's built-in fonts don't shape Arabic, so we defer to the
-   * browser print path (`pdf()`), which renders Arabic/RTL perfectly.
-   * On any failure we also fall back to print so the user still gets a PDF.
+   * Arabic: jsPDF's built-in Helvetica has no Arabic glyphs, so Arabic data
+   * (category / item names, present in the English UI too) printed as mojibake
+   * ("þòþ'þ®…"). Every string is now drawn in the embedded Cairo font (Latin +
+   * Arabic, lazy-loaded here only), which jsPDF shapes and bidi-orders — see
+   * `useArabicFont`. The Arabic UI gets the same file laid out right-to-left
+   * (columns mirrored, text right-aligned) instead of the print dialog.
+   * On any failure we fall back to print so the user still gets a PDF.
    */
   async pdfDownload<T>(rows: T[], cols: ExportColumn<T>[], meta: ExportMeta): Promise<void> {
-    if (meta.lang === 'ar') { this.pdf(rows, cols, meta); return; }
-
     try {
-      const { jsPDF } = await import('jspdf');
-      const autoTable = (await import('jspdf-autotable')).default;
-
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
-      const M = 28;
-
-      // ── Title bar ──
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(168, 24, 19);
-      doc.text(meta.titleEn || meta.fileBase || 'Report', M, 30);
-      let y = 38;
-      if (meta.subtitleEn) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 120);
-        doc.text(meta.subtitleEn, M, y); y += 8;
-      }
-      doc.setDrawColor(168, 24, 19); doc.setLineWidth(1.5); doc.line(M, y, pageW - M, y);
-      y += 12;
-
-      // ── Meta + applied filters ──
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90, 90, 90);
-      for (const line of this.metaLines(meta)) {
-        doc.text(line, M, y, { maxWidth: pageW - M * 2 }); y += 11;
-      }
-
-      // ── Table ──
-      const head = [cols.map((c) => c.headerEn || c.headerAr || '')];
-      const body = rows.map((r) => cols.map((c) => String(c.value(r, 'en') ?? '')));
-      const foot = (meta.footer && meta.footer.length === cols.length)
-        ? [meta.footer.map((v) => String(v ?? ''))] : undefined;
-      const columnStyles: Record<number, { halign: 'left' | 'right' }> = {};
-      cols.forEach((c, i) => { columnStyles[i] = { halign: c.numeric ? 'right' : 'left' }; });
-
-      autoTable(doc, {
-        head, body, foot,
-        startY: y + 2,
-        margin: { left: M, right: M, bottom: 26 },
-        tableWidth: 'auto',
-        styles: {
-          font: 'helvetica', fontSize: 7, cellPadding: 3, overflow: 'linebreak',
-          lineColor: [230, 217, 216], lineWidth: 0.5, textColor: [31, 41, 55], valign: 'middle',
-        },
-        headStyles: {
-          fillColor: [168, 24, 19], textColor: [255, 255, 255], fontStyle: 'bold',
-          halign: 'center', fontSize: 7, lineColor: [168, 24, 19],
-        },
-        footStyles: { fillColor: [254, 242, 241], textColor: [168, 24, 19], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [250, 247, 247] },
-        columnStyles,
-        didDrawPage: () => {
-          const page = doc.getNumberOfPages();
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
-          doc.text(`${meta.titleEn || ''}  ·  ${this.nowLabel()}  ·  ${page}`, M, pageH - 12);
-        },
-      });
-
-      // ── Bottom Summary (figures strip + payment split) ──
-      const sm = meta.summary;
-      const lastY = () => (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
-      if (sm && (sm.figures.length || sm.payways.length)) {
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(168, 24, 19);
-        doc.text('Summary', M, lastY() + 18);
-        const sStyles = {
-          styles: { font: 'helvetica', fontSize: 7, cellPadding: 3, halign: 'center' as const, lineColor: [230, 217, 216] as [number, number, number], lineWidth: 0.5, textColor: [31, 41, 55] as [number, number, number] },
-          headStyles: { fillColor: [252, 224, 222] as [number, number, number], textColor: [168, 24, 19] as [number, number, number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7 },
-          margin: { left: M, right: M, bottom: 26 }, tableWidth: 'auto' as const,
-        };
-        if (sm.figures.length) {
-          autoTable(doc, { head: [sm.figures.map((f) => f.label)], body: [sm.figures.map((f) => f.value)], startY: lastY() + 24, ...sStyles });
-        }
-        if (sm.payways.length) {
-          autoTable(doc, { head: [['PayWay', 'Total', 'Net']], body: sm.payways.map((p) => [p.payway, p.total, p.net]), startY: lastY() + 8, ...sStyles });
-        }
-      }
-
+      const doc = await this.buildPdf(rows, cols, meta);
       doc.save(this.fileName(meta, 'pdf'));
     } catch (err) {
       // Graceful fallback: still give the user a PDF via the print path.
       console.error('[ExportService] vector PDF failed, falling back to print:', err);
       this.pdf(rows, cols, meta);
     }
+  }
+
+  /** The vector PDF behind `pdfDownload` (split out so it can be verified headlessly). */
+  async buildPdf<T>(rows: T[], cols: ExportColumn<T>[], meta: ExportMeta): Promise<jsPDF> {
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+    const { CAIRO_REGULAR, CAIRO_BOLD } = await import('./pdf-font-cairo');
+
+    const ar = meta.lang === 'ar';
+    const L = (en: string, arr: string) => (ar ? arr : en);
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    useArabicFont(doc, CAIRO_REGULAR, CAIRO_BOLD);
+    const F = PDF_FONT;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const M = 28;
+    // Start edge: left in English, right in Arabic.
+    const sx = ar ? pageW - M : M;
+    const sOpt = ar ? { align: 'right' as const } : {};
+    // An RTL table reads right-to-left: its first column is drawn on the right.
+    const order = <V>(a: V[]): V[] => (ar ? [...a].reverse() : a);
+    const title = (ar ? meta.titleAr : meta.titleEn) || meta.titleEn || meta.fileBase || 'Report';
+
+    // ── Title bar ──
+    doc.setFont(F, 'bold'); doc.setFontSize(15); doc.setTextColor(168, 24, 19);
+    doc.text(title, sx, 30, sOpt);
+    let y = 38;
+    const subtitle = ar ? (meta.subtitleAr || meta.subtitleEn) : (meta.subtitleEn || meta.subtitleAr);
+    if (subtitle) {
+      doc.setFont(F, 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 120);
+      doc.text(subtitle, sx, y + 2, sOpt); y += 10;
+    }
+    doc.setDrawColor(168, 24, 19); doc.setLineWidth(1.5); doc.line(M, y, pageW - M, y);
+    y += 12;
+
+    // ── Meta + applied filters ──
+    doc.setFont(F, 'normal'); doc.setFontSize(8.5); doc.setTextColor(90, 90, 90);
+    for (const line of this.metaLines(meta)) {
+      // Arabic: "label: value" is drawn as two pieces, so a date value keeps its own left-to-right
+      // order (jsPDF's reorderer reverses "2026-11-09" inside a right-to-left line).
+      const cut = ar ? line.indexOf(': ') : -1;
+      if (cut > 0) {
+        const label = line.slice(0, cut + 1);
+        doc.text(label, sx, y, sOpt);
+        doc.text(line.slice(cut + 2), sx - doc.getTextWidth(label) - 4, y, { ...sOpt, maxWidth: pageW - M * 2 - 80 });
+      } else {
+        doc.text(line, sx, y, { ...sOpt, maxWidth: pageW - M * 2 });
+      }
+      y += 11;
+    }
+
+    // ── Table ──
+    // Outline rows (category → sub-category → item trees) carry `__level`. A group row fills only
+    // its own level's column, so the other name columns are left blank instead of "—".
+    const levels = rows.map((r) => {
+      const v = (r as { __level?: unknown } | null)?.__level;
+      return typeof v === 'number' ? v : null;
+    });
+    const head = [order(cols.map((c) => (ar ? c.headerAr || c.headerEn : c.headerEn || c.headerAr) || ''))];
+    const body = rows.map((r, ri) => order(cols.map((c) => {
+      const s = String(c.value(r, meta.lang) ?? '');
+      return levels[ri] != null && !c.numeric && s === '—' ? '' : s;
+    })));
+    const foot = (meta.footer && meta.footer.length === cols.length)
+      ? [order(meta.footer.map((v) => String(v ?? '')))] : undefined;
+    // Wide reports (18+ columns) step the type down, as the A4 print does, so words fit their
+    // column instead of being cut letter by letter (which also breaks Arabic joining).
+    const fsz = cols.length >= 26 ? 5 : cols.length >= 18 ? 6 : 7;
+    const pad = cols.length >= 18 ? 2 : 3;
+    // A column is at least as wide as its longest single word, so a word is never cut in two
+    // ("الضريب|ة"): wrapping then happens only between words.
+    doc.setFontSize(fsz);
+    const longestWord = (i: number): number => Math.max(0, ...[head[0][i], ...body.map((r) => r[i]), ...(foot ? [foot[0][i]] : [])]
+      .flatMap((s) => String(s).split(/\s+/)).map((w) => doc.getStringUnitWidth(w) * fsz * 1.08));
+    const mins = cols.map((_, i) => longestWord(i) + pad * 2 + 1);
+    // When the words together are wider than the sheet (very wide reports) the minimums shrink in
+    // proportion, so the table still fits the page rather than running off its edge.
+    const fit = Math.min(1, (pageW - M * 2) / mins.reduce((a, b) => a + b, 0));
+    const columnStyles: Record<number, { halign: 'left' | 'right'; minCellWidth: number }> = {};
+    order(cols).forEach((c, i) => {
+      columnStyles[i] = { halign: c.numeric || ar ? 'right' : 'left', minCellWidth: mins[i] * fit };
+    });
+
+    autoTable(doc, {
+      head, body, foot,
+      startY: y + 2,
+      margin: { left: M, right: M, bottom: 26 },
+      tableWidth: 'auto',
+      styles: {
+        font: F, fontSize: fsz, cellPadding: pad, overflow: 'linebreak',
+        lineColor: [230, 217, 216], lineWidth: 0.5, textColor: [31, 41, 55], valign: 'middle',
+      },
+      headStyles: {
+        fillColor: [168, 24, 19], textColor: [255, 255, 255], fontStyle: 'bold',
+        halign: 'center', fontSize: fsz, lineColor: [168, 24, 19],
+      },
+      footStyles: { fillColor: [254, 242, 241], textColor: [168, 24, 19], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250, 247, 247] },
+      columnStyles,
+      // Group rows are subtotals: category bold on the brand tint, sub-category bold on a lighter
+      // tint, items plain.
+      didParseCell: (d) => {
+        if (d.section !== 'body') return;
+        const lv = levels[d.row.index];
+        if (lv === 0) {
+          d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = [252, 224, 222]; d.cell.styles.textColor = [168, 24, 19];
+        } else if (lv === 1) {
+          d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = [254, 242, 241];
+        }
+      },
+      didDrawPage: () => {
+        const page = doc.getNumberOfPages();
+        doc.setFont(F, 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+        if (ar) {
+          // Title on the start (right) edge; date + page number as their own left-to-right line.
+          doc.text(title, sx, pageH - 12, sOpt);
+          doc.text(`${this.nowLabel()}  ·  ${page}`, M, pageH - 12);
+        } else {
+          doc.text(`${title}  ·  ${this.nowLabel()}  ·  ${page}`, sx, pageH - 12, sOpt);
+        }
+      },
+    });
+
+    // ── Bottom Summary (figures strip + payment split) ──
+    const sm = meta.summary;
+    const lastY = () => (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
+    if (sm && (sm.figures.length || sm.payways.length)) {
+      doc.setFont(F, 'bold'); doc.setFontSize(10); doc.setTextColor(168, 24, 19);
+      doc.text(L('Summary', 'الملخص'), sx, lastY() + 18, sOpt);
+      const sStyles = {
+        styles: { font: F, fontSize: 7, cellPadding: 3, halign: 'center' as const, lineColor: [230, 217, 216] as [number, number, number], lineWidth: 0.5, textColor: [31, 41, 55] as [number, number, number] },
+        headStyles: { fillColor: [252, 224, 222] as [number, number, number], textColor: [168, 24, 19] as [number, number, number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7 },
+        margin: { left: M, right: M, bottom: 26 }, tableWidth: 'auto' as const,
+      };
+      if (sm.figures.length) {
+        autoTable(doc, { head: [order(sm.figures.map((f) => f.label))], body: [order(sm.figures.map((f) => f.value))], startY: lastY() + 24, ...sStyles });
+      }
+      if (sm.payways.length) {
+        autoTable(doc, {
+          head: [order([L('PayWay', 'طريقة الدفع'), L('Total', 'الإجمالي'), L('Net', 'الصافي')])],
+          body: sm.payways.map((p) => order([p.payway, p.total, p.net])), startY: lastY() + 8, ...sStyles,
+        });
+      }
+    }
+    return doc;
   }
 
   // ── shared styled-HTML builder ─────────────────────────────────────
@@ -792,4 +866,67 @@ function esc(v: unknown): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** Family name the embedded Cairo faces are registered under in the PDF. */
+const PDF_FONT = 'Cairo';
+
+/** First strong character decides a string's direction (what `<bdi>` / dir="auto" do). */
+const RTL_STRONG = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
+const LTR_STRONG = /[A-Za-z\u00C0-\u024F]/;
+function startsRtl(s: string): boolean {
+  for (const ch of s) {
+    if (RTL_STRONG.test(ch)) return true;
+    if (LTR_STRONG.test(ch)) return false;
+  }
+  return false;
+}
+
+/**
+ * Register Cairo (Latin + Arabic) on a jsPDF document and make its Arabic print correctly.
+ *
+ * jsPDF already shapes Arabic (letters → contextual presentation forms) and reorders it, but on
+ * its own it gets three things wrong:
+ *  1. Cairo, like most modern Arabic fonts, has no glyphs for the *isolated* presentation forms
+ *     (و ت ب إ … standing alone), so jsPDF dropped those letters ("مشروبات" → "مشربا") and,
+ *     measuring them as empty, mis-sized and mis-aligned every Arabic cell. Each form the font
+ *     lacks is pointed at its base letter's glyph, which is the same shape, so drawing,
+ *     measuring and line-wrapping all agree.
+ *  2. Its automatic paragraph direction only recognises Hebrew, never Arabic, so every string
+ *     was laid out left-to-right. Direction now comes from the first strong letter.
+ *  3. Brackets were not mirrored inside Arabic runs ("(كبير)" printed as ")كبير(").
+ */
+function useArabicFont(doc: jsPDF, regularB64: string, boldB64: string): void {
+  type CodeMap = Record<number, number>;
+  const faces: [string, string, string][] = [['Cairo-Regular.ttf', regularB64, 'normal'], ['Cairo-Bold.ttf', boldB64, 'bold']];
+  for (const [file, b64, style] of faces) {
+    doc.addFileToVFS(file, b64);
+    doc.addFont(file, PDF_FONT, style);
+    doc.setFont(PDF_FONT, style);
+    const map = (doc.getFont() as unknown as { metadata?: { cmap?: { unicode?: { codeMap?: CodeMap } } } })
+      .metadata?.cmap?.unicode?.codeMap;
+    if (!map) continue;
+    for (let c = 0xFB50; c <= 0xFEFC; c++) {
+      if (map[c]) continue;
+      // NFKC folds a presentation form to its letter; a mark's form also carries a space/tatweel.
+      const base = String.fromCharCode(c).normalize('NFKC').replace(/^[ ـ](?=.)/, '');
+      if (base.length === 1 && map[base.charCodeAt(0)]) map[c] = map[base.charCodeAt(0)];
+    }
+  }
+  doc.setFont(PDF_FONT, 'normal');
+
+  // At this stage jsPDF holds either one string or an array of lines ([text, x, y] once positioned).
+  type Line = string | [string, number, number];
+  interface Payload { text: string | Line[]; options?: Record<string, unknown>; }
+  (doc.internal as unknown as { events: { subscribe(t: string, fn: (p: Payload) => void): void } })
+    .events.subscribe('preProcessText', (p: Payload) => {
+      const head = typeof p.text === 'string' ? p.text : p.text[0];
+      const sample = (Array.isArray(head) ? head[0] : head) ?? '';
+      const all = typeof p.text === 'string' ? p.text : p.text.map((l) => (Array.isArray(l) ? l[0] : l)).join(' ');
+      // Text with no right-to-left letter is left exactly as written: jsPDF's reorderer carries
+      // state between calls and otherwise flips digit runs ("2026-11-10" → "10-11-2026").
+      p.options = RTL_STRONG.test(all)
+        ? { ...(p.options ?? {}), isInputVisual: false, isOutputVisual: true, isOutputRtl: false, isInputRtl: startsRtl(sample), isSymmetricSwapping: true }
+        : { ...(p.options ?? {}), isInputVisual: true, isOutputVisual: true, isInputRtl: false, isOutputRtl: false };
+    });
 }
