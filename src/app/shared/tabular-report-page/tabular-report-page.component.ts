@@ -24,6 +24,7 @@ import { ReportFilterBarComponent } from '../report-filter-bar/report-filter-bar
 import { ColumnCustomizerComponent } from '../column-customizer/column-customizer.component';
 import { PagerComponent } from '../pager/pager.component';
 import { PaymentSummaryBarComponent } from '../payment-summary-bar/payment-summary-bar.component';
+import { receiptColumnsFor } from './receipt-columns';
 
 type Row = Record<string, unknown>;
 
@@ -671,24 +672,7 @@ export class TabularReportPageComponent implements OnInit {
    */
   private colsForPaper(paper: ExportPaper): ReportColumn[] {
     if (!this.isReceipt(paper)) return this.visibleColumns();
-    const rc = this.def.receiptColumns;
-    if (rc && rc.length) {
-      return rc
-        .map((r) => {
-          const base = this.colByKey().get(r.key);
-          if (!base) return null;
-          const ml = r.maxLen ?? base.maxLen;
-          return { ...base, labelEn: r.en ?? base.labelEn, labelAr: r.ar ?? base.labelAr, ...(ml != null ? { maxLen: ml } : {}) };
-        })
-        .filter((c): c is ReportColumn => !!c);
-    }
-    const vis = this.visibleColumns();
-    const max = paper === 'pos72' ? 5 : 6;
-    if (vis.length <= max) return vis;
-    const isKey = (c: ReportColumn) => /\bnet\b|الصاف|\btotal\b|الإجمال|الاجمال/i.test(`${c.labelEn}|${c.labelAr}`);
-    const keyCol = [...vis].reverse().find((c) => this.isNumeric(c) && isKey(c));
-    const base = vis.slice(0, keyCol ? max - 1 : max);
-    return keyCol && !base.includes(keyCol) ? [...base, keyCol] : base;
+    return receiptColumnsFor(this.def, this.visibleColumns(), paper as 'pos72' | 'pos80' | 'flash');
   }
   private exportColsFrom(cols: ReportColumn[]): ExportColumn<Row>[] {
     return cols.map((c) => ({

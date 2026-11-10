@@ -108,6 +108,7 @@ describe('ExportService roll', () => {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     expect(doc.querySelectorAll('tbody tr').length).toBe(4);
     expect(doc.querySelector('tbody td.name')).toBeNull();
-    expect(doc.querySelector('colgroup')).toBeNull();
+    // Every roll sizes its columns from content now (roll-layout.ts).
+    expect(doc.querySelectorAll('colgroup col').length).toBe(COLS.length);
   });
 });

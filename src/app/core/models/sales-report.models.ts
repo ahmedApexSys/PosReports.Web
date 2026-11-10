@@ -30,6 +30,9 @@ export interface ReportColumn {
   dashIfZero?: boolean;
   /** truncate the cell text to this many chars + "…" (used on the narrow receipt). */
   maxLen?: number;
+  /** Short header for the thermal roll ("Total" for "Total Reservation Amount"). */
+  shortEn?: string;
+  shortAr?: string;
 }
 
 /**
