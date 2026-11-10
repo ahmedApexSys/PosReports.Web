@@ -187,10 +187,11 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "totalAmount", labelEn: "Total Amount", labelAr: "إجمالي المبلغ", type: "money", totalKey: "totalAmount" },
       { key: "netAmount", labelEn: "Net Amount", labelAr: "صافي المبلغ", type: "money", totalKey: "netAmount" },
     ],
-    // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
-    // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
+    // Roll: Waiter · Item · Qty · Net (owner, 2026-11-10). The item name is what makes the line
+    // readable, so at 72 mm only the type may step down; 80 mm and Flash stay at the normal size.
     receiptColumns: [
       { key: "waiterName", en: "Waiter", ar: "الويتر" },
+      { key: "itemName", en: "Item", ar: "الصنف" },
       { key: "quantity", en: "Qty", ar: "كمية" },
       { key: "netAmount", en: "Net", ar: "الصافي" },
     ],
