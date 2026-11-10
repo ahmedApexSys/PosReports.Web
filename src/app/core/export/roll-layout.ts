@@ -60,9 +60,12 @@ function measure(text: string, px: number, weight: number, upper: boolean): numb
 
 const words = (s: string) => s.split(/\s+/).filter(Boolean);
 
-export function rollLayout(cols: RollColumnInput[], widthPx: number, upperHead: boolean): RollLayout {
-  let headPx = HEAD_PX;
-  let cellPx = CELL_PX;
+/** `sizes` is the type the roll starts from (default 9.5px headers / 10px cells); it only steps
+ *  down when the minimum widths do not fit. */
+export function rollLayout(cols: RollColumnInput[], widthPx: number, upperHead: boolean,
+  sizes: { headPx: number; cellPx: number } = { headPx: HEAD_PX, cellPx: CELL_PX }): RollLayout {
+  let headPx = sizes.headPx;
+  let cellPx = sizes.cellPx;
   let mins: number[] = [];
   let wants: number[] = [];
   // Fit order: the headers step down first (they may also wrap), then the figures, never below 7px.

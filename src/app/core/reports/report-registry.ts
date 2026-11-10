@@ -429,6 +429,12 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       { key: "cancelReason", en: "Reason", ar: "السبب" },
       { key: "net", en: "Net", ar: "الصافي" },
     ],
+    // A4 PDF: ~38 columns cut every cell letter by letter, so it prints who / when / why / how much
+    // (owner, 2026-11-10). Excel keeps every column.
+    pdfColumns: [
+      "orderId", "transaction", "orderDate", "orderTime", "cancelDate", "cancelTime", "cancelReason",
+      "cancelOrderBy", "branchName", "shiftName", "orderedBy", "waiterName", "paymentStatus", "total", "net",
+    ],
   },
   "void-items-report": {
     id: "void-items-report",

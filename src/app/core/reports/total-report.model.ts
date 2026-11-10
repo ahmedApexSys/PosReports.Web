@@ -44,7 +44,8 @@ export interface TotalBlock {
   /** render the rows inside a bordered box (the category summary). */
   boxed?: boolean;
   rows?: TotalRow[];
-  table?: { head: string[]; rows: string[][] };
+  /** `rollHead`: short headers for the Flash / POS roll (the page keeps `head`). */
+  table?: { head: string[]; rollHead?: string[]; rows: string[][] };
 }
 
 const money = (v: unknown): string => {
@@ -67,11 +68,13 @@ function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
 
   out.push({ title: L('POS', 'نقاط البيع'), table: {
     head: [L('POS', 'نقطة البيع'), L('Total Sales', 'إجمالي المبيعات')],
+    rollHead: [L('POS', 'نقطة البيع'), L('Sales', 'المبيعات')],
     rows: (d.posSales ?? []).map((p) => [String(p.posName ?? p.posDetailsId ?? '—'), money(p.totalSales)]),
   } });
 
   out.push({ title: L('Sales Group', 'مجموعات المبيعات'), table: {
     head: [L('Name', 'الاسم'), L('%', '%'), L('Total Sales', 'إجمالي المبيعات')],
+    rollHead: [L('Name', 'الاسم'), L('%', '%'), L('Sales', 'المبيعات')],
     rows: (d.salesGroup?.cateagoryGroupList ?? []).map((g) => [String(g.categoryName ?? ''), `${intf(g.percentage)}%`, money(g.totalSales)]),
   } });
 
@@ -99,11 +102,13 @@ function buildTotalBlocks(d: TotalReportData, ar: boolean): TotalBlock[] {
 
   out.push({ title: L('Online Apps', 'تطبيقات التوصيل'), table: {
     head: [L('Name', 'الاسم'), L('Total Sales', 'إجمالي المبيعات')],
+    rollHead: [L('Name', 'الاسم'), L('Sales', 'المبيعات')],
     rows: (d.onlineAppsSales ?? []).map((a) => [String(a.name ?? ''), money(a.totalSales)]),
   } });
 
   out.push({ title: L('Void Items', 'الأصناف الملغاة'), table: {
     head: [L('Name', 'الاسم'), L('ID', 'المعرّف'), L('Count', 'العدد')],
+    rollHead: [L('Name', 'الاسم'), L('ID', 'الرقم'), L('Qty', 'العدد')],
     rows: (d.voidItems ?? []).map((v) => [String(v.itemName ?? ''), intf(v.itemNo), intf(v.qty)]),
   } });
 

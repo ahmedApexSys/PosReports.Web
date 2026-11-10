@@ -213,6 +213,12 @@ export interface ReportDef {
    */
   receiptColumns?: ReceiptColumn[];
   /**
+   * Column keys the A4 PDF / print keeps for a report too wide for the sheet (Cancelled Orders has
+   * ~38): more columns than fit cut every cell letter by letter. Of these, the PDF prints the ones
+   * the user has visible, in their order. Excel / CSV always keep every visible column.
+   */
+  pdfColumns?: string[];
+  /**
    * Curated totals block for the receipt (e.g. Cash / Visa / Ledge / Net on the
    * cashier daily report). Omit → the receipt sums the numeric `receiptColumns`
    * (Net emphasized); failing that, the payment summary.

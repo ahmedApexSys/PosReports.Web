@@ -36,3 +36,13 @@ export function receiptColumnsFor(def: ReportDef, visible: ReportColumn[], paper
   const base = visible.slice(0, keyCol ? max - 1 : max);
   return (keyCol && !base.includes(keyCol) ? [...base, keyCol] : base).map(short);
 }
+
+/** Columns of the A4 PDF / print: the report's `pdfColumns` the user has visible (in the user's
+ *  order), else every visible column. Excel and CSV do not come through here. */
+export function pdfColumnsFor(def: ReportDef, visible: ReportColumn[]): ReportColumn[] {
+  const keep = def.pdfColumns;
+  if (!keep?.length) return visible;
+  const set = new Set(keep);
+  const cols = visible.filter((c) => set.has(c.key));
+  return cols.length ? cols : visible;
+}
