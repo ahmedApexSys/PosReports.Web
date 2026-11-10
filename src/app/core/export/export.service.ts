@@ -268,12 +268,20 @@ export class ExportService {
     const title = ar ? meta.titleAr : meta.titleEn;
     const period = `${esc((meta.fromDate || '').slice(0, 10))} → ${esc((meta.toDate || '').slice(0, 10))}`;
 
-    const tbl = (t: { head: string[]; rows: string[][] }) => {
-      const head = t.head.map((h, i) => `<th class="${i > 0 ? 'num' : ''}">${esc(h)}</th>`).join('');
+    // Each section table gets the shared roll layout (roll-layout.ts): widths from content, short
+    // headers wrapping only between words, figures never broken, at this roll's own type size.
+    const rollPx = rollWidthPx(paper === 'pos72' ? 'pos72' : 'pos80');
+    const tbl = (t: { head: string[]; rollHead?: string[]; rows: string[][] }) => {
+      const heads = t.rollHead ?? t.head;
+      const layout = rollLayout(heads.map((h, i) => ({ header: h, cells: t.rows.map((r) => r[i] ?? ''), nowrap: i > 0 })),
+        rollPx, false, { headPx: 10, cellPx: 11.5 });
+      const cg = `<colgroup>${layout.widths.map((w) => `<col style="width:${w.toFixed(2)}%">`).join('')}</colgroup>`;
+      const fs = (px: number) => ` style="font-size:${px}px"`;
+      const head = heads.map((h, i) => `<th class="${i > 0 ? 'num' : ''}"${fs(layout.headPx)}>${esc(h)}</th>`).join('');
       const rows = t.rows.length
-        ? t.rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i > 0 ? 'num' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')
-        : `<tr><td colspan="${t.head.length}" class="empty">—</td></tr>`;
-      return `<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+        ? t.rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i > 0 ? 'num' : ''}"${fs(layout.cellPx)}>${esc(c)}</td>`).join('')}</tr>`).join('')
+        : `<tr><td colspan="${heads.length}" class="empty">—</td></tr>`;
+      return `<table>${cg}<thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
     };
     const kv = (r: { label: string; value: string; strong?: boolean }) =>
       `<div class="kv ${r.strong ? 'st' : ''}"><span>${esc(r.label)}</span><span>${esc(r.value)}</span></div>`;
@@ -323,11 +331,13 @@ export class ExportService {
   .cat { border:2px solid #000; border-radius:6px; padding:5px 7px; margin:5px 0 3px; }
   .cat-t { text-align:center; font-size:13px; font-weight:800; text-transform:uppercase; margin-bottom:3px; }
   table { width:100%; border-collapse:collapse; table-layout:fixed; margin:1px 0 4px; }
-  thead th { font-size:10px; text-transform:uppercase; color:#000; font-weight:800; padding:4px 2px;
-             border-bottom:2px solid #000; text-align:${ar ? 'right' : 'left'}; white-space:normal; overflow-wrap:anywhere; }
-  tbody td { padding:4px 2px; border-bottom:1px dashed #000; font-size:11.5px; font-weight:700; color:#000;
+  /* No upper-case (a sixth wider); a header wraps only between words, never inside one. */
+  thead th { color:#000; font-weight:800; padding:4px 2px; vertical-align:bottom;
+             border-bottom:2px solid #000; text-align:${ar ? 'right' : 'left'}; white-space:normal; overflow-wrap:normal; word-break:normal; }
+  tbody td { padding:4px 2px; border-bottom:1px dashed #000; font-weight:700; color:#000;
              text-align:${ar ? 'right' : 'left'}; white-space:normal; overflow-wrap:anywhere; }
-  th.num, td.num { text-align:${ar ? 'left' : 'right'}; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
+  th.num { text-align:${ar ? 'left' : 'right'}; }
+  td.num { text-align:${ar ? 'left' : 'right'}; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
   td.empty { text-align:center; color:#000; font-weight:600; }
   .r-foot { text-align:center; color:#000; font-size:11px; font-weight:700; margin-top:12px; border-top:2px solid #000; padding-top:5px; }
 </style></head>

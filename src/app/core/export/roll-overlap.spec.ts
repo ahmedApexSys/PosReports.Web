@@ -4,6 +4,7 @@ import { REPORT_REGISTRY } from '../reports/report-registry';
 import { ReportColumn } from '../models/sales-report.models';
 import { receiptColumnsFor, isNumericColumn } from '../../shared/tabular-report-page/receipt-columns';
 import { CC_RECEIPT_COLUMNS } from '../reports/callcenter-agents.model';
+import { buildTotalBlocks, TotalReportData } from '../reports/total-report.model';
 
 /**
  * Every report's Flash / POS 72 / POS 80 roll, in English and Arabic, with stub rows of the
@@ -45,10 +46,20 @@ function measure(frame: HTMLIFrameElement, html: string, smallOk = false): strin
   const doc = frame.contentDocument!;
   doc.open(); doc.write(html); doc.close();
   const bad: string[] = [];
-  const table = doc.querySelector('table')!;
   const body = doc.body.getBoundingClientRect();
-  const tr = table.getBoundingClientRect();
-  if (tr.right > body.right + 0.5 || tr.left < body.left - 0.5) bad.push(`table ${tr.width.toFixed(0)}px wider than the roll ${body.width.toFixed(0)}px`);
+  // Every table (Daily Transactions prints one per section).
+  for (const table of Array.from(doc.querySelectorAll('table'))) {
+    const tr = table.getBoundingClientRect();
+    if (tr.right > body.right + 0.5 || tr.left < body.left - 0.5) bad.push(`table ${tr.width.toFixed(0)}px wider than the roll ${body.width.toFixed(0)}px`);
+  }
+  // Label → value lines (meta, totals, Daily Transactions sections): the two never run into each other.
+  for (const line of Array.from(doc.querySelectorAll('.kv, .m-row, .t-row'))) {
+    const [a, b] = Array.from(line.children).map((e) => e.getBoundingClientRect());
+    if (!a || !b) continue;
+    const lo = a.left < b.left ? a : b; const hi = lo === a ? b : a;
+    if (lo.right > hi.left + 0.5 && lo.bottom > hi.top + 0.5 && hi.bottom > lo.top + 0.5) bad.push(`"${line.textContent!.trim()}" label and value overlap`);
+    if (Math.max(a.right, b.right) > body.right + 0.5 || Math.min(a.left, b.left) < body.left - 0.5) bad.push(`"${line.textContent!.trim()}" runs off the roll`);
+  }
   for (const cell of Array.from(doc.querySelectorAll('th, td')) as HTMLTableCellElement[]) {
     if (cell.colSpan > 1 || !cell.textContent!.trim()) continue;
     const box = cell.getBoundingClientRect();
@@ -68,12 +79,12 @@ function measure(frame: HTMLIFrameElement, html: string, smallOk = false): strin
     // A header may wrap only between words: never more lines than words.
     if (cell.tagName === 'TH' && lines > text.split(/\s+/).length) bad.push(`header "${text}" breaks inside a word`);
   }
-  const td = doc.querySelector('tbody td');
-  const px = td ? parseFloat(frame.contentWindow!.getComputedStyle(td).fontSize) : 10;
+  const size = (sel: string, dflt: number) => Math.min(dflt, ...Array.from(doc.querySelectorAll(sel))
+    .map((e) => parseFloat(frame.contentWindow!.getComputedStyle(e).fontSize)));
   // Every roll prints at the normal type size (owner, 2026-11-10): a roll that only fits by
   // shrinking carries too many columns — trim its receiptColumns instead.
-  const th = doc.querySelector('thead th');
-  const hpx = th ? parseFloat(frame.contentWindow!.getComputedStyle(th).fontSize) : 9.5;
+  const px = size('tbody td:not(.empty)', 10);
+  const hpx = size('thead th', 9.5);
   if (!smallOk && (px < 10 || hpx < 9.5)) bad.push(`type stepped down to ${px}px (headers ${hpx}px)`);
   if (smallOk && (px < 7 || hpx < 7)) bad.push(`type below 7px (${px}px, headers ${hpx}px)`);
   if (px < 10) shrunk.push(`${px}px`);
@@ -134,6 +145,39 @@ describe('Flash / POS roll layout, every report', () => {
           problems.push({ report: 'callcenter-agents', lang: ar ? 'ar' : 'en', paper, what });
         }
         checked.push(`callcenter-agents/${ar ? 'ar' : 'en'}/${paper}`);
+      }
+    }
+    // Daily Transactions prints its own multi-section roll (label → value lines + small tables).
+    for (const ar of [false, true]) {
+      const name = (i: number) => (ar ? ['مشروبات ساخنة ومثلجة', 'وجبات الدجاج الكبيرة', 'كولا'] : ['Hot And Iced Beverages', 'Large Chicken Meals', 'Cola'])[i % 3];
+      const big = [1234567.89, 98765.4, 0]; // company-wide day: seven figures
+      const d: TotalReportData = {
+        companyName: ar ? 'شركة أبكس للمطاعم' : 'Apex Restaurants Company',
+        posSales: [0, 1, 2].map((i) => ({ posName: ar ? `كاشير الصالة ${i + 1}` : `Hall Cashier ${i + 1}`, totalSales: big[i] })),
+        onlineAppsSales: [0, 1, 2].map((i) => ({ name: name(i), totalSales: big[i] })),
+        salesGroup: { cateagoryGroupList: [0, 1, 2].map((i) => ({ categoryName: name(i), percentage: [100, 45, 0][i], totalSales: big[i] })) },
+        itemsNo: { itemNoList: [0, 1, 2].map((i) => ({ categoryName: name(i), itemNo: [12345, 42, 0][i] })) },
+        categorySales: [0, 1].map((i) => ({ categoryName: name(i), count: 12345, categoryTotalSales: big[i],
+          subCategorySales: [0, 1, 2].map((k) => ({ subCategoryName: name(k), count: [123456, 42, 0][k], subCategoryTotalSales: big[k] })) })),
+        voidItems: [0, 1, 2].map((i) => ({ itemName: name(i), itemNo: [1234567, 88, 4501][i], qty: [12345, 42, 0][i] })),
+        payWay: { cash: 1234567.89, visa: 987654.32, allPayment: 12345678.9, netCash: 1234567.89 },
+        deleted: { deletedOrdersNo: 12345, totalSaleDeletedOrders: 1234567.89 },
+        reservationOverAll: { reservationsNumber: 12345, totalDeposit: 1234567.89, totalSales: 1234567.89 },
+        orderNumberOverAll: { ordersNumber: 12345, totalSales: 12345678.9 },
+        information: { avg: 1234.56, guestNo: 12345, maxOrderNo: 1234567, minOrderNo: 1000001 },
+      };
+      for (const paper of papers) {
+        let html = '';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (svc as any).printHtml = (h: string) => (html = h);
+        svc.totalReport(buildTotalBlocks(d, ar), {
+          titleEn: 'Daily Transactions', titleAr: 'حركة المبيعات اليومية', companyName: d.companyName,
+          branchName: ar ? 'كل الفروع' : 'All Branches', fromDate: '2026-11-01T00:00:00', toDate: '2026-11-30T23:59:59',
+          lang: ar ? 'ar' : 'en', fileBase: 'daily-transactions',
+        }, paper);
+        if ((html.match(/<table/g) ?? []).length !== 7) problems.push({ report: 'total-report', lang: ar ? 'ar' : 'en', paper, what: 'section tables missing' });
+        for (const what of measure(frame, html)) problems.push({ report: 'total-report', lang: ar ? 'ar' : 'en', paper, what });
+        checked.push(`total-report/${ar ? 'ar' : 'en'}/${paper}`);
       }
     }
     console.log(`ROLLS CHECKED: ${checked.length}; PROBLEMS: ${problems.length}`);
