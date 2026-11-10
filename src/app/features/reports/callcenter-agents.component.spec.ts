@@ -67,6 +67,48 @@ describe('CallCenterAgentsComponent', () => {
     expect(el.querySelector('[data-test="section-agents"]')).not.toBeNull();
   });
 
+  it('has no branch select of its own: the header picker is the one branch filter', () => {
+    expect(el.querySelector('[data-test="branch"]')).toBeNull();
+    expect(el.querySelector('[data-test="agent"]')).not.toBeNull();
+    expect(el.querySelector('[data-test="type"]')).not.toBeNull();
+  });
+
+  it('refetches with the branch picked in the header', () => {
+    TestBed.inject(FilterService).setBranch(4);
+    fixture.detectChanges();
+    expect(raw.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ branchId: 4 }));
+  });
+
+  it('refetches every branch when "All branches" is picked in the header', () => {
+    const f = TestBed.inject(FilterService);
+    f.setBranch(4);
+    fixture.detectChanges();
+    f.pickAllBranches();
+    fixture.detectChanges();
+    expect(raw.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ branchId: null }));
+    expect(f.branchId()).toBe(4); // other reports keep their branch
+  });
+
+  it('offers "All branches" only while open', () => {
+    const f = TestBed.inject(FilterService);
+    expect(f.allBranchesOffered()).toBeTrue();
+    f.setBranch(4);
+    f.pickAllBranches();
+    fixture.destroy();
+    expect(f.allBranchesOffered()).toBeFalse();
+    expect(f.allBranchesActive()).toBeFalse();
+    expect(f.scopedBranchId()).toBe(4);
+  });
+
+  it('exports and prints for the header branch', () => {
+    TestBed.inject(FilterService).setBranch(4);
+    fixture.detectChanges();
+    const pdf = spyOn(TestBed.inject(ExportService), 'pdf');
+    fixture.componentInstance.printRoll('pos80');
+    const meta = pdf.calls.mostRecent().args[2];
+    expect(['Maadi', 'المعادي']).toContain(meta.appliedFilters![0].value);
+  });
+
   it('renders the per-agent summary with a total row, and every breakdown', () => {
     const agents = el.querySelector('[data-test="section-agents"]')!;
     expect(agents.querySelectorAll('tbody tr').length).toBe(2);

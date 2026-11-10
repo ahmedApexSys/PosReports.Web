@@ -1,10 +1,11 @@
-import { Component, inject, signal, computed, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, inject, signal, computed, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, Loader, Printer, ChevronDown, FileSpreadsheet } from 'lucide-angular';
 import { catchError, finalize, of } from 'rxjs';
 import { LanguageService } from '../../core/i18n/language.service';
 import { FilterService } from '../../core/filters/filter.service';
+import { BranchService } from '../../core/branches/branch.service';
 import { SalesReportApi } from '../../core/api/sales-report.api';
 import { ExportService, ExportColumn, ExportMeta, ExportSection } from '../../core/export/export.service';
 import { LoadingSkeletonComponent } from '../../shared/loading-skeleton/loading-skeleton.component';
@@ -18,9 +19,10 @@ const ORDER_PAGE = 100;
 
 /**
  * "Call centre sales by agent" — which call-centre agent took each order, per agent,
- * per agent × branch, per day, and the order list. Dates come from the header; branch,
- * agent and order type are this page's own filters (all optional — the call centre
- * routes to every branch, so the header's single branch does not apply here).
+ * per agent × branch, per day, and the order list. Dates AND branch come from the header
+ * (one branch filter for the whole app, 2026-11-10: a second in-page branch select made the
+ * header's look broken). The call centre routes to every branch, so this page offers
+ * "All branches" in the header picker; agent and order type are this page's own filters.
  */
 @Component({
   selector: 'app-callcenter-agents',
@@ -58,15 +60,7 @@ const ORDER_PAGE = 100;
       </div>
 
       <!-- Filters -->
-      <div class="card-padded grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400">
-          {{ ar() ? 'الفرع' : 'Branch' }}
-          <select [ngModel]="branchId()" (ngModelChange)="setBranch(+$event)" data-test="branch"
-                  class="mt-1 w-full bg-white dark:bg-surface-dark-subtle border border-slate-300 dark:border-slate-700 rounded-card-sm px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200">
-            <option [ngValue]="0">{{ ar() ? 'كل الفروع' : 'All branches' }}</option>
-            <option *ngFor="let b of data()?.branchOptions ?? []" [ngValue]="+b.id">{{ ar() ? (b.nameAr || b.nameEn) : (b.nameEn || b.nameAr) }}</option>
-          </select>
-        </label>
+      <div class="card-padded grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label class="block text-xs font-medium text-slate-500 dark:text-slate-400">
           {{ ar() ? 'الموظف' : 'Agent' }}
           <select [ngModel]="agentId()" (ngModelChange)="setAgent($event)" data-test="agent"
@@ -151,6 +145,7 @@ export class CallCenterAgentsComponent {
   readonly filter = inject(FilterService);
   private readonly api = inject(SalesReportApi);
   private readonly exp = inject(ExportService);
+  private readonly branches = inject(BranchService);
 
   readonly ar = computed(() => this.lang.language() === 'ar');
   readonly Refresh = RefreshCw; readonly Loader = Loader; readonly PrinterIcon = Printer;
@@ -162,7 +157,6 @@ export class CallCenterAgentsComponent {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly data = signal<CcReportData | null>(null);
-  readonly branchId = signal(0);
   readonly agentId = signal('');
   readonly transactionId = signal(0);
   readonly showAllOrders = signal(false);
@@ -186,14 +180,15 @@ export class CallCenterAgentsComponent {
   });
 
   constructor() {
+    // The header offers "All branches" only while this page is open.
+    inject(DestroyRef).onDestroy(this.filter.offerAllBranches());
     effect(() => {
       const ok = this.filter.hasValidDates();
-      this.filter.fromDate(); this.filter.toDate();
+      this.filter.fromDate(); this.filter.toDate(); this.filter.scopedBranchId();
       untracked(() => (ok ? this.reload() : this.data.set(null)));
     });
   }
 
-  setBranch(id: number): void { this.branchId.set(id || 0); this.reload(); }
   setAgent(id: string): void { this.agentId.set(id ?? ''); this.reload(); }
   setType(id: number): void { this.transactionId.set(id || 0); this.reload(); }
 
@@ -208,7 +203,7 @@ export class CallCenterAgentsComponent {
       // Date-only: the API's day is the branch business day (OrderDate), whole days.
       fromDate: (this.filter.fromDate() || '').slice(0, 10),
       toDate: (this.filter.toDate() || '').slice(0, 10),
-      branchId: this.branchId() || null,
+      branchId: this.filter.scopedBranchId() || null,
       agentId: this.agentId() || null,
       transactionId: this.transactionId() || null,
     };
@@ -228,7 +223,12 @@ export class CallCenterAgentsComponent {
   private meta(): ExportMeta {
     const ar = this.ar();
     const d = this.data();
-    const branch = d?.branchOptions?.find((b) => +b.id === this.branchId());
+    const branchId = this.filter.scopedBranchId();
+    const listed = branchId ? this.branches.findById(branchId) : undefined;
+    const opt = branchId ? d?.branchOptions?.find((b) => +b.id === branchId) : undefined;
+    const branch = listed ? { nameEn: listed.name_En, nameAr: listed.name_Ar }
+      : opt ? { nameEn: opt.nameEn, nameAr: opt.nameAr }
+      : branchId ? { nameEn: `Branch #${branchId}`, nameAr: `فرع #${branchId}` } : undefined;
     const agent = d?.agentOptions?.find((a) => a.id === this.agentId());
     const type = CC_ORDER_TYPES.find((t) => t.id === this.transactionId());
     const all = ar ? 'الكل' : 'All';

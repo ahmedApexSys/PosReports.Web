@@ -37,13 +37,15 @@ import { EMBEDDED } from '../../core/embed/embed';
                      hover:bg-slate-50 dark:hover:bg-surface-dark-muted
                      transition-colors duration-180
                      min-w-[180px] justify-between"
-              [ngClass]="!selected() ? 'ring-2 ring-warning ring-warning/40' : ''">
+              [ngClass]="!selected() && !filter.allBranchesActive() ? 'ring-2 ring-warning ring-warning/40' : ''"
+              data-test="branch-trigger">
         <span class="flex items-center gap-2 truncate">
           <lucide-icon [img]="BuildingIcon" class="h-4 w-4 shrink-0"
-                       [class.text-warning]="!selected()"
-                       [class.text-brand-700]="selected()"></lucide-icon>
-          <span *ngIf="selected() as b" class="truncate">{{ branchLabel(b) }}</span>
-          <span *ngIf="!selected()" class="truncate text-warning font-semibold">
+                       [class.text-warning]="!selected() && !filter.allBranchesActive()"
+                       [class.text-brand-700]="selected() || filter.allBranchesActive()"></lucide-icon>
+          <span *ngIf="filter.allBranchesActive()" class="truncate">{{ allLabel() }}</span>
+          <span *ngIf="!filter.allBranchesActive() && selected() as b" class="truncate">{{ branchLabel(b) }}</span>
+          <span *ngIf="!filter.allBranchesActive() && !selected()" class="truncate text-warning font-semibold">
             {{ lang.language() === 'ar' ? 'اختر فرع' : 'Select a branch' }}
           </span>
         </span>
@@ -100,6 +102,16 @@ import { EMBEDDED } from '../../core/embed/embed';
         <!-- List -->
         <div *ngIf="!branchService.loading() && !branchService.error()"
              class="max-h-72 overflow-y-auto py-1">
+          <!-- Only on a page that reports every branch (e.g. Call centre by agent). -->
+          <button *ngIf="filter.allBranchesOffered() && !searchText" type="button" (click)="selectAll()"
+                  data-test="branch-all"
+                  class="w-full px-3 py-2 text-sm text-start font-semibold
+                         text-brand-700 dark:text-brand-300
+                         hover:bg-brand-50 dark:hover:bg-brand-900/20
+                         transition-colors duration-120"
+                  [ngClass]="filter.allBranchesActive() ? 'bg-brand-50 dark:bg-brand-900/20' : ''">
+            {{ allLabel() }}
+          </button>
           <div *ngIf="filteredBranches().length === 0"
                class="p-4 text-center text-sm text-slate-500">
             {{ lang.language() === 'ar' ? 'مفيش فروع متاحة' : 'No branches available' }}
@@ -112,7 +124,7 @@ import { EMBEDDED } from '../../core/embed/embed';
                          flex items-center justify-between gap-2
                          hover:bg-slate-50 dark:hover:bg-surface-dark-muted
                          transition-colors duration-120"
-                  [class.bg-brand-50]="selected()?.id === b.id"
+                  [class.bg-brand-50]="!filter.allBranchesActive() && selected()?.id === b.id"
                   [class.dark:bg-brand-900\\\\/20]="selected()?.id === b.id">
             <span class="truncate">
               <span class="font-medium text-slate-900 dark:text-slate-100">
@@ -170,6 +182,15 @@ export class BranchPickerComponent implements OnInit {
     this.filter.setBranch(b.id);
     this.open.set(false);
     this.searchText = '';
+  }
+
+  selectAll(): void {
+    this.filter.pickAllBranches();
+    this.open.set(false);
+  }
+
+  allLabel(): string {
+    return this.lang.language() === 'ar' ? 'كل الفروع' : 'All branches';
   }
 
   reload(): void {
