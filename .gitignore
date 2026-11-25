@@ -47,3 +47,4 @@ Thumbs.db
 
 # Local agent tooling (dev-server launch config) — not part of the app.
 .claude/
+/.vs
