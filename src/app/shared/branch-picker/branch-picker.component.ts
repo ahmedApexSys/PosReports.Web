@@ -62,7 +62,7 @@ import { EMBEDDED } from '../../core/embed/embed';
       <div *ngIf="open()"
            [class.end-0]="!embedded" [class.start-0]="embedded"
            class="absolute top-full mt-1 z-50
-                  w-80 max-w-[90vw] bp-menu
+                  w-48 max-w-[90vw] bp-menu
                   rounded-card bg-white dark:bg-surface-dark-subtle
                   shadow-card-dk ring-1 ring-slate-200 dark:ring-slate-700
                   overflow-hidden">
