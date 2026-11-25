@@ -42,14 +42,14 @@ export const REPORT_REGISTRY: Record<string, ReportDef> = {
       dstDateKey: "orderDate",
       dstKey: "totalExpenses",
     },
-    paymentSummary: {
-      rows: [
-        { key: "cash", labelEn: "Cash", labelAr: "نقدي", totalKey: "cash", always: true },
-        { key: "visa", labelEn: "Visa", labelAr: "فيزا", totalKey: "visa", always: true },
-        { key: "cl", labelEn: "Ledge", labelAr: "آجل", totalKey: "cl" },
-        { key: "other", labelEn: "Other", labelAr: "دفع آخر", totalKey: "otherPayment" },
-      ],
-    },
+    // paymentSummary: {
+    //   rows: [
+    //     { key: "cash", labelEn: "Cash", labelAr: "نقدي", totalKey: "cash", always: true },
+    //     { key: "visa", labelEn: "Visa", labelAr: "فيزا", totalKey: "visa", always: true },
+    //     { key: "cl", labelEn: "Ledge", labelAr: "آجل", totalKey: "cl" },
+    //     { key: "other", labelEn: "Other", labelAr: "دفع آخر", totalKey: "otherPayment" },
+    //   ],
+    // },
     // Roll (Flash / POS 72 / 80): the columns a manager reads at a glance, at the normal type size
     // (owner, 2026-11-10). A4 / Excel / PDF keep every column.
     receiptColumns: [

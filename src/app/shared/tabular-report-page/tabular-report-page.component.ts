@@ -310,8 +310,8 @@ export class TabularReportPageComponent implements OnInit {
   readonly PdfIcon = FileText;
 
   readonly ordersOpts = [
-    { v: 'Paid' as const,   en: 'Paid',   ar: 'مدفوع' },
-    { v: 'UnPaid' as const, en: 'Unpaid', ar: 'غير مدفوع' },
+    { v: 'Paid' as const,   en: 'Sales',   ar: 'مبيعات' },
+    { v: 'UnPaid' as const, en: 'Hospitality', ar: 'ضيافة' },
     { v: 'All' as const,    en: 'All',    ar: 'الكل' },
   ];
 

@@ -142,7 +142,7 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
         </nav>
 
         <!-- Footer of sidebar — prominent account button + compact toggles -->
-        <div class="border-t border-slate-200 dark:border-slate-800 p-2 space-y-2">
+        <div class="border-t border-slate-200 dark:border-slate-800 p-2 space-y-2 sm:hidden">
           <a routerLink="/profile" (click)="mobileNavOpen.set(false)"
              class="flex items-center gap-2.5 px-2.5 py-2.5 rounded-card
                     bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm
@@ -202,9 +202,9 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
           </div>
 
           <!-- Notifications and the account menu: the till's, while framed. -->
-          <div class="flex items-center gap-1.5" *ngIf="!embedded">
+          <div class="items-center gap-1.5 hidden sm:flex" *ngIf="!embedded" >
             <!-- Notifications bell -->
-            <a routerLink="/notifications" class="relative btn-ghost p-2 coarse:min-h-11 coarse:min-w-11"
+            <!-- <a routerLink="/notifications" class="relative btn-ghost p-2 coarse:min-h-11 coarse:min-w-11"
                [attr.aria-label]="lang.language() === 'ar' ? 'الإشعارات' : 'Notifications'">
               <lucide-icon [img]="BellIcon" class="h-5 w-5"></lucide-icon>
               <span *ngIf="notif.unreadCount() > 0"
@@ -212,7 +212,17 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
                            text-white text-[10px] font-bold leading-4 text-center">
                 {{ notif.unreadCount() > 9 ? '9+' : notif.unreadCount() }}
               </span>
-            </a>
+            </a> -->
+            <!-- Theme toggle -->
+            <button (click)="theme.cycle()" class="btn-ghost p-2 coarse:min-h-11 coarse:min-w-11"
+                    [attr.aria-label]="themeLabel()">
+              <lucide-icon [img]="themeIcon()" class="h-5 w-5"></lucide-icon>
+            </button>
+            <!-- Language toggle -->
+            <button (click)="lang.toggle()" class="btn-ghost p-2 coarse:min-h-11 coarse:min-w-11"
+                    [attr.aria-label]="lang.language() === 'ar' ? 'English' : 'عربي'">
+              <lucide-icon [img]="GlobeIcon" class="h-5 w-5"></lucide-icon>
+            </button>
 
             <!-- User menu -->
             <div class="relative">

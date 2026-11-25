@@ -100,7 +100,7 @@ interface ClipView {
   imports: [CommonModule, FormsModule, LucideAngularModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-  <div class="space-y-5" dir="rtl">
+  <div class="space-y-5">
     <div>
       <h1 class="text-xl md:text-2xl font-bold jr-ink">
         {{ ar() ? 'رحلة الأوردر' : 'Order Journey' }}
