@@ -41,13 +41,15 @@ const WORDS = {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button type="button" class="cc-btn" (click)="open()" [attr.dir]="dir">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/>
-      </svg>
-      <span>{{ t.button }}</span>
-    </button>
+    @if (variant !== 'none') {
+      <button type="button" class="cc-btn" (click)="open()" [attr.dir]="dir">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/>
+        </svg>
+        <span>{{ t.button }}</span>
+      </button>
+    }
 
     @if (confirming) {
       <div class="cc-backdrop" (click)="close()">
@@ -102,6 +104,8 @@ export class ClearCacheButtonComponent {
 
   /** 'ar' or 'en'. Unset: the page's own language (`<html lang>` / `dir`). */
   @Input() lang: string | null | undefined;
+  /** 'none' hides the built-in button so a parent can trigger `open()` from its own icon button. */
+  @Input() variant: 'default' | 'none' = 'default';
 
   @ViewChild('cancelBtn') cancelBtn?: ElementRef<HTMLButtonElement>;
 

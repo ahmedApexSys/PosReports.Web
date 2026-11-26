@@ -1,0 +1,168 @@
+<div class="login-page">
+  <!-- Top corner: language, theme, and Clear cache -->
+  <div class="login-tools">
+    <button type="button" class="login-tools__btn" (click)="lang.toggle()"
+            [attr.aria-label]="isAr() ? 'Switch to English' : 'التبديل للعربية'"
+            [attr.title]="isAr() ? 'English' : 'العربية'">
+      <span class="login-tools__lang" [attr.lang]="isAr() ? 'en' : 'ar'">{{ isAr() ? 'EN' : 'ع' }}</span>
+    </button>
+
+    <button type="button" class="login-tools__btn" (click)="theme.cycle()"
+            [attr.aria-label]="isAr() ? 'تبديل الثيم' : 'Toggle theme'"
+            [attr.title]="themeLabel()">
+      <lucide-icon [img]="themeIcon()" class="h-4 w-4"></lucide-icon>
+    </button>
+
+    <apex-clear-cache #clearCache variant="none" [lang]="lang.language()" style="display: contents" />
+    <button type="button" class="login-tools__btn" (click)="clearCache.open()" aria-haspopup="dialog"
+            [attr.aria-label]="clearCache.t.button" [attr.title]="clearCache.t.button">
+      <lucide-icon [img]="Trash2" class="h-4 w-4"></lucide-icon>
+    </button>
+  </div>
+
+  <!-- Brand panel -->
+  <aside class="login-brand">
+    <span class="login-brand__glow login-brand__glow--red" aria-hidden="true"></span>
+    <span class="login-brand__glow login-brand__glow--amber" aria-hidden="true"></span>
+
+    <div class="login-brand__logo">
+      <span class="login-brand__logo-a">A</span><span class="login-brand__logo-pex">PEX</span>
+      <span class="login-brand__logo-sub">REPORTS</span>
+    </div>
+
+    <div class="login-brand__pitch">
+      <h1 class="login-brand__headline">
+        {{ isAr() ? 'نظام واحد' : 'One system' }} <br>
+        {{ isAr() ? 'لكل أنواع' : 'for every' }} <br>
+        <span>{{ isAr() ? 'الخدمة' : 'service' }}</span>
+      </h1>
+
+      <ul class="login-brand__types">
+        @for (biz of bizTypes; track biz.titleEn) {
+          <li class="login-brand__type">
+            <span class="login-brand__type-icon" [style.color]="biz.color">
+              <lucide-icon [img]="biz.icon" class="h-4 w-4"></lucide-icon>
+            </span>
+            <span>
+              <span class="login-brand__type-title">{{ isAr() ? biz.titleAr : biz.titleEn }}</span>
+              <span class="login-brand__type-sub">{{ isAr() ? biz.subtitleAr : biz.subtitleEn }}</span>
+            </span>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <div class="login-brand__terminal">
+      {{ isAr() ? 'بوابة تقارير APEX' : 'APEX REPORTS PORTAL' }}
+    </div>
+  </aside>
+
+  <!-- Auth panel -->
+  <main class="login-auth">
+    <!-- Not a <form>: no native submit for the browser to treat as a sign-in it should offer to save. -->
+    <div role="form" class="login-auth__form">
+
+      <h2 class="login-auth__title">{{ isAr() ? 'أهلاً بعودتك' : 'Welcome back' }}</h2>
+      <p class="login-auth__hint">
+        {{ isPIN()
+            ? (isAr() ? 'اكتب رقمك السري، وبعدين اضغط ✓ للدخول' : 'Type your PIN, then press ✓ to sign in')
+            : (isAr() ? 'أدخل كلمة المرور' : 'Enter your login password') }}
+      </p>
+
+      <!-- Password / PIN toggle -->
+      <div class="login-switch" role="tablist">
+        <button type="button" role="tab" class="login-switch__btn"
+                [class.is-active]="!isPIN()"
+                [attr.aria-selected]="!isPIN()"
+                (click)="setMode(false)">
+          {{ isAr() ? 'كلمة المرور' : 'Password' }}
+        </button>
+        <button type="button" role="tab" class="login-switch__btn"
+                [class.is-active]="isPIN()"
+                [attr.aria-selected]="isPIN()"
+                (click)="setMode(true)">
+          PIN
+        </button>
+      </div>
+
+      <!-- PASSWORD MODE -->
+      @if (!isPIN()) {
+        <div class="login-password">
+          <div class="login-password__field">
+            <lucide-icon [img]="LockKeyhole" class="h-4 w-4 login-password__lock"></lucide-icon>
+            <input #secret
+                   type="text" apexSecret
+                   class="login-password__input"
+                   [ngModel]="password()"
+                   (ngModelChange)="onPasswordChange($event)"
+                   [placeholder]="isAr() ? 'كلمة المرور' : 'Password'"
+                   (keydown.enter)="$event.preventDefault(); submit()">
+            <button type="button" class="login-password__icon-btn"
+                    (click)="showPassword.set(toggleSecret(secret))"
+                    [attr.aria-label]="showPassword() ? (isAr() ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr() ? 'إظهار كلمة المرور' : 'Show password')">
+              <lucide-icon [img]="showPassword() ? EyeOff : Eye" class="h-4 w-4"></lucide-icon>
+            </button>
+          </div>
+
+          @if (error()) {
+            <div class="login-error" role="alert">{{ error() }}</div>
+          }
+
+          <button type="button"
+                  class="login-submit"
+                  (click)="submit()"
+                  [disabled]="loading()">
+            @if (loading()) {
+              <lucide-icon [img]="Loader" class="h-4 w-4 animate-spin"></lucide-icon>
+            }
+            <span>{{ isAr() ? 'تسجيل الدخول' : 'Sign in' }}</span>
+          </button>
+
+          <p class="login-security">
+            <lucide-icon [img]="ShieldIcon" class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+            <span>
+              {{ isAr()
+                  ? 'كلمة المرور بتتشفّر بـ RSA قبل ما تتبعت.'
+                  : 'Password is RSA-encrypted before transit.' }}
+            </span>
+          </p>
+        </div>
+      }
+
+      <!-- PIN MODE -->
+      @if (isPIN()) {
+        <div class="login-pin__dots" aria-hidden="true">
+          @for (d of pinDots(); track $index) {
+            <span class="login-pin__dot is-filled"></span>
+          }
+        </div>
+
+        <div class="login-keypad" (keydown.enter)="$event.preventDefault()">
+          @for (n of [1, 2, 3, 4, 5, 6, 7, 8, 9]; track n) {
+            <button type="button" class="login-keypad__key" (click)="addDigit(n)" [disabled]="loading()">{{ n }}</button>
+          }
+          <button type="button" class="login-keypad__key login-keypad__key--ok"
+                  [class.is-waiting]="!password().length || loading()"
+                  [disabled]="loading()"
+                  (click)="submit()"
+                  [attr.aria-label]="isAr() ? 'تسجيل الدخول' : 'Sign in'">
+            @if (loading()) {
+              <lucide-icon [img]="Loader" class="h-6 w-6 animate-spin"></lucide-icon>
+            } @else {
+              <lucide-icon [img]="Check" class="h-6 w-6"></lucide-icon>
+            }
+          </button>
+          <button type="button" class="login-keypad__key" (click)="addDigit(0)" [disabled]="loading()">0</button>
+          <button type="button" class="login-keypad__key login-keypad__key--clear"
+                  (click)="deleteDigit()" [disabled]="loading()"
+                  [attr.aria-label]="isAr() ? 'مسح' : 'Clear'">C</button>
+        </div>
+
+        @if (error()) {
+          <div class="login-error login-error--pin" role="alert">{{ error() }}</div>
+        }
+      }
+
+    </div>
+  </main>
+</div>
