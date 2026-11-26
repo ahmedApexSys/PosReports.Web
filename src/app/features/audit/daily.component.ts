@@ -55,10 +55,10 @@ import { AuditReportPageComponent } from '../../shared/audit-report-page/audit-r
                 </div>
                 <!-- Meta -->
                 <div class="flex items-center gap-3 flex-wrap mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                  <span class="inline-flex items-center gap-1">
+                   <span class="inline-flex items-center gap-1">
                     <lucide-icon [img]="ClockIcon" class="h-3 w-3"></lucide-icon>
-                    {{ o.lastAt | date:'MMM d, HH:mm' }}
-                  </span>
+                   {{ o.lastAt | date:'MMM d, HH:mm' }}
+                  </span> 
                   <span>{{ o.itemCount }} {{ ar() ? 'صنف' : 'items' }}</span>
                   <span>{{ o.actionCount }} {{ ar() ? 'حركة' : 'actions' }}</span>
                   <span *ngIf="o.users?.length" class="inline-flex items-center gap-1 truncate max-w-[14rem]">

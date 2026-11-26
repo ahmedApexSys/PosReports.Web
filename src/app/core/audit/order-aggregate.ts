@@ -17,6 +17,20 @@ const CANCEL_ACTIONS = ['Cancel', 'ApproveCancelOrder'];
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
+function parseClock(clock: string): { h: number; min: number; sec: number } | null {
+  const trimmed = (clock || '').trim();
+  if (!trimmed) return null;
+  // 12-hour with AM/PM, or 24-hour, both with optional seconds.
+  const m = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?$/);
+  if (!m) return null;
+  let h = +m[1];
+  const min = +m[2], sec = m[3] ? +m[3] : 0;
+  const ap = (m[4] || '').toUpperCase();
+  if (ap === 'PM' && h < 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return { h, min, sec };
+}
+
 /**
  * The instant an action happened, rebuilt from actionDate (day) + actionTime (clock).
  *
@@ -29,23 +43,20 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 function momentOf(r: AuditNarrativeRow): number {
   const day = (r.actionDate || '').slice(0, 10);
   const base = day ? new Date(day + 'T00:00:00').getTime() : 0;
-  const clock = (r.actionTime || '').trim();
-  if (!clock) return base;
-
-  // 12-hour with AM/PM, or 24-hour, both with optional seconds.
-  const m = clock.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?$/);
-  if (!m) return base;
-  let h = +m[1];
-  const min = +m[2], sec = m[3] ? +m[3] : 0;
-  const ap = (m[4] || '').toUpperCase();
-  if (ap === 'PM' && h < 12) h += 12;
-  if (ap === 'AM' && h === 12) h = 0;
-  return base + ((h * 3600 + min * 60 + sec) * 1000);
+  const t = parseClock(r.actionTime);
+  if (!t) return base;
+  return base + ((t.h * 3600 + t.min * 60 + t.sec) * 1000);
 }
 
-/** Display timestamp — the original date + clock text, unparsed. */
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** ISO 8601 local datetime ("YYYY-MM-DDTHH:mm:ss") suitable for DatePipe and lexical sorting. */
 function ts(r: AuditNarrativeRow): string {
-  return `${(r.actionDate || '').slice(0, 10)}T${r.actionTime || '00:00:00'}`;
+  const day = (r.actionDate || '').slice(0, 10);
+  if (!day) return '';
+  const t = parseClock(r.actionTime);
+  if (!t) return `${day}T00:00:00`;
+  return `${day}T${pad2(t.h)}:${pad2(t.min)}:${pad2(t.sec)}`;
 }
 
 /** Group the action rows by orderId → one OrderSummaryRow each (newest first). */

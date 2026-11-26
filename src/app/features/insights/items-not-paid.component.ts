@@ -39,7 +39,7 @@ import { ExportColumn } from '../../core/export/export.service';
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 class="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
-            {{ lang.language() === 'ar' ? 'أصناف غير مدفوعة' : 'Items not paid' }}
+            {{ lang.language() === 'ar' ? 'طلب مُلغى وعناصر ملغاه' : 'Cancelled Order & Void Items' }}
           </h1>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             {{ lang.language() === 'ar'
