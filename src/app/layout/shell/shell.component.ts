@@ -66,7 +66,7 @@ const REPORT_GROUP_ICONS: Record<string, LucideIcon> = {
       <!-- User-menu close backdrop (invisible; click anywhere to dismiss) -->
       <div *ngIf="userMenuOpen()"
            (click)="userMenuOpen.set(false)"
-           class="fixed inset-0 z-40"></div>
+           class="fixed inset-0 z-20"></div>
 
       <!-- ── Sidebar ────────────────────────────────────────────── -->
       <!-- Inside the till (core/embed) the till's own sidebar is the menu. -->
